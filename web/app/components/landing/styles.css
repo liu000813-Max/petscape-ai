@@ -1056,13 +1056,26 @@ main {
   align-items: center;
 }
 
-.prompt-box span {
-  font-size: 14px;
-  color: rgba(0, 0, 0, 0.68);
-  line-height: 1.55;
+.vibe-structure-button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.66);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease;
 }
 
-.prompt-box button {
+.vibe-structure-button:hover,
+.vibe-structure-button:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+  color: #000;
+}
+
+.vibe-generate-button {
   grid-column: 1 / -1;
   border: 0;
   border-radius: 999px;
@@ -1073,7 +1086,7 @@ main {
   cursor: pointer;
 }
 
-.prompt-box button:disabled {
+.vibe-generate-button:disabled {
   background: rgba(0, 0, 0, 0.28);
   cursor: not-allowed;
 }
@@ -1082,6 +1095,7 @@ main {
   border: 0;
   outline: none;
   resize: none;
+  overflow: hidden;
   background: transparent;
   font: inherit;
   font-size: 14px;
@@ -2752,7 +2766,7 @@ main {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
-  .prompt-box button {
+  .vibe-generate-button {
     grid-column: auto;
   }
 
