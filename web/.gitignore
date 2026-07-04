@@ -1,0 +1,11 @@
+node_modules/
+.next/
+public/uploads/
+tsconfig.tsbuildinfo
+# 大体积 mock 3D 产物（本地开发/回归用；从 experiments/meshy-test 拷入，不入库避免仓库膨胀）
+public/mockup-assets/mock-model.glb
+public/mockup-assets/mock-model.stl
+public/mockup-assets/mock-model.gcode
+
+# scene-lab tracer bullet 用的测试 GLB（从 experiments/ 拷入，同上不入库避免仓库膨胀）
+public/scene-lab-assets/

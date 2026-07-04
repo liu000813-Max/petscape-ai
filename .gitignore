@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# next build output
+.next/
+**/.next/
+
+# ts build info
+tsconfig.tsbuildinfo
+**/tsconfig.tsbuildinfo
+
+# user uploads (runtime, not source)
+web/public/uploads/*
+!web/public/uploads/.gitkeep
+
+# env / secrets
+.env
+.env.local
