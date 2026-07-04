@@ -59,6 +59,22 @@ export function buildScenePrompts(brief: Brief): { name: string; prompt: string 
   }));
 }
 
+// vibe 改造图 prompt（批次2 F36-F39）：保留原笼箱结构，置入宠物，按用户 vibe 文字改造氛围。
+// 与 buildRevampPrompts 同源风格（硬约束不改笼箱结构），区别：单方向（非 3 变体）、氛围来自用户自由文本而非
+// brief.vibe，且额外加「主体居中」构图约束，为前端 F39 的 3:4 中心裁切留余量。
+export function buildVibePrompt(brief: Brief, vibeText: string, hasPetPhoto: boolean): string {
+  const presence = petPresenceLine(brief, hasPetPhoto);
+  const trimmedVibe = vibeText.trim();
+  return (
+    `这是用户宠物现有笼箱的实拍照片，请在**不改变原笼箱结构、尺寸、材质、位置**的前提下，` +
+    `按照以下氛围描述为其改造装饰、光影与整体氛围：${trimmedVibe}。` +
+    `${presence} ` +
+    `主体（笼箱+宠物）必须居中构图，四周保留充足留白，不要贴边裁切，便于后续做 3:4 中心裁切。` +
+    `造景改造需与原笼箱结构协调、比例合身，看起来像是在原笼箱基础上完成的氛围改造。` +
+    `${COMMON_STYLE_SUFFIX}`
+  );
+}
+
 // i2i 改造图 prompt（B2）：保留原笼箱结构，只在其中添加可拆卸 3D 打印造景模块。
 // 与 t2i 场景图共用习性/氛围/风格语义，但硬约束「不改变原笼箱」。
 export function buildRevampPrompts(brief: Brief): { name: string; prompt: string }[] {
