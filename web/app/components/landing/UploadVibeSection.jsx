@@ -3,6 +3,7 @@ import { Camera, Upload, WandSparkles } from 'lucide-react';
 import { ImageDropzone } from '../ImageDropzone';
 
 const DEFAULT_VIBE = '森林奶酪屋，童话厨房氛围，适合花枝鼠钻洞、觅食和攀爬。';
+const MAX_VIBE_PROMPT_CHARS = 200;
 
 const splitPromptParts = (text) =>
   text
@@ -35,42 +36,59 @@ const pickActivityPart = (parts) => {
   return activityParts.join('、');
 };
 
-const createStructuredVibePrompt = (text) => {
+const sanitizeVibePrompt = (text) => {
+  const compact = text
+    .replace(/\r?\n+/g, '')
+    .replace(/\s+/g, '')
+    .replace(/^[#*\-\s]*(?:VIBE|vibe|提示词|改写|输出|结果)[：:]/, '')
+    .replace(/^["'“”‘’`]+|["'“”‘’`]+$/g, '')
+    .trim();
+  return Array.from(compact).slice(0, MAX_VIBE_PROMPT_CHARS).join('');
+};
+
+const createStructuredVibePrompt = (text, selectedSpecies, hasEnvironmentImage) => {
   const idea = extractPromptIdea(text);
+  const compactIdea = sanitizeVibePrompt(idea);
+  const hasOldStructuredLabels = /原始想法[：:]|主题[：:]|氛围[：:]|宠物活动[：:]|空间结构[：:]|材质与安全[：:]|画面约束[：:]/.test(idea);
+  if (compactIdea.length >= 45 && compactIdea.length <= 120 && !hasOldStructuredLabels) {
+    return compactIdea;
+  }
+
   const parts = splitPromptParts(idea);
   const theme = parts[0] || idea;
+  const speciesName = selectedSpecies?.name || selectedSpecies?.label || selectedSpecies?.id || '小宠';
   const mood =
     pickPromptPart(parts, [/氛围/, /风格/, /感觉/]) ||
     pickPromptPart(parts, [/童话/, /自然/, /温馨/, /科幻/, /森林/, /厨房/]) ||
-    `${theme}的整体气质，温暖、清晰、有宠物小家的故事感`;
+    '温暖清晰、有宠物小家的故事感';
   const activity =
     pickActivityPart(parts) ||
-    '安排钻洞、觅食、攀爬、躲藏和休息的连续动线';
+    '安排钻洞、觅食、攀爬和休息的自然动线';
+  const environmentRule = hasEnvironmentImage ? '保留原笼箱结构和比例' : '形成清晰的小家空间层次';
 
-  return [
-    `原始想法：${idea}`,
-    `主题：${theme}`,
-    `氛围：${mood}`,
-    `宠物活动：${activity}`,
-    '空间结构：以前景入口、中景活动区、背景休息角形成层次，贴合当前笼箱比例，保留通风和日常照护空间。',
-    '材质与安全：使用圆角、防滑、无尖锐边、易清洁的宠物友好材质，结构稳固，饮水和食盆位置不被遮挡。',
-    '画面约束：基于真实笼箱照片改造，保持原始透视、光线和宠物尺度，画面明亮清晰，避免过度拥挤。',
-  ].join('\n');
+  return sanitizeVibePrompt(
+    `为${speciesName}打造${theme}主题小家，${mood}，${environmentRule}，加入圆角洞口和觅食层板，${activity}。`,
+  );
 };
 
 // 批次2（F36-F39）：cage 照真实上传（POST /upload kind=cage）+ 宠物照自动带入创建器已传图（可另选替换，
 // 替换仅影响本区展示、不回写创建器 state）+ vibe 文字可编辑 + 生成按钮打 POST vibe → 轮询 project。
-export function UploadVibeSection({ projectId, mockMode, petImageUrl }) {
+export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSpecies }) {
   const [vibeText, setVibeText] = useState(DEFAULT_VIBE);
   const [cagePreviewUrl, setCagePreviewUrl] = useState('');
   const [localPetPreviewUrl, setLocalPetPreviewUrl] = useState('');
   const [status, setStatus] = useState('idle'); // idle | running | done | failed
+  const [isRewriting, setIsRewriting] = useState(false);
   const [error, setError] = useState('');
   const pollRef = useRef(null);
   const vibeTextareaRef = useRef(null);
+  const latestVibeTextRef = useRef(vibeText);
+  const rewriteLockRef = useRef(false);
+  const rewriteRequestIdRef = useRef(0);
 
   // 宠物位默认跟随创建器已传照片；用户在本区另选成功上传后，改用后端返回 URL 作为本区预览。
   const petPreviewUrl = localPetPreviewUrl || petImageUrl || '';
+  latestVibeTextRef.current = vibeText;
 
   useEffect(() => () => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -115,8 +133,49 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl }) {
     setLocalPetPreviewUrl(data.url);
   };
 
-  const handleStructurePrompt = () => {
-    setVibeText((currentText) => createStructuredVibePrompt(currentText));
+  const handleStructurePrompt = async () => {
+    if (rewriteLockRef.current) return;
+
+    const requestText = vibeText;
+    const requestId = rewriteRequestIdRef.current + 1;
+    rewriteRequestIdRef.current = requestId;
+    rewriteLockRef.current = true;
+
+    const fallbackPrompt = createStructuredVibePrompt(requestText, selectedSpecies, Boolean(cagePreviewUrl));
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4800);
+    const commitRewriteResult = (nextPrompt) => {
+      if (rewriteRequestIdRef.current === requestId && latestVibeTextRef.current === requestText) {
+        setVibeText(nextPrompt);
+      }
+    };
+
+    setIsRewriting(true);
+    try {
+      const res = await fetch('/api/vibe/rewrite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: requestText,
+          species: selectedSpecies?.name || selectedSpecies?.label || selectedSpecies?.id,
+          hasEnvironmentImage: Boolean(cagePreviewUrl),
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error('rewrite failed');
+
+      const data = await res.json().catch(() => ({}));
+      const nextPrompt = sanitizeVibePrompt(typeof data.prompt === 'string' ? data.prompt : '');
+      commitRewriteResult(nextPrompt || fallbackPrompt);
+    } catch {
+      commitRewriteResult(fallbackPrompt);
+    } finally {
+      clearTimeout(timeout);
+      if (rewriteRequestIdRef.current === requestId) {
+        rewriteLockRef.current = false;
+        setIsRewriting(false);
+      }
+    }
   };
 
   const pollProject = () => {
@@ -169,8 +228,9 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl }) {
             type="button"
             className="vibe-structure-button"
             onClick={handleStructurePrompt}
-            aria-label="将当前 Vibe 描述整理成结构化提示词"
-            title="将当前 Vibe 描述整理成结构化提示词"
+            disabled={isRewriting}
+            aria-label="用 AI 润色当前 Vibe 描述"
+            title="用 AI 润色当前 Vibe 描述"
           >
             <WandSparkles size={18} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -178,7 +238,10 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl }) {
             ref={vibeTextareaRef}
             className="vibe-textarea"
             value={vibeText}
-            onChange={(event) => setVibeText(event.target.value)}
+            onChange={(event) => {
+              latestVibeTextRef.current = event.target.value;
+              setVibeText(event.target.value);
+            }}
             rows={2}
           />
           <button
@@ -193,6 +256,11 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl }) {
         {status === 'running' && (
           <div className="vibe-generating-hint">
             <span>正在生成改造效果图，请稍候…</span>
+          </div>
+        )}
+        {isRewriting && status !== 'running' && (
+          <div className="vibe-generating-hint">
+            <span>正在润色描述…</span>
           </div>
         )}
         {status === 'failed' && error && (
