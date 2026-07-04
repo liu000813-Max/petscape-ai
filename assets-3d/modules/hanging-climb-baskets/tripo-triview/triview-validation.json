@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "view": "front",
+      "widthPx": 864,
+      "heightPx": 864,
+      "contentPct": 7.12,
+      "marginPct": 34.95,
+      "contentOk": true,
+      "marginOk": true,
+      "pass": true
+    },
+    {
+      "view": "left",
+      "widthPx": 864,
+      "heightPx": 864,
+      "contentPct": 6.68,
+      "marginPct": 26.85,
+      "contentOk": true,
+      "marginOk": true,
+      "pass": true
+    },
+    {
+      "view": "back",
+      "widthPx": 864,
+      "heightPx": 864,
+      "contentPct": 7.17,
+      "marginPct": 35.07,
+      "contentOk": true,
+      "marginOk": true,
+      "pass": true
+    }
+  ],
+  "reasons": []
+}
