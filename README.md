@@ -33,14 +33,15 @@ pnpm build && pnpm start   # demo 推荐：production 模式，无 overlay 干�
 |---|---|---|
 | 风格化 prompt | `web/app/lib/prompts/avatarStyle.ts` | 游戏角色风格模板 + 装扮词表，**直接改文案即可调效果** |
 | `STYLE_ENABLED` | 同上 | `false` = 跳过风格化直喂原图（效果不佳时的回退） |
-| `MESH_ENGINE` | 同上 | `meshy`（当前默认）/ `tripo`（充值后可切回，走三视图管线） |
+| `MESH_ENGINE` | `web/app/lib/jobs/avatarJob.ts` | `auto`（默认）= tripo#key1 → tripo#key2 → meshy 级联降级（瞬时错误每级重试一次，额度/认证类硬错误直接降级）；`tripo` = 只级联双 key；`meshy` = 直连单图 |
+| Tripo 双 key | 项目根 `.env` | `TRIPO_API_KEY` + `TRIPO_API_KEY_2`，级联顺序即优先级 |
 | 体型→打印尺寸 | 批次1 spec | 1-5 档 → 80/100/120/140/160mm，换档自动重切 |
 
 ## 架构一页
 
 ```
 landing（V3 定稿页, app/page.jsx + components/landing/）
-  ├─ 宠物创建器 → POST avatar：fal 风格化 → [Meshy 单图 | Tripo 三视图] → GLB
+  ├─ 宠物创建器 → POST avatar：fal 风格化 → [Tripo#1 → Tripo#2 → Meshy 级联] → GLB
   │               └→ 自动切片（normalize → PrusaSlicer，不挖腔）→ 真实重量/时长 → STL/G-code 下载
   ├─ vibe 区 → POST vibe：笼箱照+宠物照+文字 → fal revamp → 改造前/后/分享图三态
   ├─ 环境预览 → SceneViewer（three.js）：5 个 Meshy 真资产 + billboard，宠物居中

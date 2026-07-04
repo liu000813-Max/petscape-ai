@@ -5,13 +5,15 @@ import { getProject, touch } from '../store/projects';
 import type { PetScapeProject } from '../types/project';
 import { falEditImage, downloadImage, fileToDataUri, publicImageToAbs } from '../images/falClient';
 import { buildAvatarStylePrompt, STYLE_ENABLED } from '../prompts/avatarStyle';
-import { buildTriviewGridPrompt, cropTriviewToViews, validateViews } from '../images/triview';
+import { buildTriviewGridPrompt, cropTriviewToViews, validateViews, padViews } from '../images/triview';
 import {
   uploadImage as tripoUploadImage,
   pollTask as tripoPollTask,
   glbUrlFrom as tripoGlbUrlFrom,
   downloadFile as tripoDownloadFile,
   TRIPO_MODEL_VERSION,
+  readTripoKeys,
+  withTripoKey,
 } from '../tripo/client';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -20,12 +22,20 @@ import { JOB_TIMEOUT_MS, withTimeout } from './timeouts';
 const execFileAsync = promisify(execFile);
 
 // 批次1 宠物角色链（照片 → 风格化立绘 → 3D 模型 → 自动切片）。
-// 引擎开关 MESH_ENGINE（2026-07-04 用户拍板：Tripo 余额耗尽不充值，Meshy 兜底先跑）：
-//   'meshy'（默认）：风格化立绘正面单图 → Meshy image-to-3d，stage=styling→modeling。
-//   'tripo'（备切）：立绘 → fal 三视图网格 → 裁切+独立性验证 → Tripo multiview_to_model，
-//                    stage=styling→triview→modeling。Tripo 恢复即切回。
-// mock=1：全链走预置资产（styled/triview 用 mockup 图，GLB 用现成，延时模拟阶段推进），零成本。
-export const MESH_ENGINE: 'meshy' | 'tripo' = 'meshy';
+// 引擎开关 MESH_ENGINE（2026-07-04 二次拍板：新 Tripo 双 key 到位，级联降级）：
+//   'auto'（默认）：tripo#key1 → tripo#key2 → meshy 逐级降级。
+//                   每级瞬时错误最多重试一次；额度/认证/版本类硬错误不重试、直接降级下一级。
+//   'tripo'：只级联 Tripo 双 key，不落 Meshy。
+//   'meshy'：直连 Meshy 单图（旧兜底路径）。
+//   tripo 路径 = 立绘 → fal 三视图网格 → 裁切+独立性验证 → multiview_to_model（stage 含 triview）；
+//   meshy 路径 = 立绘正面单图 → image-to-3d（stage 直跳 modeling）。
+// mock=1：全链走预置资产（走 tripo mock 分支以覆盖裁切+验证代码路径），零成本、不进级联。
+export const MESH_ENGINE: 'auto' | 'meshy' | 'tripo' = 'auto';
+
+// 额度耗尽(2010)/版本不可用(2017)/认证失败(401/403) —— 换 key 或换引擎才有意义，重试同级纯烧时间。
+function isHardEngineError(message: string): boolean {
+  return /"code"\s*:\s*(2010|2017)|\b401\b|\b403\b|Unauthorized|credit/i.test(message);
+}
 
 const workingDir = process.cwd();
 
@@ -141,8 +151,14 @@ async function tripoSubmitTriview(viewPaths: string[]): Promise<{ taskId: string
     const { token, ext } = await tripoUploadImage(p);
     files.push({ type: ext, file_token: token });
   }
-  // multiview 四槽位 [front, left, back, right]，right 省略（本链只三视图）。
-  const body = { type: 'multiview_to_model', files, model_version: TRIPO_MODEL_VERSION, orientation: 'align_image' };
+  // multiview 四槽位 [front, left, back, right] 必须齐——right 缺席用空对象 {} 占位。
+  // 真链实测：只传 3 元素数组会被 /task 拒 400 code=1004（2026-07-04），老仓库参考脚本是四视图全齐所以没暴露。
+  const body = {
+    type: 'multiview_to_model',
+    files: [...files, {}],
+    model_version: TRIPO_MODEL_VERSION,
+    orientation: 'align_image',
+  };
   const res = await fetch('https://api.tripo3d.ai/v2/openapi/task', {
     method: 'POST',
     headers: { Authorization: `Bearer ${readTripoKey()}`, 'Content-Type': 'application/json' },
@@ -184,7 +200,8 @@ export function startAvatar(project: PetScapeProject, input: StartAvatarInput, m
   touch(project);
 
   const scaleMm = sizeToScaleMm(input.petSize);
-  void withTimeout('meshy', JOB_TIMEOUT_MS.meshy, () => runAvatar(project.id, input, mock, scaleMm)).catch(async (error) => {
+  // 级联梯子最坏路径 = tripo#1 ×2 + tripo#2 ×2 + meshy ×2，单档 15min 不够 —— 给 3 倍预算。
+  void withTimeout('meshy', JOB_TIMEOUT_MS.meshy * 3, () => runAvatar(project.id, input, mock, scaleMm)).catch(async (error) => {
     const message = error instanceof Error ? error.message : String(error);
     await log(project.id, `FAILED ${message}`);
     const p = getProject(project.id);
@@ -244,11 +261,48 @@ async function runAvatar(id: string, input: StartAvatarInput, mock: boolean, sca
     }
   }
 
-  // ---- 步骤2/3：3D 引擎（引擎开关）----
-  if (MESH_ENGINE === 'tripo') {
+  // ---- 步骤2/3：3D 引擎（级联梯子：tripo#1 → tripo#2 → meshy，见 MESH_ENGINE 注释）----
+  let engineUsed: string;
+  if (mock) {
+    // mock 不进级联：固定走 tripo mock 分支，覆盖裁切+验证代码路径。
     await runTripoEngine(id, styleInputAbs, input, mock, dir, viewsDir, glbAbs, glbRel);
-  } else {
+    engineUsed = 'tripo(mock)';
+  } else if (MESH_ENGINE === 'meshy') {
     await runMeshyEngine(id, styleInputAbs, mock, glbAbs, glbRel);
+    engineUsed = 'meshy';
+  } else {
+    const keys = readTripoKeys();
+    const ladder: Array<{ name: string; run: () => Promise<void> }> = keys.map((key, i) => ({
+      name: `tripo#${i + 1}`,
+      run: () => withTripoKey(key, () => runTripoEngine(id, styleInputAbs, input, mock, dir, viewsDir, glbAbs, glbRel)),
+    }));
+    if (MESH_ENGINE === 'auto') {
+      ladder.push({ name: 'meshy', run: () => runMeshyEngine(id, styleInputAbs, mock, glbAbs, glbRel) });
+    }
+    if (!ladder.length) throw new Error('无可用 3D 引擎：未配置 TRIPO_API_KEY（MESH_ENGINE=tripo）');
+
+    let used: string | null = null;
+    let lastErr: unknown = null;
+    outer: for (const step of ladder) {
+      for (let attempt = 1; attempt <= 2; attempt += 1) { // 每级最多重试一次（共 2 次尝试）
+        try {
+          await log(id, `engine ${step.name} attempt #${attempt}`);
+          await step.run();
+          used = step.name;
+          break outer;
+        } catch (error) {
+          lastErr = error;
+          const message = error instanceof Error ? error.message : String(error);
+          await log(id, `engine ${step.name} attempt #${attempt} failed: ${message.slice(0, 200)}`);
+          if (isHardEngineError(message)) {
+            await log(id, `engine ${step.name} 硬错误（额度/认证/版本），降级下一级`);
+            break;
+          }
+        }
+      }
+    }
+    if (!used) throw lastErr instanceof Error ? lastErr : new Error('全部 3D 引擎级联失败');
+    engineUsed = used;
   }
 
   const glbInfo = await stat(glbAbs).catch(() => null);
@@ -263,7 +317,7 @@ async function runAvatar(id: string, input: StartAvatarInput, mock: boolean, sca
     modelUrl: glbRel,
   };
   touch(final);
-  await log(id, `SUCCEEDED engine=${MESH_ENGINE} glb=${glbRel} bytes=${glbInfo.size}`);
+  await log(id, `SUCCEEDED engine=${engineUsed} glb=${glbRel} bytes=${glbInfo.size}`);
 
   // ---- 步骤6：avatar done 后自动触发切片 ----
   const p = getProject(id);
@@ -339,6 +393,10 @@ async function runTripoEngine(
     if (attempt === 3) throw new Error(`三视图独立性验证连续失败：${lastValidation.reasons.join('; ')}`);
   }
   if (!cropped) throw new Error('三视图裁切失败');
+
+  // 验证通过后补白边再提交（必须在验证之后——补白会掩盖跨格信号）。上下贴边由此治愈。
+  await padViews(cropped.orderedForTripo, 6);
+  await log(id, `views padded +6% white margin`);
 
   await setStage(id, 'modeling');
   await log(id, `tripo submit multiview (front/left/back)`);

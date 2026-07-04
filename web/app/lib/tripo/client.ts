@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { readFileSync } from 'fs';
 import path from 'path';
+import { AsyncLocalStorage } from 'async_hooks';
 
 // Tripo openapi client（gate1 主链 3D 引擎）。
 // 用法参考 experiments/fidelity-test/run-tripo.mjs：
@@ -12,15 +13,38 @@ import path from 'path';
 const BASE = 'https://api.tripo3d.ai/v2/openapi';
 export const TRIPO_MODEL_VERSION = 'v3.0-20250812';
 
-function readApiKey(): string {
-  if (process.env.TRIPO_API_KEY) return process.env.TRIPO_API_KEY;
+// key fallback（2026-07-04 用户拍板）：TRIPO_API_KEY → TRIPO_API_KEY_2 依次降级（调度在 avatarJob 引擎梯子）。
+// AsyncLocalStorage 让调用方按级注入 key，并发 job 之间互不串 key，且无需改任何函数签名。
+const keyContext = new AsyncLocalStorage<string>();
+
+export function withTripoKey<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  return keyContext.run(key, fn);
+}
+
+function readEnvValue(name: string): string | null {
+  if (process.env[name]) return process.env[name]!;
   // next dev 从 web/ 启动时默认不读项目根 .env；服务端兜底读 ../.env，绝不暴露到前端。
   for (const envPath of [path.join(process.cwd(), '.env.local'), path.join(process.cwd(), '..', '.env')]) {
     try {
-      const match = readFileSync(envPath, 'utf8').match(/^TRIPO_API_KEY=(.+)$/m);
+      const match = readFileSync(envPath, 'utf8').match(new RegExp(`^${name}=(.+)$`, 'm'));
       if (match?.[1]) return match[1].trim().replace(/^['"]|['"]$/g, '');
     } catch {}
   }
+  return null;
+}
+
+// 按优先级返回全部可用 key（去重、剔空）。没配任何 key 时返回空数组，不 throw——由引擎梯子决定降级。
+export function readTripoKeys(): string[] {
+  const keys = [readEnvValue('TRIPO_API_KEY'), readEnvValue('TRIPO_API_KEY_2')]
+    .filter((k): k is string => Boolean(k));
+  return [...new Set(keys)];
+}
+
+function readApiKey(): string {
+  const ctx = keyContext.getStore();
+  if (ctx) return ctx;
+  const first = readTripoKeys()[0];
+  if (first) return first;
   throw new Error('服务端未配置 TRIPO_API_KEY（请在项目根 .env 或 web/.env.local 中配置）');
 }
 
