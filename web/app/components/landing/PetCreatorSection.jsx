@@ -35,6 +35,8 @@ export function PetCreatorSection({
   onSelectSpecies,
   petName,
   onPetNameChange,
+  petAge,
+  onPetAgeChange,
   petSize,
   onPetSizeChange,
   petImageUrl,
@@ -242,6 +244,15 @@ export function PetCreatorSection({
           <div className="field-card">
             <label htmlFor="pet-name">宠物名字</label>
             <input id="pet-name" value={petName} onChange={(event) => onPetNameChange(event.target.value)} />
+          </div>
+          <div className="field-card">
+            <label htmlFor="pet-age">年龄</label>
+            <input
+              id="pet-age"
+              value={petAge}
+              onChange={(event) => onPetAgeChange(event.target.value)}
+              placeholder="例如 6 个月"
+            />
           </div>
           <div className="field-card">
             <label>物种</label>

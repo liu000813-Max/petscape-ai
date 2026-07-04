@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import path from 'path';
+import { SPECIES_WORDS } from '../prompts/avatarStyle';
 
 // 宠物角色三视图（1×3 横排 front/left/back）prompt + 裁切 + 独立性验证（单点真相源）。
 // avatarJob 步骤2「三视图」用 buildTriviewGridPrompt 把风格化立绘喂给 fal edit 生成 1×3 网格 →
@@ -13,18 +14,66 @@ export interface TriviewPromptInput {
   species?: string;
 }
 
+const DEFAULT_TRIVIEW_POSE_PROMPT = `保持参考图的自然正面站姿 / 坐姿，四肢自然支撑身体；三个视图都要显示完整身体轮廓和所有肢体。`;
+
+const TRIVIEW_POSE_PROMPTS: Record<string, string> = {
+  rat: DEFAULT_TRIVIEW_POSE_PROMPT,
+  snake: `蛇必须是低矮盘绕姿态。三个视图都要保留完整、连续的蛇身和多圈盘绕，头部可以略微抬起，但身体 / 盘绕必须仍是主形体；不要裁掉身体或尾巴，不要把蛇身变成头下方的小底座，不要改成非蛇类身体结构。`,
+  spider: `蜘蛛必须是低矮爬行姿态。三个视图都要显示清楚的头胸部、腹部和八条腿，腿围绕身体自然展开；不要直立、不要拟人化、不要丢腿。`,
+  gecko: `守宫必须是低矮趴伏 / 爬行姿态。三个视图都要保留四肢、脚趾和完整长尾，尾巴不得跨格或被裁掉；不要人形直立。`,
+  parrot: `鹦鹉必须保持自然鸟类姿态。三个视图都要保留头、喙、翅膀、双足和完整尾羽；不要四足动物姿态、不要人形手臂、不要裁掉尾羽。`,
+};
+
 export function buildTriviewGridPrompt({ species }: TriviewPromptInput): string {
-  const subject = species ? `一只${species}` : '这只宠物角色';
+  const speciesWord = (species && SPECIES_WORDS[species]) || species;
+  const subject = speciesWord ? `一只${speciesWord}` : '这只宠物角色';
+  const posePrompt = (species && TRIVIEW_POSE_PROMPTS[species]) || DEFAULT_TRIVIEW_POSE_PROMPT;
   return `参考图是一张白底的宠物角色立绘（${subject}）。请把「完全相同的这只角色」渲染成一张横向排列的三视图网格图。
 
 硬性要求：
 1. 必须是参考图里那只一模一样的角色——保持其毛色、花纹、体型比例、所有外貌特征、装扮和材质。不得替换成别的角色，不得凭空增删结构。
 2. 一行三格，从左到右固定顺序：① 正视图 front（正对镜头）② 左侧视图 left（角色朝向自己的左侧，即镜头看到的其右侧面）③ 后视图 back（背对镜头）。三个视图都是同一角色围绕垂直轴旋转拍摄，正交/平行投影、无透视畸变、相机高度一致。
 3. 纯白背景（#FFFFFF），无阴影、无地面、无倒影、无文字标注、无网格线、无分隔框、无其它宠物或道具。
-4. 构图硬约束：每个角色主体只占其所在格子高度的 75% 左右——帽顶/头顶与画面上边缘、脚爪/尾巴与画面下边缘都必须有明显空白；三个视图彼此之间保持明显的水平间隙，任何部位（包括尾巴、胡须、道具）都绝不跨入相邻视图的区域、绝不接触画面左右边缘。
-5. 三个视图使用一致的缩放和光照，看起来是同一个角色从三个角度拍摄。
+4. 构图硬约束：每个角色主体只占其所在格子高度的 75% 左右——主体最高点与画面上边缘、主体最低点与画面下边缘都必须有明显空白；三个视图彼此之间保持明显的水平间隙，任何部位（包括尾巴、胡须、道具）都绝不跨入相邻视图的区域、绝不接触画面左右边缘。
+5. 物种姿态硬约束：${posePrompt}
+6. 三个视图使用一致的缩放和光照，看起来是同一个角色从三个角度拍摄。
 
 输出一张宽高比约 3:1 的横向图片，包含上述从左到右 front / left / back 三视图。`;
+}
+
+export interface TriviewGridAspectRatioCheck {
+  ok: boolean;
+  widthPx: number;
+  heightPx: number;
+  ratio: number;
+  targetRatio: number;
+  minRatio: number;
+  maxRatio: number;
+  reason?: string;
+}
+
+// 三视图裁切前先验证整张网格接近 3:1。阈值保守放宽到约 ±13%，拦截方图/16:9 等明显会三等分错位的产物。
+export async function validateTriviewGridAspectRatio(gridAbsPath: string): Promise<TriviewGridAspectRatioCheck> {
+  const meta = await sharp(gridAbsPath).metadata();
+  const widthPx = meta.width ?? 0;
+  const heightPx = meta.height ?? 0;
+  const targetRatio = 3;
+  const minRatio = 2.6;
+  const maxRatio = 3.4;
+  const ratio = heightPx ? widthPx / heightPx : 0;
+  const ok = widthPx > 0 && heightPx > 0 && ratio >= minRatio && ratio <= maxRatio;
+  return {
+    ok,
+    widthPx,
+    heightPx,
+    ratio: Number(ratio.toFixed(3)),
+    targetRatio,
+    minRatio,
+    maxRatio,
+    reason: ok
+      ? undefined
+      : `三视图网格宽高比 ${widthPx}x${heightPx} = ${ratio.toFixed(3)}，不在 ${minRatio}-${maxRatio} 的 3:1 容忍范围内`,
+  };
 }
 
 export interface TriviewCropResult {

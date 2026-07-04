@@ -5,7 +5,7 @@ import { getProject, touch } from '../store/projects';
 import type { PetScapeProject } from '../types/project';
 import { falEditImage, downloadImage, fileToDataUri, publicImageToAbs } from '../images/falClient';
 import { buildAvatarStylePrompt, STYLE_ENABLED } from '../prompts/avatarStyle';
-import { buildTriviewGridPrompt, cropTriviewToViews, validateViews, padViews } from '../images/triview';
+import { buildTriviewGridPrompt, cropTriviewToViews, validateTriviewGridAspectRatio, validateViews, padViews } from '../images/triview';
 import {
   uploadImage as tripoUploadImage,
   pollTask as tripoPollTask,
@@ -19,6 +19,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { JOB_TIMEOUT_MS, withTimeout } from './timeouts';
 import { readGcodeMeta } from './gcodeMeta';
+import sharp from 'sharp';
 
 const execFileAsync = promisify(execFile);
 
@@ -365,7 +366,21 @@ async function runTripoEngine(
 
   if (mock) {
     // mock 下也真跑裁切+验证分支（证明代码路径），用 mockup 三视图源。
-    await copyFile(path.join(workingDir, 'public', 'mockup-assets', 'scheme-a-mushroom-v1.jpg'), gridAbs);
+    const mockPanel = await sharp(path.join(workingDir, 'public', 'mockup-assets', 'scheme-a-mushroom-v1.jpg'))
+      .resize({ width: 1024, height: 1024, fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      .png()
+      .toBuffer();
+    await sharp({ create: { width: 3072, height: 1024, channels: 3, background: { r: 255, g: 255, b: 255 } } })
+      .composite([
+        { input: mockPanel, left: 0, top: 0 },
+        { input: mockPanel, left: 1024, top: 0 },
+        { input: mockPanel, left: 2048, top: 0 },
+      ])
+      .png()
+      .toFile(gridAbs);
+    const gridAspect = await validateTriviewGridAspectRatio(gridAbs);
+    await writeFile(path.join(dir, 'triview-grid-validation.json'), JSON.stringify(gridAspect, null, 2));
+    if (!gridAspect.ok) throw new Error(`mock 三视图网格比例验证失败：${gridAspect.reason}`);
     const cropped = await cropTriviewToViews(gridAbs, viewsDir);
     const validation = await validateViews(cropped.orderedForTripo);
     await writeFile(path.join(dir, 'triview-validation.json'), JSON.stringify(validation, null, 2));
@@ -386,6 +401,13 @@ async function runTripoEngine(
     await log(id, `fal triview-grid attempt #${attempt}`);
     const url = await withRetry('fal triview', () => falEditImage(prompt, [styledUri]));
     await downloadImage(url, gridAbs);
+    const gridAspect = await validateTriviewGridAspectRatio(gridAbs);
+    await writeFile(path.join(dir, 'triview-grid-validation.json'), JSON.stringify(gridAspect, null, 2));
+    await log(id, `triview grid aspect #${attempt} ok=${gridAspect.ok} ratio=${gridAspect.ratio} size=${gridAspect.widthPx}x${gridAspect.heightPx}`);
+    if (!gridAspect.ok) {
+      if (attempt === 3) throw new Error(`三视图网格比例验证连续失败：${gridAspect.reason}`);
+      continue;
+    }
     cropped = await cropTriviewToViews(gridAbs, viewsDir);
     lastValidation = await validateViews(cropped.orderedForTripo);
     await writeFile(path.join(dir, 'triview-validation.json'), JSON.stringify(lastValidation, null, 2));

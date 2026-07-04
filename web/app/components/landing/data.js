@@ -1,11 +1,11 @@
 export const ease = [0.16, 1, 0.3, 1];
 
 export const species = [
-  { id: 'rat', name: '花枝鼠', en: 'Fancy Rat', image: '/assets/species-rat.png', traits: ['爱社交', '爱啃咬', '热爱钻洞'], material: 'PETG / 圆角安全处理', habitat: '层板、隧道、觅食房间', modules: ['cheese-lounge-bed', 'banana-bed', 'banana-layer-pad', 'hanging-climb-baskets', 'cheese-play-mat', 'vine-foraging-tray'] },
-  { id: 'gecko', name: '守宫', en: 'Gecko', image: '/assets/species-gecko.png', traits: ['夜行', '需要躲避', '喜稳定温湿度'], material: '耐热 PETG / 防潮结构', habitat: '湿躲、岩洞、喂食台、低晒台', modules: ['starry-hideout', 'star-bridge-hide', 'mushroom-climb-tree', 'sunny-climb-station', 'spiral-star-perch'] },
-  { id: 'snake', name: '蛇', en: 'Snake', image: '/assets/species-snake.png', traits: ['爱隐蔽', '贴地移动', '需要安全边界'], material: '耐热 PETG / 无尖角缝隙', habitat: '洞穴、贴地通道、稳定水盆、攀爬枝架', modules: ['star-bridge-hide', 'starry-hideout', 'spiral-star-perch', 'cheese-play-mat'] },
-  { id: 'parrot', name: '鹦鹉', en: 'Parrot', image: '/assets/species-parrot.png', traits: ['爱攀爬', '爱啃咬', '需要互动'], material: 'PETG / 加厚防啃结构', habitat: '站杆、觅食盒、攀爬平台、玩具挂点', modules: ['hanging-z-ladder', 'sunny-climb-station', 'hanging-climb-baskets', 'vine-foraging-tray'] },
-  { id: 'spider', name: '蜘蛛', en: 'Tarantula', image: '/assets/species-spider.png', traits: ['喜躲避', '怕震动', '需要低干扰'], material: '防潮 PETG / 低反光表面', habitat: '洞穴躲避、地形坡度、水盆固定、观察窗口', modules: ['mushroom-climb-tree', 'starry-hideout', 'star-bridge-hide', 'spiral-star-perch'] }
+  { id: 'rat', name: '花枝鼠', en: 'Fancy Rat', image: '/assets/species-rat.png', traits: ['爱社交', '爱啃咬', '热爱钻洞'], likes: ['隧道', '窝', '层板', '觅食区'], risks: ['尖角', '小零件', '尾巴卡缝', '难清洁沟槽'], material: 'PETG / 圆角安全处理', habitat: '层板、隧道、觅食房间', modules: ['cheese-lounge-bed', 'banana-bed', 'banana-layer-pad', 'hanging-climb-baskets', 'cheese-play-mat', 'vine-foraging-tray'] },
+  { id: 'gecko', name: '守宫', en: 'Gecko', image: '/assets/species-gecko.png', traits: ['夜行', '需要躲避', '喜稳定温湿度'], likes: ['湿躲', '岩洞', '低晒台', '稳定温湿度'], risks: ['过热表面', '湿度波动', '尖锐边缘', '躲避不足'], material: '耐热 PETG / 防潮结构', habitat: '湿躲、岩洞、喂食台、低晒台', modules: ['starry-hideout', 'star-bridge-hide', 'mushroom-climb-tree', 'sunny-climb-station', 'spiral-star-perch'] },
+  { id: 'snake', name: '蛇', en: 'Snake', image: '/assets/species-snake.png', traits: ['爱隐蔽', '贴地移动', '需要安全边界'], likes: ['洞穴', '贴地通道', '稳定水盆', '安全边界'], risks: ['逃逸缝隙', '尖角', '过窄通道', '水盆倾倒'], material: '耐热 PETG / 无尖角缝隙', habitat: '洞穴、贴地通道、稳定水盆、攀爬枝架', modules: ['star-bridge-hide', 'starry-hideout', 'spiral-star-perch', 'cheese-play-mat'] },
+  { id: 'parrot', name: '鹦鹉', en: 'Parrot', image: '/assets/species-parrot.png', traits: ['爱攀爬', '爱啃咬', '需要互动'], likes: ['站杆', '攀爬平台', '觅食盒', '玩具挂点'], risks: ['易碎小件', '尖锐边缘', '卡脚缝隙', '不稳挂点'], material: 'PETG / 加厚防啃结构', habitat: '站杆、觅食盒、攀爬平台、玩具挂点', modules: ['hanging-z-ladder', 'sunny-climb-station', 'hanging-climb-baskets', 'vine-foraging-tray'] },
+  { id: 'spider', name: '蜘蛛', en: 'Tarantula', image: '/assets/species-spider.png', traits: ['喜躲避', '怕震动', '需要低干扰'], likes: ['洞穴躲避', '低干扰地形', '固定水盆', '观察窗口'], risks: ['震动', '反光惊扰', '跌落高度', '湿度失衡'], material: '防潮 PETG / 低反光表面', habitat: '洞穴躲避、地形坡度、水盆固定、观察窗口', modules: ['mushroom-climb-tree', 'starry-hideout', 'star-bridge-hide', 'spiral-star-perch'] }
 ];
 
 export const modules = [
