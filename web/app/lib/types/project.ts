@@ -82,8 +82,40 @@ export interface PetScapeProject {
   model3d?: Model3dJob; // 3D 生成任务
   modelConfig?: ModelConfig; // 3D 预览调参（真实能力三件）
   slice?: SliceJob; // 门 2 切片产物
+  // ——接驳层预铺（批次0.5）：以下三字段由批次1/2 消费；字段结构改动须经主控——
+  avatar?: AvatarJob; // 批次1：照片→风格化→3视图→Tripo 3D
+  avatarSlice?: AvatarSliceJob; // 批次1：宠物模型自动切片（不挖腔）
+  vibeRender?: VibeRenderJob; // 批次2：笼箱 vibe 改造效果图
   createdAt: string;
   updatedAt: string;
+}
+
+// 批次1：宠物 3D 生成任务（stage 供前端管线阶段可视化）
+export interface AvatarJob {
+  status: 'idle' | 'running' | 'failed' | 'done';
+  stage?: 'styling' | 'triview' | 'modeling';
+  styledImageUrl?: string; // 风格化立绘（中间反馈）
+  modelUrl?: string; // 最终 GLB
+  error?: string;
+}
+
+// 批次1：宠物模型切片（按体型档映射 scaleMm；同 mm 幂等）
+export interface AvatarSliceJob {
+  status: 'idle' | 'running' | 'failed' | 'done';
+  scaleMm?: number;
+  stlUrl?: string;
+  gcodeUrl?: string;
+  weightG?: number;
+  printTimeMin?: number;
+  error?: string;
+}
+
+// 批次2：vibe 环境改造效果图
+export interface VibeRenderJob {
+  status: 'idle' | 'running' | 'failed' | 'done';
+  beforeUrl?: string; // 用户笼箱原图
+  afterUrl?: string; // fal 改造后图
+  error?: string;
 }
 
 // 门 2 前的默认参数（用户未调时的落点）。
