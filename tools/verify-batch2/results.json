@@ -1,0 +1,116 @@
+[
+  {
+    "story": 4,
+    "assertion": "textarea 默认文案与原版示例一致",
+    "pass": true,
+    "detail": "\"森林奶酪屋，童话厨房氛围，适合花枝鼠钻洞、觅食和攀爬。\""
+  },
+  {
+    "story": 4,
+    "assertion": "光标可进入 textarea",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "story": 4,
+    "assertion": "可增文字",
+    "pass": true,
+    "detail": "\"和攀爬。测试增字\""
+  },
+  {
+    "story": 4,
+    "assertion": "可删文字（退回默认）",
+    "pass": true,
+    "detail": "\"洞、觅食和攀爬。\""
+  },
+  {
+    "story": 2,
+    "assertion": "未传笼箱照时\"生成\"按钮 disabled",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "story": 3,
+    "assertion": "宠物位(1:1)自动显示创建器同一张图缩略",
+    "pass": true,
+    "detail": "creator=blob:http://localhost:3012/53449c00-7cca-4759-acfd-f707532e308d vibe=blob:http://localhost:3012/53449c00-7cca-4759-acfd-f707532e308d"
+  },
+  {
+    "story": 3,
+    "assertion": "点击宠物位可另选替换（src 变化）",
+    "pass": true,
+    "detail": "new=blob:http://localhost:3012/f2642de4-5d1d-4f53-9482-2f6d99cebf04"
+  },
+  {
+    "story": 3,
+    "assertion": "替换后创建器照片不受影响",
+    "pass": true,
+    "detail": "creator=blob:http://localhost:3012/53449c00-7cca-4759-acfd-f707532e308d"
+  },
+  {
+    "story": 1,
+    "assertion": "笼箱位(4:3)出现上传图预览",
+    "pass": true,
+    "detail": "src=/uploads/7c177d79-e6dd-4d4d-8190-d04195088c81/cage.jpg"
+  },
+  {
+    "story": 2,
+    "assertion": "传图后\"生成\"按钮恢复可点",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "story": 1,
+    "assertion": "textarea 清空后输入\"温馨森林风\"",
+    "pass": true,
+    "detail": "\"温馨森林风\""
+  },
+  {
+    "story": 1,
+    "assertion": "点击后按钮 disabled",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "story": 1,
+    "assertion": "区块出现生成中提示",
+    "pass": true,
+    "detail": "\"正在生成改造效果图，请稍候…\""
+  },
+  {
+    "story": 1,
+    "assertion": "≤5s 后三格全部出图",
+    "pass": true,
+    "detail": "elapsed=2419ms, threeDone=true"
+  },
+  {
+    "story": 1,
+    "assertion": "第一格 src 与上传笼箱原图同一文件",
+    "pass": true,
+    "detail": "first=/uploads/7c177d79-e6dd-4d4d-8190-d04195088c81/cage.jpg cage=/uploads/7c177d79-e6dd-4d4d-8190-d04195088c81/cage.jpg"
+  },
+  {
+    "story": 1,
+    "assertion": "第二格为新生成图（src≠原图且可加载）",
+    "pass": true,
+    "detail": "second=/generated/7c177d79-e6dd-4d4d-8190-d04195088c81/vibe/after-1783175363847.png http=200"
+  },
+  {
+    "story": 1,
+    "assertion": "第三格图像 = 第二格同源图",
+    "pass": true,
+    "detail": "third=/generated/7c177d79-e6dd-4d4d-8190-d04195088c81/vibe/after-1783175363847.png"
+  },
+  {
+    "story": 1,
+    "assertion": "第三格为 3:4 中心裁切（容器比例 + object-fit:cover 居中）",
+    "pass": true,
+    "detail": "ratio=0.749 fit={\"objectFit\":\"cover\",\"objectPosition\":\"50% 50%\"}"
+  },
+  {
+    "story": 1,
+    "assertion": "第三格左下/右下可见品牌角标（logo+一行文案）",
+    "pass": true,
+    "detail": "text=\"PetScape · 我的宠物小家改造\" bottom=true left=true right=true"
+  }
+]

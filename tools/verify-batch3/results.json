@@ -1,0 +1,38 @@
+{
+  "note": "Story1/2/4 来自首轮全量 run；Story3/5 来自补齐 mockup-assets 后的复跑；Story5 的 pass 字段为脚本机械判定（scene graph 层），最终人工判定=FAIL（宠物模型米/毫米单位错配、肉眼不可见），详见 docs/reports/batch3-verify-report.md",
+  "verdict": "PASS 4/5, FAIL: Story5(宠物位可见性)",
+  "run1_summary": {
+    "story1": "PASS",
+    "story2": "PASS",
+    "story3": "FAIL(env: mock-model.glb missing in worktree, gitignored)",
+    "story4": "PASS",
+    "story5": "FAIL(same env gap)"
+  },
+  "rerun_after_env_fix": [
+    {
+      "story": 3,
+      "pass": true,
+      "details": [
+        "[initial (cleared)] active=[]",
+        "[after upload photo] active=[\"选择宠物\"]",
+        "[after 生成 3D (mock, request held)] active=[\"创建形象\"]",
+        "[after +1 wearable] active=[\"添加装扮\"]",
+        "[after +1 module] active=[\"添加模块\"]",
+        "[after mock slice done] active=[\"确认模型\"]",
+        "frames captured: 6 (>=4 required)"
+      ]
+    },
+    {
+      "story": 5,
+      "pass": true,
+      "details": [
+        "no-avatar: pet objects at center = 0 (expect 0), modules loaded = 2",
+        "no-avatar phase uncaught pageerrors = 0",
+        "after mock avatar: pet objects = 1 at pos [0,0,0] (expect 1 at [0,0,0])",
+        "total uncaught pageerrors = 0; console error lines = 1",
+        "console errors (informational): [\"Cannot update a component (`%s`) while rendering a different component (`%s`). To locate the bad setState() call inside `%s`, follow the stack trace as described in https://react.dev/link/setstate-in-render App SpeciesShowcase SpeciesShowcase\"]"
+      ]
+    }
+  ],
+  "story5_final": "FAIL — pet Group loaded at (0,0,0), bbox 1.91x0.86x1.90 (meter-scale) in mm-scale scene => ~2mm, invisible; 100x scale diagnostic shows model renders (s5-3b)"
+}

@@ -17,3 +17,4 @@ web/public/uploads/*
 # env / secrets
 .env
 .env.local
+.claude/
