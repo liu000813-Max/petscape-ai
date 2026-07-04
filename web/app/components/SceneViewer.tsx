@@ -244,7 +244,20 @@ export default function SceneViewer({ selectedModules, petAvatarUrl }: SceneView
         (gltf) => {
           if (cancelled) return;
           const obj = gltf.scene;
-          obj.position.set(0, 0, 0);
+          // 宠物 GLB 是运行时生成的 raw 产物（米制、未过 normalize 烘焙），
+          // 而场景与模块资产是毫米制——不归一会缩成 ~2mm 肉眼不可见。
+          // 按 bbox 归一到固定展示高度，并把底面落到地台。
+          const PET_HEIGHT_MM = 140;
+          const bbox = new THREE.Box3().setFromObject(obj);
+          const size = bbox.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          if (maxDim > 0) {
+            const scale = PET_HEIGHT_MM / maxDim;
+            obj.scale.setScalar(scale);
+          }
+          const scaled = new THREE.Box3().setFromObject(obj);
+          const center = scaled.getCenter(new THREE.Vector3());
+          obj.position.set(-center.x, -scaled.min.y, -center.z);
           petObjectRef.current = obj;
           scene.add(obj);
         },

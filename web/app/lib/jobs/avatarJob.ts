@@ -444,16 +444,37 @@ async function runAvatarSlice(id: string, inputPublic: string, scaleMm: number, 
   const existStl = await stat(stlAbs).catch(() => null);
   const existGcode = await stat(gcodeAbs).catch(() => null);
   if (existStl?.size && existGcode?.size) {
-    const meta = await readGcodeMeta(gcodeAbs);
+    const raw = await readGcodeMeta(gcodeAbs);
+    // mock 的 gcode 是同一份拷贝，header 恒为基准值——回填时同样按 mm 立方缩放，与首切一致。
+    const cubic = Math.pow(targetMm / 120, 3);
+    const meta = mock
+      ? {
+          estimatedTime: raw.estimatedTime,
+          weightG: raw.weightG ? Math.round(raw.weightG * cubic * 10) / 10 : undefined,
+          printTimeMin: raw.printTimeMin ? Math.round(raw.printTimeMin * cubic) : undefined,
+        }
+      : raw;
     finishSlice(id, stlPublic, gcodePublic, targetMm, meta);
     await sliceLog(id, `idempotent hit → reuse ${stlPublic}`);
     return;
   }
 
   if (mock) {
+    // demo 双轨会在 mock 下演示换档重切——重量/时长必须随 mm 变化，且"计算中"要肉眼可见，
+    // 否则数字纹丝不动会露馅（批次1 verifier Story 2）。按体积立方缩放伪造 meta，1.5s 延时。
+    await new Promise((r) => setTimeout(r, 1500));
     await copyFile(path.join(workingDir, 'public', 'mockup-assets', 'mock-model.stl'), stlAbs);
     await copyFile(path.join(workingDir, 'public', 'mockup-assets', 'mock-model.gcode'), gcodeAbs);
-    await sliceLog(id, `mock STL/G-code copied → ${stlPublic} ${gcodePublic}`);
+    const base = await readGcodeMeta(gcodeAbs);
+    const cubic = Math.pow(targetMm / 120, 3);
+    const meta = {
+      estimatedTime: base.estimatedTime,
+      weightG: base.weightG ? Math.round(base.weightG * cubic * 10) / 10 : undefined,
+      printTimeMin: base.printTimeMin ? Math.round(base.printTimeMin * cubic) : undefined,
+    };
+    finishSlice(id, stlPublic, gcodePublic, targetMm, meta);
+    await sliceLog(id, `mock STL/G-code copied → ${stlPublic} ${gcodePublic} (scaled meta ${meta.weightG}g)`);
+    return;
   } else {
     const script = path.join(workingDir, 'scripts', 'normalize_mesh.py');
     const inputAbs = publicToAbs(inputPublic);
