@@ -98,6 +98,11 @@ export function PetCreatorSection({
   }, [projectId]);
 
   useEffect(() => {
+    if (!projectId) return;
+    poll();
+  }, [projectId, poll]);
+
+  useEffect(() => {
     if (!pipelineActive) {
       if (pollTimerRef.current) {
         clearInterval(pollTimerRef.current);

@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, stat, writeFile, appendFile } from 'fs/promises';
+import { copyFile, mkdir, stat, writeFile, appendFile } from 'fs/promises';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { getProject, touch } from '../store/projects';
@@ -18,6 +18,7 @@ import {
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { JOB_TIMEOUT_MS, withTimeout } from './timeouts';
+import { readGcodeMeta } from './gcodeMeta';
 
 const execFileAsync = promisify(execFile);
 
@@ -432,37 +433,6 @@ async function sliceLog(id: string, line: string) {
   await mkdir(dir, { recursive: true }).catch(() => {});
   await appendFile(path.join(dir, 'avatar-slice.log'), `[${new Date().toISOString()}] ${line}\n`).catch(() => {});
   console.log(`[avatar-slice ${id}] ${line}`);
-}
-
-// PLA 密度（g/cm³），PrusaSlicer 默认 filament profile 常不带 density → [g]=0；用体积兜底算重量。
-const PLA_DENSITY_G_PER_CM3 = 1.24;
-
-function parseGcodeMeta(header: string): { estimatedTime?: string; weightG?: number; printTimeMin?: number } {
-  const timeMatch = header.match(/(?:estimated printing time[^\n:]*|print time[^\n:]*)\s*[:=]\s*([^\n;]+)/i);
-  const filamentG = header.match(/filament used \[g\]\s*=\s*([\d.]+)/i);
-  const filamentCm3 = header.match(/filament used \[cm3\]\s*=\s*([\d.]+)/i);
-  const estimatedTime = timeMatch?.[1]?.trim();
-  const gFromHeader = filamentG ? parseFloat(filamentG[1]) : 0;
-  // [g] 缺失或为 0（无 density profile）→ 用 [cm3] × 密度换算。
-  const gFromVolume = filamentCm3 ? parseFloat(filamentCm3[1]) * PLA_DENSITY_G_PER_CM3 : 0;
-  const grams = gFromHeader > 0 ? gFromHeader : gFromVolume;
-  const weightG = grams > 0 ? Math.round(grams * 10) / 10 : undefined;
-  // 把 "Nh Mm Ss" / "N days H h M m" 估时转成分钟。
-  let printTimeMin: number | undefined;
-  if (estimatedTime) {
-    const d = /(\d+)\s*d/i.exec(estimatedTime);
-    const h = /(\d+)\s*h/i.exec(estimatedTime);
-    const m = /(\d+)\s*m/i.exec(estimatedTime);
-    const s = /(\d+)\s*s/i.exec(estimatedTime);
-    const total = (d ? +d[1] * 1440 : 0) + (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0) + (s ? +s[1] / 60 : 0);
-    if (total > 0) printTimeMin = Math.round(total);
-  }
-  return { estimatedTime, weightG, printTimeMin };
-}
-
-async function readGcodeMeta(gcodeAbs: string) {
-  const buf = await readFile(gcodeAbs, 'utf8');
-  return parseGcodeMeta(`${buf.slice(0, 120_000)}\n${buf.slice(-120_000)}`);
 }
 
 // avatar-slice 入口：置 avatarSlice=running，后台跑，前端轮询。幂等由 runAvatarSlice 内部处理。

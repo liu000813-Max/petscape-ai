@@ -14,16 +14,14 @@ export function SpeciesShowcase({ selectedSpeciesId, onSelectSpecies, onAddPet }
   }, [selectedSpeciesId]);
 
   useEffect(() => {
-    // onSelectSpecies 不能放进 setActiveIndex 的 updater——updater 必须纯函数，
-    // React 18 会在 render 阶段重放它，触发 setState-in-render 警告（V3 原版既有问题）。
+    // 自动轮播只移动展示卡片，不能改全局物种选择；上传/恢复后的宠物档案以用户选择为准。
     // activeIndex 入依赖：每次切换（自动或手动）都重建计时器，即"交互重置 4.2s 倒计时"。
     const timer = window.setInterval(() => {
       const next = (activeIndex + 1) % species.length;
       setActiveIndex(next);
-      onSelectSpecies(species[next].id);
     }, 4200);
     return () => window.clearInterval(timer);
-  }, [activeIndex, onSelectSpecies, rotationSeed]);
+  }, [activeIndex, rotationSeed]);
 
   const chooseSpecies = index => {
     setActiveIndex(index);

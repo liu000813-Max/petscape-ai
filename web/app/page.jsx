@@ -150,6 +150,14 @@ export default function App() {
         const res = await fetch(`/api/project/${existing}`);
         if (res.ok) {
           const proj = await res.json();
+          if (proj?.brief?.species && species.some((item) => item.id === proj.brief.species)) {
+            setSelectedSpeciesId(proj.brief.species);
+          }
+          if (proj?.brief?.petName) setPetName(proj.brief.petName);
+          if (proj?.brief?.petSize && !Number.isNaN(Number(proj.brief.petSize))) {
+            setPetSize(Number(proj.brief.petSize));
+          }
+          if (proj?.brief?.petPhotoUrl) setPetImageUrl(proj.brief.petPhotoUrl);
           if (proj?.avatar?.status === 'done') setAvatarGenerated(true); // 舞台直接进 GLB 态
           setProjectId(existing);
           return;
