@@ -1,0 +1,28 @@
+{
+  "sourceFile": "create_cloud_teapot_modules.mjs",
+  "normalizedFile": "cloud-hammock.norm.glb",
+  "heightMm": 56.217,
+  "footprint": {
+    "xMm": 171,
+    "zMm": 67
+  },
+  "boundsMm": [
+    [
+      -85.5,
+      0,
+      -33.5
+    ],
+    [
+      85.5,
+      56.217,
+      33.5
+    ]
+  ],
+  "transform": {
+    "convention": "Y-up, 1 unit = 1mm",
+    "scale": 1,
+    "droppedToY0": true,
+    "centeredXZ": true,
+    "authoredLocally": true
+  }
+}

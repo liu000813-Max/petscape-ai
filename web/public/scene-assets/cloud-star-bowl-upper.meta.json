@@ -1,0 +1,24 @@
+{
+  "sourceFile": "assets-3d/scene-packs/cloud-teapot-playland/3d-modules-meshy/cloud-star-bowl-upper/raw.glb",
+  "normalizedFile": "cloud-star-bowl-upper.meshy.glb",
+  "heightMm": 84,
+  "footprint": {
+    "xMm": 132,
+    "zMm": 96
+  },
+  "fitStrategy": "runtime-contain-collision-box",
+  "materialPolicy": "preserve glTF materials and textures",
+  "targetCollisionSizeMm": {
+    "x": 132,
+    "y": 84,
+    "z": 96
+  },
+  "inspection": {
+    "bytes": 7338664,
+    "meshes": 1,
+    "materials": 1,
+    "textures": 2,
+    "images": 2,
+    "hasBaseColorTexture": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "sourceFile": "create_cloud_teapot_modules.mjs",
+  "normalizedFile": "star-spiral-ramp.norm.glb",
+  "heightMm": 144.16,
+  "footprint": {
+    "xMm": 217.303,
+    "zMm": 140.5
+  },
+  "boundsMm": [
+    [
+      -108.652,
+      0,
+      -70.25
+    ],
+    [
+      108.652,
+      144.16,
+      70.25
+    ]
+  ],
+  "transform": {
+    "convention": "Y-up, 1 unit = 1mm",
+    "scale": 1,
+    "droppedToY0": true,
+    "centeredXZ": true,
+    "authoredLocally": true
+  }
+}

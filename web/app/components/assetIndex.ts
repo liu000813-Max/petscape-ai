@@ -18,6 +18,8 @@ export type AssetEntry =
       id: string;
       glbPath: string; // public/ 下路径，浏览器可直接 fetch
       metaPath: string; // .meta.json：{ heightMm, footprint: { xMm, zMm } }
+      materialMode?: 'clay' | 'solid' | 'preserve';
+      fitStrategy?: 'contain-collision';
       placeholder: boolean; // true = 借用老仓库 scene-lab 占位资产，非该模块真实产出
       placeholderNote?: string;
     }
@@ -71,6 +73,101 @@ export const assetIndex: Record<string, AssetEntry> = {
     id: 'pink-teapot',
     glbPath: '/scene-assets/pink-teapot.norm.glb',
     metaPath: '/scene-assets/pink-teapot.meta.json',
+    placeholder: false,
+  },
+  'cloud-moss-platform': {
+    kind: 'glb',
+    id: 'cloud-moss-platform',
+    glbPath: '/scene-assets/cloud-moss-platform.norm.glb',
+    metaPath: '/scene-assets/cloud-moss-platform.meta.json',
+    materialMode: 'preserve',
+    placeholder: false,
+  },
+  'star-spiral-ramp': {
+    kind: 'glb',
+    id: 'star-spiral-ramp',
+    glbPath: '/scene-assets/star-spiral-ramp.norm.glb',
+    metaPath: '/scene-assets/star-spiral-ramp.meta.json',
+    materialMode: 'preserve',
+    placeholder: false,
+  },
+  'cloud-hammock': {
+    kind: 'glb',
+    id: 'cloud-hammock',
+    glbPath: '/scene-assets/cloud-hammock.norm.glb',
+    metaPath: '/scene-assets/cloud-hammock.meta.json',
+    materialMode: 'preserve',
+    placeholder: false,
+  },
+  'wood-dna-ladder': {
+    kind: 'glb',
+    id: 'wood-dna-ladder',
+    glbPath: '/scene-assets/wood-dna-ladder.norm.glb',
+    metaPath: '/scene-assets/wood-dna-ladder.meta.json',
+    materialMode: 'preserve',
+    placeholder: false,
+  },
+  'pink-teapot-large-hideout': {
+    kind: 'glb',
+    id: 'pink-teapot-large-hideout',
+    glbPath: '/scene-assets/pink-teapot-large-hideout.meshy.glb',
+    metaPath: '/scene-assets/pink-teapot-large-hideout.meta.json',
+    materialMode: 'preserve',
+    fitStrategy: 'contain-collision',
+    placeholder: false,
+  },
+  'pink-teapot-small-hideout': {
+    kind: 'glb',
+    id: 'pink-teapot-small-hideout',
+    glbPath: '/scene-assets/pink-teapot-small-hideout.meshy.glb',
+    metaPath: '/scene-assets/pink-teapot-small-hideout.meta.json',
+    materialMode: 'preserve',
+    fitStrategy: 'contain-collision',
+    placeholder: false,
+  },
+  'cloud-moss-teapot-platform': {
+    kind: 'glb',
+    id: 'cloud-moss-teapot-platform',
+    glbPath: '/scene-assets/cloud-moss-teapot-platform.meshy.glb',
+    metaPath: '/scene-assets/cloud-moss-teapot-platform.meta.json',
+    materialMode: 'preserve',
+    fitStrategy: 'contain-collision',
+    placeholder: false,
+  },
+  's-cloud-star-ramp': {
+    kind: 'glb',
+    id: 's-cloud-star-ramp',
+    glbPath: '/scene-assets/s-cloud-star-ramp.meshy.glb',
+    metaPath: '/scene-assets/s-cloud-star-ramp.meta.json',
+    materialMode: 'preserve',
+    fitStrategy: 'contain-collision',
+    placeholder: false,
+  },
+  'cloud-star-bowl-upper': {
+    kind: 'glb',
+    id: 'cloud-star-bowl-upper',
+    glbPath: '/scene-assets/cloud-star-bowl-upper.meshy.glb',
+    metaPath: '/scene-assets/cloud-star-bowl-upper.meta.json',
+    materialMode: 'preserve',
+    fitStrategy: 'contain-collision',
+    placeholder: false,
+  },
+  'cloud-star-bowl-lower': {
+    kind: 'glb',
+    id: 'cloud-star-bowl-lower',
+    glbPath: '/scene-assets/cloud-star-bowl-lower.meshy.glb',
+    metaPath: '/scene-assets/cloud-star-bowl-lower.meta.json',
+    materialMode: 'preserve',
+    fitStrategy: 'contain-collision',
+    placeholder: false,
+  },
+  'wood-dna-moss-ladder': {
+    kind: 'glb',
+    id: 'wood-dna-moss-ladder',
+    glbPath: '/scene-assets/wood-dna-moss-ladder.meshy.glb',
+    metaPath: '/scene-assets/wood-dna-moss-ladder.meta.json',
+    materialMode: 'preserve',
+    fitStrategy: 'contain-collision',
     placeholder: false,
   },
 

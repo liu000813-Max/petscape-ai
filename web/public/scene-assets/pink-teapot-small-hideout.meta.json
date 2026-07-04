@@ -1,0 +1,24 @@
+{
+  "sourceFile": "assets-3d/scene-packs/cloud-teapot-playland/3d-modules-meshy/pink-teapot-small-hideout/raw.glb",
+  "normalizedFile": "pink-teapot-small-hideout.meshy.glb",
+  "heightMm": 118,
+  "footprint": {
+    "xMm": 116,
+    "zMm": 98
+  },
+  "fitStrategy": "runtime-contain-collision-box",
+  "materialPolicy": "preserve glTF materials and textures",
+  "targetCollisionSizeMm": {
+    "x": 116,
+    "y": 118,
+    "z": 98
+  },
+  "inspection": {
+    "bytes": 6573236,
+    "meshes": 1,
+    "materials": 1,
+    "textures": 2,
+    "images": 2,
+    "hasBaseColorTexture": true
+  }
+}

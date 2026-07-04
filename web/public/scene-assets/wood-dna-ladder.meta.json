@@ -1,0 +1,28 @@
+{
+  "sourceFile": "create_cloud_teapot_modules.mjs",
+  "normalizedFile": "wood-dna-ladder.norm.glb",
+  "heightMm": 216.304,
+  "footprint": {
+    "xMm": 112.785,
+    "zMm": 70.368
+  },
+  "boundsMm": [
+    [
+      -56.393,
+      0,
+      -35.184
+    ],
+    [
+      56.393,
+      216.304,
+      35.184
+    ]
+  ],
+  "transform": {
+    "convention": "Y-up, 1 unit = 1mm",
+    "scale": 1,
+    "droppedToY0": true,
+    "centeredXZ": true,
+    "authoredLocally": true
+  }
+}

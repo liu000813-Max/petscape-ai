@@ -45,7 +45,7 @@ function petPresenceLine(brief: Brief, hasPetPhoto: boolean): string {
 }
 
 const COMMON_STYLE_SUFFIX =
-  '温暖柔和的自然光，森林绿与原木色调，俯视偏侧的等距视角，干净背景，产品渲染质感。不要出现文字、水印、人手、尺子。';
+  '温暖柔和的自然光，森林绿与原木色调，自然手机拍摄视角，真实宠物用品摄影质感，干净背景。不要出现文字、水印、人手、尺子。';
 
 export function buildScenePrompts(brief: Brief): { name: string; prompt: string }[] {
   const base = briefLine(brief);
@@ -59,12 +59,27 @@ export function buildScenePrompts(brief: Brief): { name: string; prompt: string 
   }));
 }
 
-// vibe 改造图 prompt（批次2 F36-F39）：保留原笼箱结构，置入宠物，按用户 vibe 文字改造氛围。
-// 与 buildRevampPrompts 同源风格（硬约束不改笼箱结构），区别：单方向（非 3 变体）、氛围来自用户自由文本而非
-// brief.vibe，且额外加「主体居中」构图约束，为前端 F39 的 3:4 中心裁切留余量。
-export function buildVibePrompt(brief: Brief, vibeText: string, hasPetPhoto: boolean): string {
+// vibe 效果图 prompt（批次2 F36-F39）：有笼箱图时做保结构改造；无笼箱图时从描述生成完整造景图。
+// 两个分支都落同一个 vibeRender.afterUrl，前端和订单流只需要关心「免费效果图已完成」。
+export function buildVibePrompt(
+  brief: Brief,
+  vibeText: string,
+  hasPetPhoto: boolean,
+  hasEnvironmentImage: boolean,
+): string {
   const presence = petPresenceLine(brief, hasPetPhoto);
   const trimmedVibe = vibeText.trim();
+  if (!hasEnvironmentImage) {
+    return (
+      `请根据以下氛围描述，为宠物从零设计一个完整的小家造景效果图：${trimmedVibe}。` +
+      `${presence} ` +
+      `真实宠物用品摄影、手机实拍感、真实玻璃箱/木质/垫材材质。` +
+      `空间需要有清晰层次，包含可钻洞口、觅食层板、休息角落和适合宠物活动的动线，比例真实，像可落地制作的宠物小家。` +
+      `主体（造景+宠物）必须居中构图，四周保留充足留白，不要贴边裁切，便于后续做 3:4 中心裁切。` +
+      `${COMMON_STYLE_SUFFIX}`
+    );
+  }
+
   return (
     `这是用户宠物现有笼箱的实拍照片，请在**不改变原笼箱结构、尺寸、材质、位置**的前提下，` +
     `按照以下氛围描述为其改造装饰、光影与整体氛围：${trimmedVibe}。` +

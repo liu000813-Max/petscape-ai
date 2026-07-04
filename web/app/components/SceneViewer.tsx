@@ -12,8 +12,12 @@ export type SceneItem = {
   instanceId: string;
   moduleId: string;
   position: { x: number; y?: number; z: number };
+  rotationX?: number;
   rotationY: number;
+  rotationZ?: number;
   scale: number;
+  mirrorX?: boolean;
+  mirrorZ?: boolean;
   collisionSize: { x: number; y?: number; z: number };
   assetKind: 'glb' | 'billboard';
 };
@@ -50,7 +54,27 @@ function buildCageWireframe(): THREE.Object3D {
   return group;
 }
 
-function applyClayMaterial(object: THREE.Object3D, moduleId?: string) {
+function preparePreservedMaterials(object: THREE.Object3D) {
+  object.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = false;
+      child.receiveShadow = true;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((material) => {
+        const mat = material as THREE.Material & { map?: THREE.Texture | null };
+        if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+        material.needsUpdate = true;
+      });
+    }
+  });
+}
+
+function applyAssetMaterial(object: THREE.Object3D, moduleId?: string, materialMode?: 'clay' | 'solid' | 'preserve') {
+  if (materialMode === 'preserve') {
+    preparePreservedMaterials(object);
+    return;
+  }
+
   const baseMaterial = moduleId ? MODULE_MATERIALS[moduleId] : undefined;
   object.traverse((child) => {
     if (child instanceof THREE.Mesh) {
@@ -59,6 +83,27 @@ function applyClayMaterial(object: THREE.Object3D, moduleId?: string) {
       child.receiveShadow = true;
     }
   });
+}
+
+function fitObjectToCollisionBox(object: THREE.Object3D, collisionSize: SceneItem['collisionSize']) {
+  object.updateMatrixWorld(true);
+  const sourceBox = new THREE.Box3().setFromObject(object);
+  const sourceSize = sourceBox.getSize(new THREE.Vector3());
+  const targetSize = new THREE.Vector3(collisionSize.x, collisionSize.y ?? BILLBOARD_HEIGHT_MM, collisionSize.z);
+  const factors = [
+    targetSize.x / sourceSize.x,
+    targetSize.y / sourceSize.y,
+    targetSize.z / sourceSize.z,
+  ].filter((value) => Number.isFinite(value) && value > 0);
+  if (!factors.length) return;
+
+  object.scale.multiplyScalar(Math.min(...factors));
+  object.updateMatrixWorld(true);
+  const fittedBox = new THREE.Box3().setFromObject(object);
+  const fittedCenter = fittedBox.getCenter(new THREE.Vector3());
+  object.position.x -= fittedCenter.x;
+  object.position.z -= fittedCenter.z;
+  object.position.y -= fittedBox.min.y;
 }
 
 function disposeObject(object: THREE.Object3D) {
@@ -127,10 +172,35 @@ function validateItem(candidate: SceneItem, items: SceneItem[]) {
   return null;
 }
 
+function boundsForItems(items: SceneItem[]) {
+  const box = {
+    minX: Number.POSITIVE_INFINITY,
+    maxX: Number.NEGATIVE_INFINITY,
+    minY: Number.POSITIVE_INFINITY,
+    maxY: Number.NEGATIVE_INFINITY,
+    minZ: Number.POSITIVE_INFINITY,
+    maxZ: Number.NEGATIVE_INFINITY,
+  };
+  items.forEach((item) => {
+    const itemBox = aabbFor(item);
+    box.minX = Math.min(box.minX, itemBox.minX);
+    box.maxX = Math.max(box.maxX, itemBox.maxX);
+    box.minY = Math.min(box.minY, itemBox.minY);
+    box.maxY = Math.max(box.maxY, itemBox.maxY);
+    box.minZ = Math.min(box.minZ, itemBox.minZ);
+    box.maxZ = Math.max(box.maxZ, itemBox.maxZ);
+  });
+  return box;
+}
+
 function applyItemTransform(object: THREE.Object3D, item: SceneItem) {
   object.position.set(item.position.x, item.position.y ?? 0, item.position.z);
-  object.rotation.y = item.rotationY;
-  object.scale.setScalar(item.scale);
+  object.rotation.set(item.rotationX ?? 0, item.rotationY, item.rotationZ ?? 0);
+  object.scale.set(
+    item.mirrorX ? -item.scale : item.scale,
+    item.scale,
+    item.mirrorZ ? -item.scale : item.scale
+  );
 
   if (object.userData.isBillboard) {
     object.position.y = (item.position.y ?? 0) + (BILLBOARD_HEIGHT_MM * item.scale) / 2;
@@ -188,6 +258,7 @@ export default function SceneViewer({ items, selectedModuleTitles = {}, petAvata
   const previousItemsLengthRef = useRef(items.length);
   const selectedInstanceIdRef = useRef<string | null>(items[0]?.instanceId ?? null);
   const transformStartRef = useRef<{ instanceId: string; position: THREE.Vector3 } | null>(null);
+  const cameraFitSignatureRef = useRef('');
   const [selectedInstanceId, setSelectedInstanceId] = useState(items[0]?.instanceId ?? null);
   const [status, setStatus] = useState('点击模块后可拖动；也可用方向、高度和叠放按钮精调。');
 
@@ -212,11 +283,36 @@ export default function SceneViewer({ items, selectedModuleTitles = {}, petAvata
     }
   }, [focusedInstanceId, items, selectedInstanceId]);
 
+	  useEffect(() => {
+	    if (items.length > previousItemsLengthRef.current) {
+	      setSelectedInstanceId(items[items.length - 1]?.instanceId ?? null);
+	    }
+	    previousItemsLengthRef.current = items.length;
+  }, [items]);
+
   useEffect(() => {
-    if (items.length > previousItemsLengthRef.current) {
-      setSelectedInstanceId(items[items.length - 1]?.instanceId ?? null);
-    }
-    previousItemsLengthRef.current = items.length;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls || !items.length) return;
+    const signature = items.map((item) => item.instanceId).join('|');
+    if (cameraFitSignatureRef.current === signature) return;
+    cameraFitSignatureRef.current = signature;
+
+    const box = boundsForItems(items);
+    const center = new THREE.Vector3(
+      (box.minX + box.maxX) / 2,
+      (box.minY + box.maxY) / 2,
+      (box.minZ + box.maxZ) / 2
+    );
+    const size = new THREE.Vector3(box.maxX - box.minX, box.maxY - box.minY, box.maxZ - box.minZ);
+    const maxDim = Math.max(size.x, size.y, size.z, 1);
+    const distance = Math.max(500, maxDim * 1.18);
+    const viewDirection = new THREE.Vector3(0.78, 0.58, 0.9).normalize();
+
+    controls.target.copy(center);
+    camera.position.copy(center.clone().add(viewDirection.multiplyScalar(distance)));
+    camera.updateProjectionMatrix();
+    controls.update();
   }, [items]);
 
   useEffect(() => {
@@ -414,17 +510,22 @@ export default function SceneViewer({ items, selectedModuleTitles = {}, petAvata
             if (!res.ok) throw new Error(`meta 请求失败: ${res.status}`);
             return res.json() as Promise<AssetMeta>;
           })
-          .then(() => {
-            if (cancelled) return;
-            loader.load(
-              entry.glbPath,
+	          .then(() => {
+	            if (cancelled) return;
+	            loader.load(
+	              entry.glbPath,
               (gltf) => {
                 if (cancelled || !itemsRef.current.some((current) => current.instanceId === item.instanceId)) return;
-                const obj = gltf.scene;
+                const obj = entry.fitStrategy === 'contain-collision' ? new THREE.Group() : gltf.scene;
+                const model = gltf.scene;
+                if (entry.fitStrategy === 'contain-collision') {
+                  fitObjectToCollisionBox(model, item.collisionSize);
+                  obj.add(model);
+                }
                 obj.userData.instanceId = item.instanceId;
                 obj.userData.moduleId = item.moduleId;
                 obj.userData.isBillboard = false;
-                applyClayMaterial(obj, item.moduleId);
+                applyAssetMaterial(model, item.moduleId, entry.materialMode);
                 applyItemTransform(obj, item);
                 loaded.set(item.instanceId, obj);
                 scene.add(obj);
@@ -614,10 +715,15 @@ export default function SceneViewer({ items, selectedModuleTitles = {}, petAvata
           <button type="button" disabled={!selectedItem} onClick={() => selectedItem && updateSelected(movePatch(selectedItem, { y: -20 }))}>下移</button>
           <button type="button" disabled={!selectedItem} onClick={() => updateSelected({ rotationY: (selectedItem?.rotationY ?? 0) - Math.PI / 12 })}>左转</button>
           <button type="button" disabled={!selectedItem} onClick={() => updateSelected({ rotationY: (selectedItem?.rotationY ?? 0) + Math.PI / 12 })}>右转</button>
+          <button type="button" disabled={!selectedItem} onClick={() => updateSelected({ rotationX: (selectedItem?.rotationX ?? 0) - Math.PI / 18 })}>前倾</button>
+          <button type="button" disabled={!selectedItem} onClick={() => updateSelected({ rotationX: (selectedItem?.rotationX ?? 0) + Math.PI / 18 })}>后仰</button>
+          <button type="button" disabled={!selectedItem} onClick={() => updateSelected({ rotationZ: (selectedItem?.rotationZ ?? 0) - Math.PI / 18 })}>左倾</button>
+          <button type="button" disabled={!selectedItem} onClick={() => updateSelected({ rotationZ: (selectedItem?.rotationZ ?? 0) + Math.PI / 18 })}>右倾</button>
+          <button type="button" disabled={!selectedItem} onClick={() => updateSelected({ rotationY: (selectedItem?.rotationY ?? 0) + Math.PI })}>反向</button>
           <button type="button" disabled={!selectedItem} onClick={() => updateSelected({ scale: Math.max(0.7, Number(((selectedItem?.scale ?? 1) - 0.05).toFixed(2))) })}>缩小</button>
           <button type="button" disabled={!selectedItem} onClick={() => updateSelected({ scale: Math.min(1.3, Number(((selectedItem?.scale ?? 1) + 0.05).toFixed(2))) })}>放大</button>
           <button type="button" disabled={!selectedItem} onClick={stackSelected}>放到上面</button>
-          <button type="button" disabled={!selectedItem} onClick={() => selectedItem && updateSelected({ position: { ...selectedItem.position, y: 0 }, rotationY: 0, scale: 1 })}>重置</button>
+          <button type="button" disabled={!selectedItem} onClick={() => selectedItem && updateSelected({ position: { ...selectedItem.position, y: 0 }, rotationX: 0, rotationY: 0, rotationZ: 0, mirrorX: false, mirrorZ: false, scale: 1 })}>重置</button>
           <button type="button" disabled={!selectedItem} onClick={deleteSelected}>删除</button>
         </div>
         <p className={statusIsError ? 'scene-viewer-status error' : 'scene-viewer-status'}>{status}</p>

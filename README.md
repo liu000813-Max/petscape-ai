@@ -43,7 +43,7 @@ pnpm build && pnpm start   # demo 推荐：production 模式，无 overlay 干�
 landing（V3 定稿页, app/page.jsx + components/landing/）
   ├─ 宠物创建器 → POST avatar：fal 风格化 → [Tripo#1 → Tripo#2 → Meshy 级联] → GLB
   │               └→ 自动切片（normalize → PrusaSlicer，不挖腔）→ 真实重量/时长 → STL/G-code 下载
-  ├─ vibe 区 → POST vibe：笼箱照+宠物照+文字 → fal revamp → 改造前/后/分享图三态
+  ├─ vibe 区 → POST vibe：可选笼箱照+宠物照+文字 → fal revamp 或 t2i 造景 → 改造前/后/分享图三态
   ├─ 环境预览 → SceneViewer（three.js）：5 个 Meshy 真资产 + billboard，宠物居中
   ├─ 场景包 → 模块子集批量加入 selectedIds（真数据流假闭环）
   └─ 订单条 → 按用户实际进度推导高亮（至"确认模型"）

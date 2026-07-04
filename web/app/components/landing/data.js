@@ -22,7 +22,13 @@ export const modules = [
   { id: 'star-bridge-hide', title: '星桥拱门躲屋', price: '¥59', species: '守宫 / 蛇 / 蜘蛛', material: 'PETG', weight: '150g', image: '/assets/pet-products/star-bridge-hide.png', shape: 'hide', description: '镂空拱桥带星星装饰，能做躲避、穿行和拍摄背景。' },
   { id: 'mushroom-climb-tree', title: '蘑菇攀爬树', price: '¥59', species: '守宫 / 蜘蛛', material: 'PETG', weight: '150g', image: '/assets/pet-products/mushroom-climb-tree.png', shape: 'rock', description: '柔和蘑菇群造型，适合雨林或童话主题的攀爬点。' },
   { id: 'spiral-star-perch', title: '星旋攀爬立柱', price: '¥39', species: '鹦鹉 / 守宫 / 蜘蛛', material: 'PETG', weight: '110g', image: '/assets/pet-products/spiral-star-perch.png', shape: 'rock', description: '螺旋星形立柱偏艺术款，可作为场景里的视觉焦点。' },
-  { id: 'pink-teapot', title: '粉色茶壶模型', price: '¥0', species: '测试场景包', material: 'STL 转 GLB', weight: '外部导入', shape: 'hide', description: '根目录导入的粉色茶壶 STL，用于测试外部场景包接入真实 3D 预设。' }
+  { id: 'pink-teapot-large-hideout', title: '大粉茶壶躲屋', price: '¥169+', species: '场景包专属', material: 'PETG / 彩色纹理', weight: '模型确认中', image: '/assets/pet-products/pink-teapot-large-hideout.png', shape: 'hide', scenePackOnly: true, description: '大号粉色茶壶外形躲屋，作为云朵茶壶乐园的低位主视觉模块。' },
+  { id: 'pink-teapot-small-hideout', title: '小粉茶壶躲屋', price: '¥129+', species: '场景包专属', material: 'PETG / 彩色纹理', weight: '模型确认中', image: '/assets/pet-products/pink-teapot-small-hideout.png', shape: 'hide', scenePackOnly: true, description: '小号粉色茶壶躲屋，用于左侧中层藏身点，和大茶壶形成比例层次。' },
+  { id: 'cloud-moss-teapot-platform', title: '云朵苔藓茶壶托盘', price: '¥139+', species: '场景包专属', material: 'PETG / 苔藓纹理', weight: '模型确认中', image: '/assets/pet-products/cloud-moss-teapot-platform.png', shape: 'deck', scenePackOnly: true, description: '灰白云朵托起苔藓和茶壶，是上层停留与视觉锚点。' },
+  { id: 's-cloud-star-ramp', title: 'S 形云朵星星坡道', price: '¥119+', species: '场景包专属', material: 'PETG / 彩色纹理', weight: '模型确认中', image: '/assets/pet-products/s-cloud-star-ramp.png', shape: 'deck', scenePackOnly: true, description: 'S 形云朵坡道带粉色星星装饰，连接中部活动路线。' },
+  { id: 'cloud-star-bowl-upper', title: '上层云朵星星吊篮', price: '¥89+', species: '场景包专属', material: 'PETG / 软垫纹理', weight: '模型确认中', image: '/assets/pet-products/cloud-star-bowl-upper.png', shape: 'hide', scenePackOnly: true, description: '上层云朵吊篮，保留较立体的云朵姿态和粉星装饰。' },
+  { id: 'cloud-star-bowl-lower', title: '中层云朵星星吊篮', price: '¥89+', species: '场景包专属', material: 'PETG / 软垫纹理', weight: '模型确认中', image: '/assets/pet-products/cloud-star-bowl-lower.png', shape: 'hide', scenePackOnly: true, description: '中层云朵吊篮，姿态更低更扁，和上层吊篮形成错落。' },
+  { id: 'wood-dna-moss-ladder', title: '木色 DNA 苔藓梯', price: '¥119+', species: '场景包专属', material: 'PETG / 木纹色', weight: '模型确认中', image: '/assets/pet-products/wood-dna-moss-ladder.png', shape: 'deck', scenePackOnly: true, description: '木色 DNA 梯带苔藓底座，放在右侧作为垂直攀爬路线。' }
 ];
 
 export const wearableItems = [
@@ -72,17 +78,24 @@ export const scenePacks = [
       { instanceId: 'pack-forest-cheese-play-mat', moduleId: 'cheese-play-mat', position: { x: -150, y: 0, z: 118 }, rotationY: -0.28, scale: 0.95, collisionSize: { x: 162.435, y: 60, z: 162.434 }, assetKind: 'glb' },
     ],
   },
-  {
-    title: '粉色茶壶测试包',
-    tag: '外部 STL 导入',
-    copy: '把根目录新放入的茶壶模型接入真实 3D 场景预设，用来快速检查外部场景包效果。',
-    price: '测试',
-    moduleIds: ['pink-teapot'],
-    layoutStatus: 'ready',
-    layout: [
-      { instanceId: 'pack-pink-teapot', moduleId: 'pink-teapot', position: { x: 0, y: 0, z: 0 }, rotationY: -0.35, scale: 1, collisionSize: { x: 86.999, y: 140, z: 89.719 }, assetKind: 'glb' },
-    ],
-  },
+	  {
+	    title: '云朵茶壶乐园',
+	    tag: '彩色 3D 场景包',
+	    copy: '两个粉色茶壶、苔藓云朵托盘、S 形星星坡道、上下云朵吊篮和木色 DNA 梯组成完整乐园。',
+	    price: '¥853+',
+	    image: '/assets/scene-pink-teapot-pack.png',
+	    moduleIds: ['pink-teapot-large-hideout', 'pink-teapot-small-hideout', 'cloud-moss-teapot-platform', 's-cloud-star-ramp', 'cloud-star-bowl-upper', 'cloud-star-bowl-lower', 'wood-dna-moss-ladder'],
+	    layoutStatus: 'ready',
+	    layout: [
+	      { instanceId: 'pack-cloud-teapot-large', moduleId: 'pink-teapot-large-hideout', position: { x: -205, y: 0, z: -66 }, rotationX: 0.02, rotationY: -0.28, rotationZ: -0.04, scale: 1, collisionSize: { x: 170, y: 170, z: 145 }, assetKind: 'glb' },
+	      { instanceId: 'pack-cloud-teapot-small', moduleId: 'pink-teapot-small-hideout', position: { x: -164, y: 132, z: 102 }, rotationX: -0.05, rotationY: -0.42, rotationZ: 0.03, scale: 1, collisionSize: { x: 116, y: 118, z: 98 }, assetKind: 'glb' },
+	      { instanceId: 'pack-cloud-moss-teapot-platform', moduleId: 'cloud-moss-teapot-platform', position: { x: -38, y: 246, z: -126 }, rotationX: -0.06, rotationY: 0.12, rotationZ: -0.04, scale: 1, collisionSize: { x: 178, y: 86, z: 102 }, assetKind: 'glb' },
+	      { instanceId: 'pack-s-cloud-star-ramp', moduleId: 's-cloud-star-ramp', position: { x: 54, y: 0, z: 38 }, rotationX: 0.03, rotationY: 0.44, rotationZ: 0.08, scale: 1, collisionSize: { x: 178, y: 156, z: 122 }, assetKind: 'glb' },
+	      { instanceId: 'pack-cloud-star-bowl-upper', moduleId: 'cloud-star-bowl-upper', position: { x: 136, y: 234, z: -106 }, rotationX: -0.08, rotationY: -0.3, rotationZ: 0.08, scale: 1, collisionSize: { x: 132, y: 84, z: 96 }, assetKind: 'glb' },
+	      { instanceId: 'pack-cloud-star-bowl-lower', moduleId: 'cloud-star-bowl-lower', position: { x: 168, y: 128, z: 114 }, rotationX: -0.05, rotationY: 0.26, rotationZ: -0.05, scale: 1, collisionSize: { x: 146, y: 72, z: 96 }, assetKind: 'glb' },
+	      { instanceId: 'pack-wood-dna-moss-ladder', moduleId: 'wood-dna-moss-ladder', position: { x: 260, y: 0, z: -10 }, rotationX: -0.02, rotationY: -0.18, rotationZ: 0.05, scale: 1, collisionSize: { x: 80, y: 220, z: 86 }, assetKind: 'glb' },
+	    ],
+	  },
   { title: '都市基地', tag: '适合分享传播', copy: '工业风模块和可清洗平台，把普通笼箱变成主题空间。', price: '¥459+', image: '/assets/scene-urban-base.png', moduleIds: ['sunny-climb-station', 'hanging-z-ladder', 'cheese-storage-tower'], layoutStatus: 'in-development' },
   { title: '雨林树屋', tag: '扩展物种方案', copy: '为守宫、蜘蛛和树栖宠物准备的湿润垂直攀爬方案。', price: '¥369+', image: '/assets/scene-rainforest-treehouse.png', moduleIds: ['mushroom-climb-tree', 'star-bridge-hide', 'starry-hideout', 'spiral-star-perch'], layoutStatus: 'in-development' }
 ];

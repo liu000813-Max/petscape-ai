@@ -1,0 +1,107 @@
+{
+  "sourceSheet": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/image2-module-sheet.png",
+  "originalGeneratedSheet": "<USER_HOME>/.codex/generated_images/019f2e4d-57f9-7f70-be74-a810dd237c47/ig_097f2d9a7a67ae5e016a49912705908193b5555a421ced9b85.png",
+  "sourceSize": {
+    "width": 1672,
+    "height": 941
+  },
+  "outputDir": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2",
+  "modulePolicy": {
+    "unique3dModuleCount": 7,
+    "reason": "The reference contains two distinct teapot hideouts and two cloud bowl poses; generate each as a separate module first, then compose final scene instances.",
+    "nextStep": "Use these clean white-background module images to generate multiview references, then textured GLB modules."
+  },
+  "modules": [
+    {
+      "id": "pink-teapot-large-hideout",
+      "title": "大粉茶壶躲屋",
+      "crop": {
+        "left": 12,
+        "top": 18,
+        "width": 435,
+        "height": 438
+      },
+      "generationRole": "unique 3D module and final hero instance",
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/pink-teapot-large-hideout.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/pink-teapot-large-hideout.png"
+    },
+    {
+      "id": "pink-teapot-small-hideout",
+      "title": "小粉茶壶躲屋",
+      "crop": {
+        "left": 462,
+        "top": 18,
+        "width": 380,
+        "height": 438
+      },
+      "generationRole": "unique 3D module and secondary teapot instance",
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/pink-teapot-small-hideout.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/pink-teapot-small-hideout.png"
+    },
+    {
+      "id": "cloud-moss-teapot-platform",
+      "title": "云朵苔藓茶壶托盘",
+      "crop": {
+        "left": 854,
+        "top": 18,
+        "width": 405,
+        "height": 438
+      },
+      "generationRole": "unique 3D module and upper platform instance",
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/cloud-moss-teapot-platform.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/cloud-moss-teapot-platform.png"
+    },
+    {
+      "id": "s-cloud-star-ramp",
+      "title": "S 形云朵星星坡道",
+      "crop": {
+        "left": 1272,
+        "top": 18,
+        "width": 398,
+        "height": 438
+      },
+      "generationRole": "unique 3D module and central ramp instance",
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/s-cloud-star-ramp.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/s-cloud-star-ramp.png"
+    },
+    {
+      "id": "cloud-star-bowl-upper",
+      "title": "上层云朵星星吊篮",
+      "crop": {
+        "left": 12,
+        "top": 474,
+        "width": 435,
+        "height": 455
+      },
+      "generationRole": "cloud bowl unique module candidate; upper final pose",
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/cloud-star-bowl-upper.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/cloud-star-bowl-upper.png"
+    },
+    {
+      "id": "cloud-star-bowl-lower",
+      "title": "中层云朵星星吊篮",
+      "crop": {
+        "left": 462,
+        "top": 474,
+        "width": 463,
+        "height": 455
+      },
+      "generationRole": "cloud bowl unique module candidate; lower flatter final pose",
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/cloud-star-bowl-lower.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/cloud-star-bowl-lower.png"
+    },
+    {
+      "id": "wood-dna-moss-ladder",
+      "title": "木色 DNA 苔藓梯",
+      "crop": {
+        "left": 942,
+        "top": 474,
+        "width": 345,
+        "height": 455
+      },
+      "generationRole": "unique 3D module and right climbing instance",
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/wood-dna-moss-ladder.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules-image2/wood-dna-moss-ladder.png"
+    }
+  ]
+}

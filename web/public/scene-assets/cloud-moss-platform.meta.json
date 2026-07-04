@@ -1,0 +1,28 @@
+{
+  "sourceFile": "create_cloud_teapot_modules.mjs",
+  "normalizedFile": "cloud-moss-platform.norm.glb",
+  "heightMm": 57.261,
+  "footprint": {
+    "xMm": 198,
+    "zMm": 67
+  },
+  "boundsMm": [
+    [
+      -99,
+      0,
+      -33.5
+    ],
+    [
+      99,
+      57.261,
+      33.5
+    ]
+  ],
+  "transform": {
+    "convention": "Y-up, 1 unit = 1mm",
+    "scale": 1,
+    "droppedToY0": true,
+    "centeredXZ": true,
+    "authoredLocally": true
+  }
+}

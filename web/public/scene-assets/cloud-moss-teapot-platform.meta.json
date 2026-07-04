@@ -1,0 +1,24 @@
+{
+  "sourceFile": "assets-3d/scene-packs/cloud-teapot-playland/3d-modules-meshy/cloud-moss-teapot-platform/raw.glb",
+  "normalizedFile": "cloud-moss-teapot-platform.meshy.glb",
+  "heightMm": 86,
+  "footprint": {
+    "xMm": 178,
+    "zMm": 102
+  },
+  "fitStrategy": "runtime-contain-collision-box",
+  "materialPolicy": "preserve glTF materials and textures",
+  "targetCollisionSizeMm": {
+    "x": 178,
+    "y": 86,
+    "z": 102
+  },
+  "inspection": {
+    "bytes": 13106180,
+    "meshes": 1,
+    "materials": 1,
+    "textures": 2,
+    "images": 2,
+    "hasBaseColorTexture": true
+  }
+}

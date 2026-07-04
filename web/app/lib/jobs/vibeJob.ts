@@ -3,9 +3,9 @@ import path from 'path';
 import { getProject, touch } from '../store/projects';
 import type { PetScapeProject } from '../types/project';
 import { buildVibePrompt } from '../images/scenePrompt';
-import { falEditImage, downloadImage, fileToDataUri, publicImageToAbs } from '../images/falClient';
+import { falEditImage, falGenerateImage, downloadImage, fileToDataUri, publicImageToAbs } from '../images/falClient';
 
-// 批次2 vibe 改造效果图 job（F36-F39）：cage 照[+宠物照] + vibe 文字 → fal edit 改造后图。
+// 批次2 vibe 效果图 job（F36-F39）：有 cage 照则改造原环境；无 cage 照则按 vibe 生成完整造景图。
 // 沿用 scenes route 的 in-memory 状态机 + 前端轮询模式；?mock=1 用现成占位图零成本跑通。
 
 const workingDir = process.cwd();
@@ -26,12 +26,11 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
   }
 }
 
-// 入口：同步置 vibeRender=running + beforeUrl（cage 原图直用），立即返回；重活后台跑，前端轮询 GET project。
+// 入口：同步置 vibeRender=running；有 cage 原图时 beforeUrl 直用，否则只生成 afterUrl。
 export function startVibeJob(project: PetScapeProject, vibeText: string, mock: boolean) {
   const cagePhotoUrl = project.brief.cagePhotoUrl;
-  if (!cagePhotoUrl) throw new Error('请先上传笼箱照片');
 
-  project.vibeRender = { status: 'running', beforeUrl: cagePhotoUrl };
+  project.vibeRender = { status: 'running', ...(cagePhotoUrl ? { beforeUrl: cagePhotoUrl } : {}) };
   touch(project);
 
   void runVibeJob(project.id, cagePhotoUrl, project.brief.petPhotoUrl, vibeText, mock).catch((error) => {
@@ -46,7 +45,7 @@ export function startVibeJob(project: PetScapeProject, vibeText: string, mock: b
 
 async function runVibeJob(
   id: string,
-  cagePhotoUrl: string,
+  cagePhotoUrl: string | undefined,
   petPhotoUrl: string | undefined,
   vibeText: string,
   mock: boolean,
@@ -66,14 +65,20 @@ async function runVibeJob(
     const project = getProject(id);
     const brief = project?.brief ?? { species: '', taboos: [], traits: [] };
     const hasPetPhoto = !!petPhotoUrl;
-    const prompt = buildVibePrompt(brief, vibeText, hasPetPhoto);
-    const refs: string[] = [cagePhotoUrl];
+    const hasEnvironmentImage = !!cagePhotoUrl;
+    const prompt = buildVibePrompt(brief, vibeText, hasPetPhoto, hasEnvironmentImage);
+    const refs: string[] = [];
+    if (cagePhotoUrl) refs.push(cagePhotoUrl);
     if (petPhotoUrl) refs.push(petPhotoUrl);
     const referenceDataUris = await Promise.all(refs.map((relPath) => fileToDataUri(publicImageToAbs(relPath))));
-    console.log(`[vibeJob ${id}] fal edit start → ${rel}`);
-    const url = await withRetry('fal vibe edit', () => falEditImage(prompt, referenceDataUris));
+    const mode = referenceDataUris.length > 0 ? 'edit' : 'generate';
+    console.log(`[vibeJob ${id}] fal ${mode} start → ${rel}`);
+    const url =
+      referenceDataUris.length > 0
+        ? await withRetry('fal vibe edit', () => falEditImage(prompt, referenceDataUris))
+        : await withRetry('fal vibe generate', () => falGenerateImage(prompt));
     await downloadImage(url, abs);
-    console.log(`[vibeJob ${id}] fal edit ready → ${rel}`);
+    console.log(`[vibeJob ${id}] fal ${mode} ready → ${rel}`);
   }
 
   const info = await stat(abs).catch(() => null);
@@ -81,6 +86,6 @@ async function runVibeJob(
 
   const p = getProject(id);
   if (!p) return;
-  p.vibeRender = { status: 'done', beforeUrl: cagePhotoUrl, afterUrl: rel };
+  p.vibeRender = { status: 'done', ...(cagePhotoUrl ? { beforeUrl: cagePhotoUrl } : {}), afterUrl: rel };
   touch(p);
 }

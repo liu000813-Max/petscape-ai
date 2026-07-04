@@ -15,6 +15,7 @@ function parsePrice(priceStr) {
 
 export function EnvironmentPreviewSection({ sectionRef, availableModules = [], selectedIds = [], selectedModules, sceneItems, focusedInstanceId, onSceneItemsChange, onToggleModule, onRemoveModule, projectId, mockMode }) {
   const total = useMemo(() => selectedModules.reduce((sum, item) => sum + parsePrice(item.price), 0), [selectedModules]);
+  const publicAvailableModules = useMemo(() => availableModules.filter(item => !item.scenePackOnly), [availableModules]);
   const [avatarModelUrl, setAvatarModelUrl] = useState(null);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteSnapshot, setQuoteSnapshot] = useState(null);
@@ -64,7 +65,7 @@ export function EnvironmentPreviewSection({ sectionRef, availableModules = [], s
             <SceneViewer items={sceneItems} selectedModuleTitles={Object.fromEntries(moduleTitleById)} focusedInstanceId={focusedInstanceId} onItemsChange={onSceneItemsChange} petAvatarUrl={avatarModelUrl} />
           </div>
           <div className="module-strip" aria-label="模块选择">
-            {availableModules.map(item => {
+            {publicAvailableModules.map(item => {
               const selected = selectedIds.includes(item.id);
               return (
                 <button className={`module-strip-pill ${selected ? 'selected' : ''}`} type="button" key={item.id} onClick={() => onToggleModule?.(item.id)} aria-pressed={selected}>

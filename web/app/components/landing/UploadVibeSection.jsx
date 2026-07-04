@@ -71,7 +71,7 @@ const createStructuredVibePrompt = (text, selectedSpecies, hasEnvironmentImage) 
   );
 };
 
-// 批次2（F36-F39）：cage 照真实上传（POST /upload kind=cage）+ 宠物照自动带入创建器已传图（可另选替换，
+// 批次2（F36-F39）：cage 照可选上传（POST /upload kind=cage）+ 宠物照自动带入创建器已传图（可另选替换，
 // 替换仅影响本区展示、不回写创建器 state）+ vibe 文字可编辑 + 生成按钮打 POST vibe → 轮询 project。
 export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSpecies }) {
   const [vibeText, setVibeText] = useState(DEFAULT_VIBE);
@@ -198,7 +198,7 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSp
   };
 
   const handleGenerate = async () => {
-    if (!projectId || !cagePreviewUrl) return;
+    if (!projectId || !vibeText.trim() || status === 'running') return;
     setStatus('running');
     setError('');
     const res = await fetch(`/api/project/${projectId}/vibe${mockQuery}`, {
@@ -215,13 +215,13 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSp
     pollProject();
   };
 
-  const canGenerate = !!cagePreviewUrl && status !== 'running';
+  const canGenerate = !!projectId && !!vibeText.trim() && status !== 'running';
 
   return (
     <section className="builder-section">
       <div className="builder-left">
         <span className="eyebrow">上传与 Vibe 描述</span>
-        <h2>上传真实环境，再描述你想要的宠物小家。</h2>
+        <h2>上传真实环境，或直接描述你想要的宠物小家。</h2>
         <p>当前 demo 保留上传位、生成路径和订单交接逻辑，后续可连接生图模型、混元 3D 和生产报价。</p>
         <div className="prompt-box">
           <button
@@ -255,7 +255,7 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSp
         </div>
         {status === 'running' && (
           <div className="vibe-generating-hint">
-            <span>正在生成改造效果图，请稍候…</span>
+            <span>正在生成造景效果图，请稍候…</span>
           </div>
         )}
         {isRewriting && status !== 'running' && (
@@ -279,7 +279,7 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSp
           emptyContent={
             <span className="upload-empty">
               <Upload size={22} strokeWidth={1.6} />
-              <strong>当前笼箱照片</strong>
+              <strong>笼箱照片（可选）</strong>
               <em>4:3</em>
             </span>
           }

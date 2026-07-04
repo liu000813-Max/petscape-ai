@@ -1,0 +1,164 @@
+{
+  "source": "/var/folders/7n/1kh08w7n3x9frr79d1wvg62w0000gn/T/codex-clipboard-56adc2b3-05d2-4f5e-8b79-c9dfe7b20824.png",
+  "sourceSize": {
+    "width": 4096,
+    "height": 2304
+  },
+  "outputDir": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules",
+  "generationPolicy": {
+    "phase1": "local crop extraction only; no external image or 3D generation",
+    "phase2": "generate clean white-background multiview images per unique module after user confirms external-cost generation",
+    "phase3": "generate textured GLB per module, normalize while preserving materials, then compose final scene layout"
+  },
+  "unique3dModules": [
+    "pink-teapot-large-hideout",
+    "pink-teapot-small-hideout",
+    "cloud-moss-teapot-platform",
+    "s-cloud-star-ramp",
+    "cloud-star-bowl",
+    "wood-dna-moss-ladder"
+  ],
+  "finalSceneInstances": [
+    "pink-teapot-large-hideout",
+    "pink-teapot-small-hideout",
+    "cloud-moss-teapot-platform",
+    "s-cloud-star-ramp",
+    "cloud-star-bowl-upper",
+    "cloud-star-bowl-lower",
+    "wood-dna-moss-ladder"
+  ],
+  "modules": [
+    {
+      "id": "pink-teapot-large-hideout",
+      "title": "大粉茶壶躲屋",
+      "role": "hero teapot hideout, final scene instance",
+      "crop": {
+        "left": 780,
+        "top": 1360,
+        "width": 940,
+        "height": 560
+      },
+      "promptNotes": [
+        "large pastel pink teapot hideout",
+        "wide low body, long left-facing spout, angular handle, round lid knob",
+        "round pet entrance must be carved into the teapot body",
+        "small pastel star decorations on the front body"
+      ],
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-large-hideout.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-large-hideout.png"
+    },
+    {
+      "id": "pink-teapot-small-hideout",
+      "title": "小粉茶壶躲屋",
+      "role": "secondary teapot hideout, final scene instance",
+      "crop": {
+        "left": 1000,
+        "top": 1060,
+        "width": 590,
+        "height": 380
+      },
+      "promptNotes": [
+        "small pastel pink teapot hideout",
+        "round front entrance, curved handle, short spout, lid knob",
+        "same visual family as large teapot but smaller and rounder"
+      ],
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-small-hideout.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-small-hideout.png"
+    },
+    {
+      "id": "cloud-moss-teapot-platform",
+      "title": "云朵苔藓茶壶托盘",
+      "role": "upper cloud platform with moss and teapot instance",
+      "crop": {
+        "left": 900,
+        "top": 470,
+        "width": 760,
+        "height": 620
+      },
+      "promptNotes": [
+        "puffy off-white cloud platform",
+        "green moss ring on top surface",
+        "small pastel pink teapot sitting on the moss",
+        "cloud lobes visible around the lower edge"
+      ],
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-moss-teapot-platform.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-moss-teapot-platform.png"
+    },
+    {
+      "id": "s-cloud-star-ramp",
+      "title": "S 形云朵星星坡道",
+      "role": "central sculptural ramp",
+      "crop": {
+        "left": 1710,
+        "top": 980,
+        "width": 780,
+        "height": 900
+      },
+      "promptNotes": [
+        "off-white S-shaped cloud ramp or slide",
+        "thick soft rounded tube, curled vertical profile",
+        "rests on a low puffy cloud base",
+        "pastel pink star decorations attached to the ramp"
+      ],
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/s-cloud-star-ramp.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/s-cloud-star-ramp.png"
+    },
+    {
+      "id": "cloud-star-bowl-upper",
+      "title": "上层云朵星星吊篮",
+      "role": "upper repeated cloud bowl instance",
+      "crop": {
+        "left": 2470,
+        "top": 460,
+        "width": 660,
+        "height": 450
+      },
+      "promptNotes": [
+        "off-white cloud bowl or hanging nest",
+        "puffy cloud lobes, hollow shallow center",
+        "thin pastel pink rim around the top",
+        "pastel pink star decorations on the side"
+      ],
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-upper.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-upper.png"
+    },
+    {
+      "id": "cloud-star-bowl-lower",
+      "title": "中层云朵星星吊篮",
+      "role": "lower repeated cloud bowl instance, same family as upper bowl",
+      "crop": {
+        "left": 2260,
+        "top": 1130,
+        "width": 610,
+        "height": 420
+      },
+      "promptNotes": [
+        "off-white cloud bowl or hanging nest",
+        "same module family as upper cloud bowl",
+        "slightly different pose for layout reference",
+        "pink rim and pink star decorations"
+      ],
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-lower.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-lower.png"
+    },
+    {
+      "id": "wood-dna-moss-ladder",
+      "title": "木色 DNA 苔藓梯",
+      "role": "right vertical climbing ladder",
+      "crop": {
+        "left": 2650,
+        "top": 800,
+        "width": 650,
+        "height": 1160
+      },
+      "promptNotes": [
+        "tall wooden DNA helix ladder",
+        "two twisting wood rails with horizontal rungs",
+        "green moss clusters at the base",
+        "natural light brown wood grain material"
+      ],
+      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/wood-dna-moss-ladder.png",
+      "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/wood-dna-moss-ladder.png"
+    }
+  ]
+}

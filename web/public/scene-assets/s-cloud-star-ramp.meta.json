@@ -1,0 +1,24 @@
+{
+  "sourceFile": "assets-3d/scene-packs/cloud-teapot-playland/3d-modules-meshy/s-cloud-star-ramp/raw.glb",
+  "normalizedFile": "s-cloud-star-ramp.meshy.glb",
+  "heightMm": 156,
+  "footprint": {
+    "xMm": 178,
+    "zMm": 122
+  },
+  "fitStrategy": "runtime-contain-collision-box",
+  "materialPolicy": "preserve glTF materials and textures",
+  "targetCollisionSizeMm": {
+    "x": 178,
+    "y": 156,
+    "z": 122
+  },
+  "inspection": {
+    "bytes": 8155212,
+    "meshes": 1,
+    "materials": 1,
+    "textures": 2,
+    "images": 2,
+    "hasBaseColorTexture": true
+  }
+}

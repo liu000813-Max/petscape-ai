@@ -28,9 +28,20 @@ const DEFAULT_COLLISION_BY_MODULE = {
   'banana-layer-pad': { x: 140.667, y: 80, z: 140.955 },
   'hanging-climb-baskets': { x: 82.924, y: 120, z: 57.215 },
   'cheese-play-mat': { x: 162.435, y: 60, z: 162.434 },
-  'starry-hideout': { x: 186.334, y: 150, z: 186.351 },
-  'pink-teapot': { x: 86.999, y: 140, z: 89.719 },
-};
+	  'starry-hideout': { x: 186.334, y: 150, z: 186.351 },
+	  'pink-teapot': { x: 86.999, y: 140, z: 89.719 },
+	  'cloud-moss-platform': { x: 198, y: 58, z: 67 },
+	  'star-spiral-ramp': { x: 218, y: 145, z: 141 },
+	  'cloud-hammock': { x: 171, y: 57, z: 67 },
+	  'wood-dna-ladder': { x: 113, y: 217, z: 71 },
+	  'pink-teapot-large-hideout': { x: 170, y: 170, z: 145 },
+	  'pink-teapot-small-hideout': { x: 116, y: 118, z: 98 },
+	  'cloud-moss-teapot-platform': { x: 178, y: 86, z: 102 },
+	  's-cloud-star-ramp': { x: 178, y: 156, z: 122 },
+	  'cloud-star-bowl-upper': { x: 132, y: 84, z: 96 },
+	  'cloud-star-bowl-lower': { x: 146, y: 72, z: 96 },
+	  'wood-dna-moss-ladder': { x: 80, y: 220, z: 86 },
+	};
 
 const DEFAULT_BILLBOARD_COLLISION = { x: 120, y: 150, z: 80 };
 const SCENE_BOUNDS = { halfWidth: 300, halfDepth: 200, height: 400 };
@@ -118,8 +129,12 @@ function createSceneItem(moduleId, overrides = {}) {
     instanceId: overrides.instanceId || nextInstanceId(moduleId),
     moduleId,
     position: { x: overrides.position?.x ?? 0, y: overrides.position?.y ?? 0, z: overrides.position?.z ?? 0 },
+    rotationX: overrides.rotationX ?? 0,
     rotationY: overrides.rotationY ?? 0,
+    rotationZ: overrides.rotationZ ?? 0,
     scale: overrides.scale ?? 1,
+    mirrorX: overrides.mirrorX ?? false,
+    mirrorZ: overrides.mirrorZ ?? false,
     collisionSize: overrides.collisionSize || DEFAULT_COLLISION_BY_MODULE[moduleId] || DEFAULT_BILLBOARD_COLLISION,
     assetKind: overrides.assetKind || entry?.kind || 'billboard',
   };
@@ -177,6 +192,7 @@ export default function App() {
   const moduleMarketRef = useRef(null);
   const petCreatorRef = useRef(null);
   const selectedSpecies = species.find(item => item.id === selectedSpeciesId) || species[0];
+  const availableModules = modules.filter(module => !module.scenePackOnly);
   const selectedModules = modules.filter(module => selectedIds.includes(module.id));
   const scrollToModules = () => moduleMarketRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const scrollToPetCreator = () => petCreatorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -219,5 +235,5 @@ export default function App() {
   const toggleWearable = wearableId => setSelectedWearables(current => current.includes(wearableId) ? current.filter(id => id !== wearableId) : [...current, wearableId]);
   const handlePetImageUpload = image => { if (petImageUrl?.startsWith('blob:')) URL.revokeObjectURL(petImageUrl); if (!image) { setPetImageUrl(''); return; } setPetImageUrl(typeof image === 'string' ? image : URL.createObjectURL(image)); setAvatarGenerated(false); };
   const handleGenerateAvatar = () => { setAvatarGenerated(true); setAvatarRotation(32); };
-  return <main><section className="hero-shell"><Navbar onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} onLogoClick={scrollToTop} /><motion.div className="video-wrap" initial={false} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.8, ease }}><video className="hero-video" src="/assets/hero-mouse.mp4" poster="/assets/hero-mouse-poster.jpeg" autoPlay muted playsInline loop /></motion.div><HeroFooter onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} /><DetailDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} /></section><SpeciesShowcase selectedSpeciesId={selectedSpeciesId} onSelectSpecies={setSelectedSpeciesId} onAddPet={scrollToPetCreator} /><PetCreatorSection sectionRef={petCreatorRef} selectedSpecies={selectedSpecies} onSelectSpecies={setSelectedSpeciesId} petName={petName} onPetNameChange={setPetName} petAge={petAge} onPetAgeChange={setPetAge} petSize={petSize} onPetSizeChange={setPetSize} petImageUrl={petImageUrl} onPetImageUpload={handlePetImageUpload} avatarGenerated={avatarGenerated} onGenerateAvatar={handleGenerateAvatar} onAvatarGeneratedChange={setAvatarGenerated} avatarRotation={avatarRotation} onAvatarRotationChange={setAvatarRotation} selectedWearables={selectedWearables} onToggleWearable={toggleWearable} projectId={projectId} mockMode={mockMode} /><IntroSection projectId={projectId} petImageUrl={petImageUrl} onPetImageUpload={handlePetImageUpload} petName={petName} petAge={petAge} selectedSpecies={selectedSpecies} petSize={petSize} /><ModuleCommunitySection selectedIds={selectedIds} onAddSceneItem={addSceneItem} marketRef={moduleMarketRef} selectedSpeciesId={selectedSpeciesId} /><EnvironmentPreviewSection availableModules={modules} selectedIds={selectedIds} selectedModules={selectedModules} sceneItems={sceneItems} focusedInstanceId={focusedSceneInstanceId} onSceneItemsChange={updateSceneItems} onToggleModule={toggleSceneModule} onRemoveModule={removeSceneModule} projectId={projectId} mockMode={mockMode} /><UploadVibeSection projectId={projectId} mockMode={mockMode} petImageUrl={petImageUrl} selectedSpecies={selectedSpecies} /><RenderSection projectId={projectId} mockMode={mockMode} /><ScenePackSection selectedIds={selectedIds} onApplyScenePack={applyScenePack} /><ManufacturingSection projectId={projectId} mockMode={mockMode} petName={petName} petSize={petSize} selectedModules={selectedModules} /><MaterialSafetySection /><GiftSection /><OrderFlowSection projectId={projectId} petImageUrl={petImageUrl} avatarGenerated={avatarGenerated} selectedWearables={selectedWearables} selectedIds={selectedIds} /><FlipCards /></main>;
+  return <main><section className="hero-shell"><Navbar onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} onLogoClick={scrollToTop} /><motion.div className="video-wrap" initial={false} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.8, ease }}><video className="hero-video" src="/assets/hero-mouse.mp4" poster="/assets/hero-mouse-poster.jpeg" autoPlay muted playsInline loop /></motion.div><HeroFooter onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} /><DetailDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} /></section><SpeciesShowcase selectedSpeciesId={selectedSpeciesId} onSelectSpecies={setSelectedSpeciesId} onAddPet={scrollToPetCreator} /><PetCreatorSection sectionRef={petCreatorRef} selectedSpecies={selectedSpecies} onSelectSpecies={setSelectedSpeciesId} petName={petName} onPetNameChange={setPetName} petAge={petAge} onPetAgeChange={setPetAge} petSize={petSize} onPetSizeChange={setPetSize} petImageUrl={petImageUrl} onPetImageUpload={handlePetImageUpload} avatarGenerated={avatarGenerated} onGenerateAvatar={handleGenerateAvatar} onAvatarGeneratedChange={setAvatarGenerated} avatarRotation={avatarRotation} onAvatarRotationChange={setAvatarRotation} selectedWearables={selectedWearables} onToggleWearable={toggleWearable} projectId={projectId} mockMode={mockMode} /><IntroSection projectId={projectId} petImageUrl={petImageUrl} onPetImageUpload={handlePetImageUpload} petName={petName} petAge={petAge} selectedSpecies={selectedSpecies} petSize={petSize} /><ModuleCommunitySection selectedIds={selectedIds} onAddSceneItem={addSceneItem} marketRef={moduleMarketRef} selectedSpeciesId={selectedSpeciesId} /><EnvironmentPreviewSection availableModules={availableModules} selectedIds={selectedIds} selectedModules={selectedModules} sceneItems={sceneItems} focusedInstanceId={focusedSceneInstanceId} onSceneItemsChange={updateSceneItems} onToggleModule={toggleSceneModule} onRemoveModule={removeSceneModule} projectId={projectId} mockMode={mockMode} /><UploadVibeSection projectId={projectId} mockMode={mockMode} petImageUrl={petImageUrl} selectedSpecies={selectedSpecies} /><RenderSection projectId={projectId} mockMode={mockMode} /><ScenePackSection selectedIds={selectedIds} onApplyScenePack={applyScenePack} /><ManufacturingSection projectId={projectId} mockMode={mockMode} petName={petName} petSize={petSize} selectedModules={selectedModules} /><MaterialSafetySection /><GiftSection /><OrderFlowSection projectId={projectId} petImageUrl={petImageUrl} avatarGenerated={avatarGenerated} selectedWearables={selectedWearables} selectedIds={selectedIds} /><FlipCards /></main>;
 }
