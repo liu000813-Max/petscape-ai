@@ -50,21 +50,3 @@ export async function withTimeout<T>(
     if (!controller.signal.aborted) controller.abort();
   }
 }
-
-export async function runCodexTurn<T>(
-  jobType: TimedJobType,
-  timeoutMs: number,
-  run: (signal: AbortSignal) => Promise<T>,
-): Promise<T> {
-  const started = Date.now();
-  console.log(`[codex] start type=${jobType} timeoutMs=${timeoutMs}`);
-  try {
-    const result = await withTimeout(jobType, timeoutMs, run);
-    console.log(`[codex] success type=${jobType} elapsedMs=${Date.now() - started}`);
-    return result;
-  } catch (error) {
-    const timeout = error instanceof JobTimeoutError;
-    console.log(`[codex] ${timeout ? 'timeout' : 'fail'} type=${jobType} elapsedMs=${Date.now() - started} error=${error instanceof Error ? error.message : String(error)}`);
-    throw error;
-  }
-}
