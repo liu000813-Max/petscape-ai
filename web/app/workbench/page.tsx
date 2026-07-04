@@ -6,6 +6,7 @@ import type { CanvasItem, ModelConfig, PetScapeProject, UserState } from '../lib
 import { defaultModelConfig } from '../lib/types/project';
 import type { WorkbenchCanvasHandle } from '../components/WorkbenchCanvas';
 import ModelStudio from '../components/ModelStudio';
+import { ImageDropzone } from '../components/ImageDropzone';
 
 // tldraw 必须 client-only：SSR 会因 window/document 报错。next/dynamic ssr:false 隔离。
 const WorkbenchCanvas = dynamic(() => import('../components/WorkbenchCanvas'), {
@@ -712,44 +713,34 @@ function PhotoUpload({
   url?: string;
   onUploaded: (url: string) => void;
 }) {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file || !projectId) return;
-    setUploading(true);
-    setError('');
+  async function handleFile(file: File) {
+    if (!projectId) throw new Error('项目还在初始化，请稍后再试');
     const form = new FormData();
     form.append('file', file);
     form.append('kind', kind);
     const res = await fetch(`/api/project/${projectId}/upload`, { method: 'POST', body: form });
-    setUploading(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? '上传失败');
-      return;
+      throw new Error(data.error ?? '上传失败');
     }
     const data = await res.json();
     onUploaded(data.url as string);
   }
 
   return (
-    <div className="flex items-center gap-2.5">
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={kind} className="h-12 w-12 rounded-lg border border-line object-cover" />
-      ) : (
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-line text-[10px] text-ink-soft">
+    <ImageDropzone
+      previewUrl={url}
+      alt={kind}
+      onFile={handleFile}
+      imageClassName="h-12 w-12 rounded-lg border border-line object-cover"
+      statusClassName="text-[11px] text-ink-soft [&.is-error]:text-anno [&.is-active]:text-forest"
+      className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-[#FDFCF9] px-2 py-1.5 text-left transition hover:border-forest-soft disabled:cursor-wait"
+      showActionLabel
+      emptyContent={
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-line text-[10px] text-ink-soft">
           无图
         </div>
-      )}
-      <label className="cursor-pointer rounded-lg border border-line bg-[#FDFCF9] px-3 py-1.5 text-[12px] text-ink-soft transition hover:border-forest-soft">
-        {uploading ? '上传中…' : url ? '重新上传' : '选择图片'}
-        <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
-      </label>
-      {error && <span className="text-[11px] text-anno">{error}</span>}
-    </div>
+      }
+    />
   );
 }

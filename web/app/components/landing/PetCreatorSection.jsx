@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { Gift, Rotate3D, Upload } from 'lucide-react';
 import { species, wearableItems } from './data';
 import { AssetPlaceholder } from './AssetPlaceholder';
+import { ImageDropzone } from '../ImageDropzone';
 
 // three.js 舞台 client-only（three 用 window/document），ssr 关闭。
 const PetViewer = dynamic(() => import('../PetViewer'), { ssr: false });
@@ -113,17 +114,28 @@ export function PetCreatorSection({
   }, [pipelineActive, poll]);
 
   // 上传：POST /api/project/[id]/upload kind=pet，保留本地即时预览（onPetImageUpload 仍跑）。
-  const handleUpload = async (event) => {
-    onPetImageUpload(event); // 本地即时预览 + 复位 avatarGenerated（App 逻辑不变）
-    const file = event.target.files?.[0];
-    if (!file || !projectId) return;
+  const handleUpload = async (file) => {
+    if (!file) return;
+    const previousPreviewUrl = petImageUrl;
+    onPetImageUpload(file); // 本地即时预览 + 复位 avatarGenerated（App 逻辑不变）
+    if (!projectId) {
+      onPetImageUpload(previousPreviewUrl || '');
+      throw new Error('项目还在初始化，请稍后再试');
+    }
     const form = new FormData();
     form.append('file', file);
     form.append('kind', 'pet');
     try {
-      await fetch(`/api/project/${projectId}/upload`, { method: 'POST', body: form });
-    } catch {
-      /* 上传失败不阻塞本地预览；生成时后端会因缺图报错并进失败态 */
+      const res = await fetch(`/api/project/${projectId}/upload`, { method: 'POST', body: form });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || '上传失败');
+      }
+      const data = await res.json();
+      if (data.url) onPetImageUpload(data.url);
+    } catch (error) {
+      onPetImageUpload(previousPreviewUrl || '');
+      throw error;
     }
   };
 
@@ -258,18 +270,19 @@ export function PetCreatorSection({
               <span>大型</span>
             </div>
           </div>
-          <label className="upload-pet-card">
-            <input type="file" accept="image/*" onChange={handleUpload} />
-            {petImageUrl ? (
-              <img src={petImageUrl} alt={`${petName || '宠物'} 上传预览`} />
-            ) : (
+          <ImageDropzone
+            className="upload-pet-card"
+            previewUrl={petImageUrl}
+            alt={`${petName || '宠物'} 上传预览`}
+            onFile={handleUpload}
+            emptyContent={
               <span className="upload-empty">
                 <Upload size={22} strokeWidth={1.6} />
                 <strong>上传宠物照片</strong>
                 <em>正面 / 侧面照片</em>
               </span>
-            )}
-          </label>
+            }
+          />
         </div>
         <div className="avatar-stage-card">
           <div className={`avatar-stage ${avatarGenerated ? 'generated' : ''}`}>

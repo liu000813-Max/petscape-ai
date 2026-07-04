@@ -773,6 +773,7 @@ main {
 }
 
 .asset-placeholder {
+  position: relative;
   min-height: 220px;
   border: 1px dashed rgba(0, 0, 0, 0.28);
   border-radius: 24px;
@@ -786,6 +787,19 @@ main {
   gap: 10px;
   text-align: center;
   padding: 22px;
+  overflow: hidden;
+}
+
+.profile-avatar-dropzone {
+  cursor: pointer;
+}
+
+.profile-avatar-dropzone img {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  object-fit: cover;
+  display: block;
 }
 
 .asset-placeholder.dark {
@@ -828,6 +842,74 @@ main {
   padding: 22px;
   cursor: pointer;
   overflow: hidden;
+}
+
+.image-dropzone {
+  font: inherit;
+  color: inherit;
+}
+
+.upload-vibe-card.image-dropzone,
+.upload-pet-card.image-dropzone,
+.asset-placeholder.image-dropzone {
+  appearance: none;
+}
+
+.upload-vibe-card.is-dragging,
+.upload-pet-card.is-dragging,
+.asset-placeholder.is-dragging {
+  border-color: rgba(0, 0, 0, 0.62);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.12);
+}
+
+.upload-vibe-card.is-busy,
+.upload-pet-card.is-busy,
+.asset-placeholder.is-busy {
+  cursor: wait;
+}
+
+.upload-vibe-card.has-error,
+.upload-pet-card.has-error,
+.asset-placeholder.has-error {
+  border-color: rgba(138, 68, 54, 0.78);
+}
+
+.upload-vibe-card .image-dropzone-status,
+.upload-pet-card .image-dropzone-status,
+.asset-placeholder .image-dropzone-status {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(0, 0, 0, 0.7);
+  padding: 7px 12px;
+  font-size: 12px;
+  line-height: 1.2;
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.upload-vibe-card .image-dropzone-status:empty,
+.upload-pet-card .image-dropzone-status:empty,
+.asset-placeholder .image-dropzone-status:empty {
+  display: none;
+}
+
+.upload-vibe-card .image-dropzone-status.is-error,
+.upload-pet-card .image-dropzone-status.is-error,
+.asset-placeholder .image-dropzone-status.is-error {
+  background: rgba(138, 68, 54, 0.92);
+  color: #fff;
+}
+
+.upload-vibe-card .image-dropzone-status.is-active,
+.upload-pet-card .image-dropzone-status.is-active,
+.asset-placeholder .image-dropzone-status.is-active {
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
 }
 
 .upload-vibe-card input[type='file'] {
@@ -1224,6 +1306,7 @@ main {
 }
 
 .upload-pet-card {
+  position: relative;
   min-height: 220px;
   border: 1px dashed rgba(0, 0, 0, 0.24);
   border-radius: 22px;
@@ -1233,6 +1316,7 @@ main {
   display: grid;
   place-items: center;
   color: #000;
+  padding: 0;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 

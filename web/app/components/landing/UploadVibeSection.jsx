@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Upload, WandSparkles } from 'lucide-react';
+import { ImageDropzone } from '../ImageDropzone';
 
 const DEFAULT_VIBE = '森林奶酪屋，童话厨房氛围，适合花枝鼠钻洞、觅食和攀爬。';
 
@@ -13,7 +14,7 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl }) {
   const [error, setError] = useState('');
   const pollRef = useRef(null);
 
-  // 宠物位默认跟随创建器已传照片；用户在本区另选后，改用本地替换预览（不影响创建器）。
+  // 宠物位默认跟随创建器已传照片；用户在本区另选成功上传后，改用后端返回 URL 作为本区预览。
   const petPreviewUrl = localPetPreviewUrl || petImageUrl || '';
 
   useEffect(() => () => {
@@ -22,23 +23,27 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl }) {
 
   const mockQuery = mockMode ? '?mock=1' : '';
 
-  const handleCageUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file || !projectId) return;
+  const uploadImage = async (file, kind) => {
+    if (!projectId) throw new Error('项目还在初始化，请稍后再试');
     const form = new FormData();
     form.append('file', file);
-    form.append('kind', 'cage');
+    form.append('kind', kind);
     const res = await fetch(`/api/project/${projectId}/upload`, { method: 'POST', body: form });
-    if (!res.ok) return;
-    const data = await res.json();
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || '上传失败');
+    }
+    return res.json();
+  };
+
+  const handleCageUpload = async (file) => {
+    const data = await uploadImage(file, 'cage');
     setCagePreviewUrl(data.url);
   };
 
-  const handlePetReplace = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (localPetPreviewUrl) URL.revokeObjectURL(localPetPreviewUrl);
-    setLocalPetPreviewUrl(URL.createObjectURL(file));
+  const handlePetReplace = async (file) => {
+    const data = await uploadImage(file, 'pet');
+    setLocalPetPreviewUrl(data.url);
   };
 
   const pollProject = () => {
@@ -110,30 +115,34 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl }) {
         )}
       </div>
       <div className="upload-grid">
-        <label className="upload-vibe-card" data-ratio="4:3">
-          <input type="file" accept="image/*" onChange={handleCageUpload} />
-          {cagePreviewUrl ? (
-            <img src={cagePreviewUrl} alt="当前笼箱照片预览" />
-          ) : (
+        <ImageDropzone
+          className="upload-vibe-card"
+          data-ratio="4:3"
+          previewUrl={cagePreviewUrl}
+          alt="当前笼箱照片预览"
+          onFile={handleCageUpload}
+          emptyContent={
             <span className="upload-empty">
               <Upload size={22} strokeWidth={1.6} />
               <strong>当前笼箱照片</strong>
               <em>4:3</em>
             </span>
-          )}
-        </label>
-        <label className="upload-vibe-card" data-ratio="1:1">
-          <input type="file" accept="image/*" onChange={handlePetReplace} />
-          {petPreviewUrl ? (
-            <img src={petPreviewUrl} alt="宠物照片预览" />
-          ) : (
+          }
+        />
+        <ImageDropzone
+          className="upload-vibe-card"
+          data-ratio="1:1"
+          previewUrl={petPreviewUrl}
+          alt="宠物照片预览"
+          onFile={handlePetReplace}
+          emptyContent={
             <span className="upload-empty">
               <Camera size={22} strokeWidth={1.6} />
               <strong>宠物照片</strong>
               <em>1:1</em>
             </span>
-          )}
-        </label>
+          }
+        />
       </div>
     </section>
   );
