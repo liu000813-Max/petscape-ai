@@ -2496,3 +2496,7 @@ main {
   font-weight: 500;
   letter-spacing: 0.02em;
 }
+
+/* 批次0 验收修复：Tailwind preflight 将 html line-height 置为 1.5，原版 V3 (无 Tailwind) 为 normal，
+   导致全页 +76px 的行高漂移（verify-report Story 1）。恢复原版基线。 */
+html { line-height: normal; }
