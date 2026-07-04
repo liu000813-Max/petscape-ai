@@ -1,0 +1,32 @@
+{
+  "sourceFile": "raw.glb",
+  "normalizedFile": "raw.norm.glb",
+  "heightMm": 80.0,
+  "footprint": {
+    "xMm": 140.667,
+    "zMm": 140.955
+  },
+  "boundsMm": [
+    [
+      -70.333,
+      0.0,
+      -70.478
+    ],
+    [
+      70.333,
+      80.0,
+      70.478
+    ]
+  ],
+  "transform": {
+    "convention": "Y-up, 1 unit = 1mm",
+    "scale": 73.75004443924757,
+    "droppedToY0": true,
+    "centeredXZ": true,
+    "originalExtentsMm": [
+      1.907348,
+      1.084745,
+      1.911257
+    ]
+  }
+}

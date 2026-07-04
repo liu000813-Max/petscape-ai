@@ -45,9 +45,11 @@ export const workflowCards = [
 export const flowSteps = ['免费生成图', '选择宠物', '创建形象', '添加装扮', '添加模块', '确认模型', '3D 打印', '发货'];
 
 export const scenePacks = [
-  { title: '森林奶酪屋', tag: '花枝鼠首发套装', copy: '洞穴窝、觅食通道、攀爬平台和食盆固定座组成完整环境。', price: '¥399+', image: '/assets/scene-cheese-house.jpg' },
-  { title: '都市基地', tag: '适合分享传播', copy: '工业风模块和可清洗平台，把普通笼箱变成主题空间。', price: '¥459+', image: '/assets/scene-urban-base.jpg' },
-  { title: '雨林树屋', tag: '扩展物种方案', copy: '为守宫、蜘蛛和树栖宠物准备的湿润垂直攀爬方案。', price: '¥369+', image: '/assets/scene-rainforest-treehouse.jpg' }
+  // moduleIds：批次3（F42）追加，按主题语义从 modules（13 模块）里配 3-4 个真实存在的模块 id，
+  // 供 ScenePackSection「加入预览」批量并入 selectedIds 用。不改动上面已有的 title/tag/copy/price/image 字段。
+  { title: '森林奶酪屋', tag: '花枝鼠首发套装', copy: '洞穴窝、觅食通道、攀爬平台和食盆固定座组成完整环境。', price: '¥399+', image: '/assets/scene-cheese-house.jpg', moduleIds: ['cheese-lounge-bed', 'banana-bed', 'hanging-climb-baskets', 'cheese-play-mat'] },
+  { title: '都市基地', tag: '适合分享传播', copy: '工业风模块和可清洗平台，把普通笼箱变成主题空间。', price: '¥459+', image: '/assets/scene-urban-base.jpg', moduleIds: ['sunny-climb-station', 'hanging-z-ladder', 'cheese-storage-tower'] },
+  { title: '雨林树屋', tag: '扩展物种方案', copy: '为守宫、蜘蛛和树栖宠物准备的湿润垂直攀爬方案。', price: '¥369+', image: '/assets/scene-rainforest-treehouse.jpg', moduleIds: ['mushroom-climb-tree', 'star-bridge-hide', 'starry-hideout', 'spiral-star-perch'] }
 ];
 
 export const materialRows = [['PETG', '防潮、耐用、易清洁', '¥0.42 / g'], ['PLA+', '适合干燥装饰件', '¥0.28 / g'], ['后处理', '圆角打磨、清洁涂层、低气味处理', '¥49+']];

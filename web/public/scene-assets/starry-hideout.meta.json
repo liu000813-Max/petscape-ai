@@ -1,0 +1,32 @@
+{
+  "sourceFile": "starry-hideout.glb",
+  "normalizedFile": "starry-hideout.norm.glb",
+  "heightMm": 150.0,
+  "footprint": {
+    "xMm": 186.334,
+    "zMm": 186.351
+  },
+  "boundsMm": [
+    [
+      -93.167,
+      0.0,
+      -93.175
+    ],
+    [
+      93.167,
+      150.0,
+      93.175
+    ]
+  ],
+  "transform": {
+    "convention": "Y-up, 1 unit = 1mm",
+    "scale": 97.50508673949055,
+    "droppedToY0": true,
+    "centeredXZ": true,
+    "originalExtentsMm": [
+      1.911017,
+      1.538381,
+      1.91119
+    ]
+  }
+}
