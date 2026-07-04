@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 550" role="img" aria-label="重叠的五张宠物档案卡">
+  <rect width="760" height="550" rx="48" fill="#f7f7f5"/>
+  <g font-family="Arial, sans-serif">
+    <g transform="translate(64 154) rotate(-10)">
+      <rect width="176" height="238" rx="28" fill="#fff" stroke="#deded8" stroke-width="2"/>
+      <rect x="18" y="18" width="140" height="118" rx="22" fill="#f1ede8"/>
+      <circle cx="88" cy="78" r="35" fill="#c9c0b7"/>
+      <circle cx="64" cy="54" r="14" fill="#b5aaa0"/>
+      <circle cx="112" cy="54" r="14" fill="#b5aaa0"/>
+      <circle cx="76" cy="76" r="4" fill="#111"/>
+      <circle cx="100" cy="76" r="4" fill="#111"/>
+      <text x="24" y="164" font-size="24" font-weight="700" fill="#111">Nomi</text>
+      <text x="24" y="190" font-size="14" fill="#6b6b64">花枝鼠</text>
+      <rect x="24" y="204" width="70" height="22" rx="11" fill="#111"/>
+      <text x="59" y="220" text-anchor="middle" font-size="11" fill="#fff">钻洞</text>
+    </g>
+    <g transform="translate(198 100) rotate(-4)">
+      <rect width="176" height="238" rx="28" fill="#fff" stroke="#deded8" stroke-width="2"/>
+      <rect x="18" y="18" width="140" height="118" rx="22" fill="#edf2e8"/>
+      <ellipse cx="88" cy="82" rx="44" ry="26" fill="#9cae7b"/>
+      <circle cx="60" cy="76" r="11" fill="#7e9062"/>
+      <path d="M116 70 C144 48 148 106 116 104" fill="none" stroke="#7e9062" stroke-width="9" stroke-linecap="round"/>
+      <circle cx="76" cy="80" r="4" fill="#111"/>
+      <circle cx="104" cy="80" r="4" fill="#111"/>
+      <text x="24" y="164" font-size="24" font-weight="700" fill="#111">Miso</text>
+      <text x="24" y="190" font-size="14" fill="#6b6b64">守宫</text>
+      <rect x="24" y="204" width="70" height="22" rx="11" fill="#111"/>
+      <text x="59" y="220" text-anchor="middle" font-size="11" fill="#fff">湿躲</text>
+    </g>
+    <g transform="translate(326 138) rotate(5)">
+      <rect width="176" height="238" rx="28" fill="#fff" stroke="#deded8" stroke-width="2"/>
+      <rect x="18" y="18" width="140" height="118" rx="22" fill="#ececea"/>
+      <rect x="42" y="65" width="92" height="26" rx="13" fill="#777a66"/>
+      <rect x="52" y="46" width="72" height="24" rx="12" fill="#8c9078"/>
+      <circle cx="70" cy="60" r="4" fill="#111"/>
+      <circle cx="106" cy="60" r="4" fill="#111"/>
+      <text x="24" y="164" font-size="24" font-weight="700" fill="#111">Kuro</text>
+      <text x="24" y="190" font-size="14" fill="#6b6b64">蛇</text>
+      <rect x="24" y="204" width="70" height="22" rx="11" fill="#111"/>
+      <text x="59" y="220" text-anchor="middle" font-size="11" fill="#fff">隐蔽</text>
+    </g>
+    <g transform="translate(456 92) rotate(10)">
+      <rect width="176" height="238" rx="28" fill="#fff" stroke="#deded8" stroke-width="2"/>
+      <rect x="18" y="18" width="140" height="118" rx="22" fill="#eaf1f7"/>
+      <rect x="56" y="46" width="64" height="68" rx="28" fill="#7ea6c9"/>
+      <rect x="42" y="66" width="20" height="34" rx="10" fill="#4f7ea8"/>
+      <rect x="114" y="66" width="20" height="34" rx="10" fill="#4f7ea8"/>
+      <circle cx="76" cy="78" r="4" fill="#111"/>
+      <circle cx="100" cy="78" r="4" fill="#111"/>
+      <text x="24" y="164" font-size="24" font-weight="700" fill="#111">Pico</text>
+      <text x="24" y="190" font-size="14" fill="#6b6b64">鹦鹉</text>
+      <rect x="24" y="204" width="70" height="22" rx="11" fill="#111"/>
+      <text x="59" y="220" text-anchor="middle" font-size="11" fill="#fff">站杆</text>
+    </g>
+    <g transform="translate(300 252) rotate(0)">
+      <rect width="176" height="238" rx="28" fill="#fff" stroke="#deded8" stroke-width="2"/>
+      <rect x="18" y="18" width="140" height="118" rx="22" fill="#f0efed"/>
+      <circle cx="88" cy="78" r="34" fill="#3d3532"/>
+      <rect x="42" y="58" width="24" height="8" fill="#3d3532"/>
+      <rect x="110" y="58" width="24" height="8" fill="#3d3532"/>
+      <rect x="42" y="94" width="24" height="8" fill="#3d3532"/>
+      <rect x="110" y="94" width="24" height="8" fill="#3d3532"/>
+      <circle cx="76" cy="78" r="4" fill="#fff"/>
+      <circle cx="100" cy="78" r="4" fill="#fff"/>
+      <text x="24" y="164" font-size="24" font-weight="700" fill="#111">Momo</text>
+      <text x="24" y="190" font-size="14" fill="#6b6b64">蜘蛛</text>
+      <rect x="24" y="204" width="70" height="22" rx="11" fill="#111"/>
+      <text x="59" y="220" text-anchor="middle" font-size="11" fill="#fff">低干扰</text>
+    </g>
+  </g>
+</svg>

@@ -97,7 +97,7 @@ export function ManufacturingSection({ projectId, mockMode, petName, petSize, se
         <p>这里预留模型预览、材料选择、重量计价和生产周期，后续可连接模型生成、切片重量和打印排产。</p>
       </div>
       <div className="manufacturing-grid">
-        <img className="feature-image manufacturing-image" src="/assets/model-preview.jpg" alt="3D 模型预览" />
+        <img className="feature-image manufacturing-image" src="/assets/model-preview.png" alt="3D 模型预览" />
         <div className="quote-panel">
           <div className="quote-head">
             <Factory size={20} />

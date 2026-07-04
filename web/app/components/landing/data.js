@@ -33,17 +33,28 @@ export const wearableItems = [
 ];
 
 export const workflowCards = [
-  ['物种入口', '浏览', '大众宠物档案卡进入后，展示对应物种的专属白底配件。', '用户先从熟悉的物种进入，再看到真正适合该动物的模块。'],
-  ['宠物档案', '创建', '为爱宠命名，选择物种，并调节体型。', '档案会成为生成、预览、计价和复购的核心锚点。'],
-  ['3D 形象', '预览', '上传宠物图片，生成可旋转的角色式 3D 预览。', '体验应像游戏角色查看器，而不是静态表单。'],
-  ['爱宠装扮', '穿戴', '添加小帽子、围巾、吊牌等付费装饰。', '每个穿戴物都有价格、适配规则和预览中的位置反馈。'],
-  ['标品社区', '商店', '纯白底打印模块作为标准 SKU 展示和售卖。', '每个模块都有价格、材料、重量、适配物种和加入场景动作。'],
-  ['场景包', '整装', '多个模块组合成完整主题宠物空间。', '前端卖整体效果，后端用标准化可打印部件履约。'],
-  ['3D 打印', '生产', '材料、重量、打印时间和后处理共同驱动报价。', '同一套选择可以进入生产订单和发货流程。'],
-  ['实物交付', '落地', '从免费效果图到定金、模型确认、打印和发货。', '这是 AI Agent 把数字想象交付到现实的关键链路。']
+  { title: '物种入口', label: '浏览', image: '/assets/workflow/species-pixel-avatars.svg', front: '大众宠物档案卡进入后，展示对应物种的专属白底配件。', back: '用户先从熟悉的物种进入，再看到真正适合该动物的模块。' },
+  { title: '宠物档案', label: '创建', image: '/assets/workflow/pet-profile-card.svg', front: '为爱宠命名，选择物种，并调节体型。', back: '档案会成为生成、预览、计价和复购的核心锚点。' },
+  { title: '3D 形象', label: '预览', image: '/assets/workflow/workflow-3d-avatar.png', front: '上传宠物图片，生成可旋转的角色式 3D 预览。', back: '体验应像游戏角色查看器，而不是静态表单。' },
+  { title: '爱宠装扮', label: '穿戴', image: '/assets/workflow/workflow-wearables.png', front: '添加小帽子、围巾、吊牌等付费装饰。', back: '每个穿戴物都有价格、适配规则和预览中的位置反馈。' },
+  { title: '标品社区', label: '商店', image: '/assets/pet-products/banana-bed.png', front: '纯白底打印模块作为标准 SKU 展示和售卖。', back: '每个模块都有价格、材料、重量、适配物种和加入场景动作。' },
+  { title: '场景包', label: '整装', image: '/assets/workflow/workflow-scene-pack.png', front: '多个模块组合成完整主题宠物空间。', back: '前端卖整体效果，后端用标准化可打印部件履约。' },
+  { title: '3D 打印', label: '生产', image: '/assets/workflow/workflow-3d-print.png', front: '材料、重量、打印时间和后处理共同驱动报价。', back: '同一套选择可以进入生产订单和发货流程。' },
+  { title: '实物交付', label: '落地', image: '/assets/workflow/workflow-delivery.png', front: '从免费效果图到定金、模型确认、打印和发货。', back: '这是 AI Agent 把数字想象交付到现实的关键链路。' }
 ];
 
 export const flowSteps = ['免费生成图', '选择宠物', '创建形象', '添加装扮', '添加模块', '确认模型', '3D 打印', '发货'];
+
+export const flowStepAssets = {
+  免费生成图: '/assets/order-flow/free-render.jpg',
+  选择宠物: '/assets/order-flow/choose-pet-profile-stack.svg',
+  创建形象: '/assets/order-flow/create-avatar-user.png',
+  添加装扮: '/assets/order-flow/add-wearables-user.png',
+  添加模块: '/assets/order-flow/add-modules.jpg',
+  确认模型: '/assets/order-flow/confirm-model.jpg',
+  '3D 打印': '/assets/order-flow/print-3d-user.png',
+  发货: '/assets/order-flow/shipping.jpg',
+};
 
 export const scenePacks = [
   {
@@ -51,7 +62,7 @@ export const scenePacks = [
     tag: '花枝鼠首发套装',
     copy: '洞穴窝、觅食通道、攀爬平台和食盆固定座组成完整环境。',
     price: '¥399+',
-    image: '/assets/scene-cheese-house.jpg',
+    image: '/assets/scene-cheese-house.png',
     moduleIds: ['cheese-lounge-bed', 'banana-bed', 'hanging-climb-baskets', 'cheese-play-mat'],
     layoutStatus: 'ready',
     layout: [
@@ -72,8 +83,17 @@ export const scenePacks = [
       { instanceId: 'pack-pink-teapot', moduleId: 'pink-teapot', position: { x: 0, y: 0, z: 0 }, rotationY: -0.35, scale: 1, collisionSize: { x: 86.999, y: 140, z: 89.719 }, assetKind: 'glb' },
     ],
   },
-  { title: '都市基地', tag: '适合分享传播', copy: '工业风模块和可清洗平台，把普通笼箱变成主题空间。', price: '¥459+', image: '/assets/scene-urban-base.jpg', moduleIds: ['sunny-climb-station', 'hanging-z-ladder', 'cheese-storage-tower'], layoutStatus: 'in-development' },
-  { title: '雨林树屋', tag: '扩展物种方案', copy: '为守宫、蜘蛛和树栖宠物准备的湿润垂直攀爬方案。', price: '¥369+', image: '/assets/scene-rainforest-treehouse.jpg', moduleIds: ['mushroom-climb-tree', 'star-bridge-hide', 'starry-hideout', 'spiral-star-perch'], layoutStatus: 'in-development' }
+  { title: '都市基地', tag: '适合分享传播', copy: '工业风模块和可清洗平台，把普通笼箱变成主题空间。', price: '¥459+', image: '/assets/scene-urban-base.png', moduleIds: ['sunny-climb-station', 'hanging-z-ladder', 'cheese-storage-tower'], layoutStatus: 'in-development' },
+  { title: '雨林树屋', tag: '扩展物种方案', copy: '为守宫、蜘蛛和树栖宠物准备的湿润垂直攀爬方案。', price: '¥369+', image: '/assets/scene-rainforest-treehouse.png', moduleIds: ['mushroom-climb-tree', 'star-bridge-hide', 'starry-hideout', 'spiral-star-perch'], layoutStatus: 'in-development' }
 ];
 
 export const materialRows = [['PETG', '防潮、耐用、易清洁', '¥0.42 / g'], ['PLA+', '适合干燥装饰件', '¥0.28 / g'], ['后处理', '圆角打磨、清洁涂层、低气味处理', '¥49+']];
+
+export const safetyMaterials = [
+  { name: 'PETG', level: '推荐主材', safety: '高', durability: '中', heat: '中', pets: '猫、兔子、豚鼠', scene: '初期主材料 / 常接触模块' },
+  { name: 'TPU', level: '柔性保护', safety: '高', durability: '高', heat: '中', pets: '狗、猫', scene: '软垫、边缘保护、缓冲件' },
+  { name: '尼龙 PA', level: '高强结构', safety: '高', durability: '高', heat: '高', pets: '中大型犬', scene: '承重结构、高强度连接件' },
+  { name: 'PLA', level: '原型验证', safety: '较高', durability: '低', heat: '低', pets: '猫、小型犬、仓鼠', scene: '原型验证 / 轻度使用' },
+  { name: 'ABS', level: '谨慎使用', safety: '一般', durability: '高', heat: '高', pets: '不建议直接接触', scene: '有气味，不适合宠物主体' },
+  { name: '树脂', level: '不推荐', safety: '低', durability: '低', heat: '低', pets: '不建议', scene: '固化不充分可能有风险' }
+];

@@ -13,7 +13,7 @@ function parsePrice(priceStr) {
   return Number.parseInt(priceStr.replace(/[^\d]/g, ''), 10) || 0;
 }
 
-export function EnvironmentPreviewSection({ sectionRef, availableModules = [], selectedIds = [], selectedModules, sceneItems, onSceneItemsChange, onToggleModule, onRemoveModule, projectId, mockMode }) {
+export function EnvironmentPreviewSection({ sectionRef, availableModules = [], selectedIds = [], selectedModules, sceneItems, focusedInstanceId, onSceneItemsChange, onToggleModule, onRemoveModule, projectId, mockMode }) {
   const total = useMemo(() => selectedModules.reduce((sum, item) => sum + parsePrice(item.price), 0), [selectedModules]);
   const [avatarModelUrl, setAvatarModelUrl] = useState(null);
   const [quoteOpen, setQuoteOpen] = useState(false);
@@ -52,7 +52,7 @@ export function EnvironmentPreviewSection({ sectionRef, availableModules = [], s
   // 这里保持"仅点击才刷新"的语义，模块变化不自动重算，直到用户再次点击生成）。
 
   return (
-    <section className="preview-section" ref={sectionRef} id="module-market">
+    <section className="preview-section" ref={sectionRef} id="environment-preview">
       <div className="preview-copy">
         <span className="eyebrow">加入 3D 环境预览</span>
         <h2>打印模块可以被放入你的宠物环境预览中。</h2>
@@ -61,7 +61,7 @@ export function EnvironmentPreviewSection({ sectionRef, availableModules = [], s
       <div className="preview-board">
         <div className="preview-stage">
           <div className="asset-placeholder dark preview-scene-frame">
-            <SceneViewer items={sceneItems} selectedModuleTitles={Object.fromEntries(moduleTitleById)} onItemsChange={onSceneItemsChange} petAvatarUrl={avatarModelUrl} />
+            <SceneViewer items={sceneItems} selectedModuleTitles={Object.fromEntries(moduleTitleById)} focusedInstanceId={focusedInstanceId} onItemsChange={onSceneItemsChange} petAvatarUrl={avatarModelUrl} />
           </div>
           <div className="module-strip" aria-label="模块选择">
             {availableModules.map(item => {

@@ -23,6 +23,7 @@ export interface SceneViewerProps {
   selectedModuleTitles?: Record<string, string>;
   petAvatarUrl?: string | null;
   onItemsChange?: (items: SceneItem[]) => void;
+  focusedInstanceId?: string | null;
 }
 
 type AssetMeta = {
@@ -171,7 +172,7 @@ function horizontalOverlapRatio(a: SceneItem, b: SceneItem) {
   return (overlapX * overlapZ) / candidateArea;
 }
 
-export default function SceneViewer({ items, selectedModuleTitles = {}, petAvatarUrl, onItemsChange }: SceneViewerProps) {
+export default function SceneViewer({ items, selectedModuleTitles = {}, petAvatarUrl, onItemsChange, focusedInstanceId }: SceneViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -184,6 +185,7 @@ export default function SceneViewer({ items, selectedModuleTitles = {}, petAvata
   const textureLoaderRef = useRef<THREE.TextureLoader | null>(null);
   const raycasterRef = useRef(new THREE.Raycaster());
   const itemsRef = useRef(items);
+  const previousItemsLengthRef = useRef(items.length);
   const selectedInstanceIdRef = useRef<string | null>(items[0]?.instanceId ?? null);
   const transformStartRef = useRef<{ instanceId: string; position: THREE.Vector3 } | null>(null);
   const [selectedInstanceId, setSelectedInstanceId] = useState(items[0]?.instanceId ?? null);
@@ -202,6 +204,20 @@ export default function SceneViewer({ items, selectedModuleTitles = {}, petAvata
       setSelectedInstanceId(items[0]?.instanceId ?? null);
     }
   }, [items, selectedInstanceId]);
+
+  useEffect(() => {
+    if (!focusedInstanceId || focusedInstanceId === selectedInstanceId) return;
+    if (items.some((item) => item.instanceId === focusedInstanceId)) {
+      setSelectedInstanceId(focusedInstanceId);
+    }
+  }, [focusedInstanceId, items, selectedInstanceId]);
+
+  useEffect(() => {
+    if (items.length > previousItemsLengthRef.current) {
+      setSelectedInstanceId(items[items.length - 1]?.instanceId ?? null);
+    }
+    previousItemsLengthRef.current = items.length;
+  }, [items]);
 
   useEffect(() => {
     const container = containerRef.current;

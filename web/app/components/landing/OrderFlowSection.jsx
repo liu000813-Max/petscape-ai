@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { flowSteps } from './data';
+import { flowStepAssets, flowSteps } from './data';
 
 // F47 订单条：按 state 推导当前高亮步骤。flowSteps 顺序：
 // ['免费生成图', '选择宠物', '创建形象', '添加装扮', '添加模块', '确认模型', '3D 打印', '发货']
-// 高亮语汇贴 V3 现有 .active（如 .species-select-row button.active: background #000 / color #fff），
-// 因 styles.css 不在本批次文件所有权内，改用行内样式复刻同一取值，不新增/改动 CSS 规则。
-const ACTIVE_STYLE = { background: '#000', color: '#fff', borderColor: '#000' };
+// designer 源站把"免费生图"放在第 4 步；这里保留当前 state 语义和顺序，只复用其视觉资产。
 
 export function OrderFlowSection({ projectId, petImageUrl, avatarGenerated, selectedWearables, selectedIds }) {
   // 只读 project：vibeRender.status（"免费生成图"）+ avatarSlice.status（"确认模型"，切片完成），
@@ -60,6 +58,7 @@ export function OrderFlowSection({ projectId, petImageUrl, avatarGenerated, sele
 
   return <section className="order-section"><div className="section-copy"><span>订单闭环</span><h2>从免费效果图开始，到真实打印产品送到家。</h2></div><div className="flow-row">{flowSteps.map((step, index) => {
     const isActive = step === currentStep;
-    return <div className="flow-step" key={step} style={isActive ? ACTIVE_STYLE : undefined}><span style={isActive ? { color: 'rgba(255,255,255,0.7)' } : undefined}>{String(index + 1).padStart(2, '0')}</span><strong style={isActive ? { color: '#fff' } : undefined}>{step}</strong>{index < flowSteps.length - 1 && <ChevronRight size={18} />}</div>;
+    const image = flowStepAssets[step];
+    return <div className={`flow-step ${isActive ? 'active' : ''}`} key={step}>{image && <img src={image} alt={`${step}流程配图`} />}<div className="flow-step-copy"><span>{String(index + 1).padStart(2, '0')}</span><strong>{step}</strong></div>{index < flowSteps.length - 1 && <ChevronRight size={18} />}</div>;
   })}</div></section>;
 }

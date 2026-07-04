@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" role="img" aria-label="戴赛博帽子的像素风老鼠">
+  <rect width="640" height="300" rx="28" fill="#101010"/>
+  <g shape-rendering="crispEdges" transform="translate(212 42)">
+    <rect x="56" y="72" width="104" height="104" fill="#c9c0b7"/>
+    <rect x="24" y="48" width="48" height="48" fill="#b3a79c"/>
+    <rect x="144" y="48" width="48" height="48" fill="#b3a79c"/>
+    <rect x="72" y="112" width="16" height="16" fill="#00e5ff"/>
+    <rect x="128" y="112" width="16" height="16" fill="#ff4fd8"/>
+    <rect x="104" y="136" width="16" height="16" fill="#f0a0a0"/>
+    <rect x="56" y="64" width="104" height="24" fill="#171717"/>
+    <rect x="72" y="32" width="72" height="40" fill="#242424"/>
+    <rect x="88" y="24" width="56" height="8" fill="#00e5ff"/>
+    <rect x="144" y="40" width="32" height="16" fill="#ff4fd8"/>
+    <rect x="36" y="188" width="144" height="16" fill="#d7b56d"/>
+    <rect x="52" y="204" width="112" height="12" fill="#fff"/>
+  </g>
+  <text x="320" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#f4f4f2">CYBER WEARABLE</text>
+</svg>

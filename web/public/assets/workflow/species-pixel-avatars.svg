@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" role="img" aria-label="像素风五个宠物物种头像">
+  <rect width="640" height="300" rx="28" fill="#f6f6f2"/>
+  <g shape-rendering="crispEdges">
+    <g transform="translate(40 72)">
+      <rect width="88" height="88" rx="18" fill="#ffffff"/>
+      <rect x="24" y="24" width="40" height="36" fill="#c9c0b7"/>
+      <rect x="16" y="16" width="20" height="20" fill="#c9c0b7"/>
+      <rect x="52" y="16" width="20" height="20" fill="#c9c0b7"/>
+      <rect x="28" y="38" width="8" height="8" fill="#111"/>
+      <rect x="52" y="38" width="8" height="8" fill="#111"/>
+      <rect x="40" y="50" width="8" height="8" fill="#e38f8f"/>
+      <rect x="22" y="64" width="44" height="8" fill="#9c8f86"/>
+      <text x="44" y="126" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#111">鼠</text>
+    </g>
+    <g transform="translate(160 72)">
+      <rect width="88" height="88" rx="18" fill="#ffffff"/>
+      <rect x="18" y="34" width="52" height="24" fill="#9cae7b"/>
+      <rect x="12" y="42" width="12" height="12" fill="#7e9062"/>
+      <rect x="64" y="26" width="10" height="28" fill="#7e9062"/>
+      <rect x="24" y="38" width="8" height="8" fill="#111"/>
+      <rect x="52" y="38" width="8" height="8" fill="#111"/>
+      <rect x="38" y="54" width="12" height="6" fill="#d2d89b"/>
+      <text x="44" y="126" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#111">守宫</text>
+    </g>
+    <g transform="translate(280 72)">
+      <rect width="88" height="88" rx="18" fill="#ffffff"/>
+      <rect x="16" y="38" width="56" height="18" fill="#777a66"/>
+      <rect x="22" y="26" width="42" height="18" fill="#8c9078"/>
+      <rect x="28" y="34" width="8" height="8" fill="#111"/>
+      <rect x="52" y="34" width="8" height="8" fill="#111"/>
+      <rect x="62" y="54" width="16" height="8" fill="#777a66"/>
+      <text x="44" y="126" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#111">蛇</text>
+    </g>
+    <g transform="translate(400 72)">
+      <rect width="88" height="88" rx="18" fill="#ffffff"/>
+      <rect x="24" y="24" width="40" height="44" fill="#7ea6c9"/>
+      <rect x="18" y="34" width="12" height="24" fill="#4f7ea8"/>
+      <rect x="58" y="34" width="12" height="24" fill="#4f7ea8"/>
+      <rect x="34" y="40" width="8" height="8" fill="#111"/>
+      <rect x="50" y="40" width="8" height="8" fill="#111"/>
+      <rect x="42" y="52" width="10" height="8" fill="#f1b94e"/>
+      <text x="44" y="126" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#111">鹦鹉</text>
+    </g>
+    <g transform="translate(520 72)">
+      <rect width="88" height="88" rx="18" fill="#ffffff"/>
+      <rect x="26" y="28" width="36" height="36" fill="#3d3532"/>
+      <rect x="14" y="28" width="16" height="8" fill="#3d3532"/>
+      <rect x="58" y="28" width="16" height="8" fill="#3d3532"/>
+      <rect x="14" y="56" width="16" height="8" fill="#3d3532"/>
+      <rect x="58" y="56" width="16" height="8" fill="#3d3532"/>
+      <rect x="34" y="42" width="8" height="8" fill="#f4f4f2"/>
+      <rect x="50" y="42" width="8" height="8" fill="#f4f4f2"/>
+      <text x="44" y="126" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#111">蜘蛛</text>
+    </g>
+  </g>
+</svg>

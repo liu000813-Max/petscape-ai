@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" role="img" aria-label="实物交付快递箱子">
+  <rect width="640" height="300" rx="28" fill="#f7f7f5"/>
+  <path d="M190 116 L320 58 L450 116 L320 178 Z" fill="#d7b56d"/>
+  <path d="M190 116 L320 178 L320 260 L190 194 Z" fill="#c49c4f"/>
+  <path d="M450 116 L320 178 L320 260 L450 194 Z" fill="#b9893f"/>
+  <path d="M252 88 L382 148" stroke="#fff4d7" stroke-width="16" stroke-linecap="round"/>
+  <rect x="238" y="190" width="164" height="38" rx="19" fill="#fff" opacity=".9"/>
+  <text x="320" y="216" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#111">HOME DELIVERY</text>
+  <circle cx="452" cy="224" r="16" fill="#111"/>
+  <circle cx="190" cy="224" r="16" fill="#111"/>
+</svg>

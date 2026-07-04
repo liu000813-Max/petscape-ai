@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" role="img" aria-label="宠物3D形象">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="38%" r="62%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="48%" stop-color="#d8d6d0"/>
+      <stop offset="100%" stop-color="#8f9692"/>
+    </radialGradient>
+  </defs>
+  <rect width="640" height="300" rx="28" fill="#0b0b0b"/>
+  <ellipse cx="320" cy="232" rx="160" ry="28" fill="#ffffff" opacity=".12"/>
+  <circle cx="320" cy="138" r="88" fill="url(#g)"/>
+  <circle cx="262" cy="82" r="34" fill="#cfc5bc"/>
+  <circle cx="378" cy="82" r="34" fill="#cfc5bc"/>
+  <circle cx="286" cy="132" r="8" fill="#111"/>
+  <circle cx="354" cy="132" r="8" fill="#111"/>
+  <circle cx="320" cy="158" r="10" fill="#d98f8f"/>
+  <path d="M292 176 Q320 196 348 176" fill="none" stroke="#595959" stroke-width="8" stroke-linecap="round"/>
+  <ellipse cx="320" cy="232" rx="116" ry="20" fill="none" stroke="#fff" stroke-opacity=".26" stroke-width="4"/>
+  <path d="M204 232 C242 202 398 202 436 232" fill="none" stroke="#d7b56d" stroke-width="8" stroke-linecap="round"/>
+</svg>
