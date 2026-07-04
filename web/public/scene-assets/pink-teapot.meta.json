@@ -1,0 +1,32 @@
+{
+  "sourceFile": "pink teapot 3d model.stl",
+  "normalizedFile": "pink-teapot.norm.glb",
+  "heightMm": 140.0,
+  "footprint": {
+    "xMm": 86.999,
+    "zMm": 89.719
+  },
+  "boundsMm": [
+    [
+      -43.499,
+      0.0,
+      -44.859
+    ],
+    [
+      43.499,
+      140.0,
+      44.859
+    ]
+  ],
+  "transform": {
+    "convention": "Y-up, 1 unit = 1mm",
+    "scale": 142.8244084682441,
+    "droppedToY0": true,
+    "centeredXZ": true,
+    "originalExtentsMm": [
+      0.609131,
+      0.980225,
+      0.628174
+    ]
+  }
+}

@@ -66,6 +66,13 @@ export const assetIndex: Record<string, AssetEntry> = {
     metaPath: '/scene-assets/cheese-play-mat.meta.json',
     placeholder: false,
   },
+  'pink-teapot': {
+    kind: 'glb',
+    id: 'pink-teapot',
+    glbPath: '/scene-assets/pink-teapot.norm.glb',
+    metaPath: '/scene-assets/pink-teapot.meta.json',
+    placeholder: false,
+  },
 
   // ---- 有 GLB（占位，借用老仓库 scene-lab 资产；批次A 尚无该模块真实产出）----
   'starry-hideout': {

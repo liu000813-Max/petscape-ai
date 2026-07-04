@@ -33,6 +33,9 @@ type AssetMeta = {
 const CAGE_SIZE_MM = { width: 600, depth: 400, height: 400 };
 const BILLBOARD_HEIGHT_MM = 150;
 const CLAY_MATERIAL = new THREE.MeshStandardMaterial({ color: 0xf1ece1, metalness: 0, roughness: 0.72 });
+const MODULE_MATERIALS: Record<string, THREE.MeshStandardMaterial> = {
+  'pink-teapot': new THREE.MeshStandardMaterial({ color: 0xf2a1b8, metalness: 0, roughness: 0.62 }),
+};
 const SELECTED_MATERIAL = new THREE.LineBasicMaterial({ color: 0xff4d2f });
 
 function buildCageWireframe(): THREE.Object3D {
@@ -46,10 +49,11 @@ function buildCageWireframe(): THREE.Object3D {
   return group;
 }
 
-function applyClayMaterial(object: THREE.Object3D) {
+function applyClayMaterial(object: THREE.Object3D, moduleId?: string) {
+  const baseMaterial = moduleId ? MODULE_MATERIALS[moduleId] : undefined;
   object.traverse((child) => {
     if (child instanceof THREE.Mesh) {
-      child.material = CLAY_MATERIAL.clone();
+      child.material = (baseMaterial ?? CLAY_MATERIAL).clone();
       child.castShadow = false;
       child.receiveShadow = true;
     }
@@ -404,7 +408,7 @@ export default function SceneViewer({ items, selectedModuleTitles = {}, petAvata
                 obj.userData.instanceId = item.instanceId;
                 obj.userData.moduleId = item.moduleId;
                 obj.userData.isBillboard = false;
-                applyClayMaterial(obj);
+                applyClayMaterial(obj, item.moduleId);
                 applyItemTransform(obj, item);
                 loaded.set(item.instanceId, obj);
                 scene.add(obj);

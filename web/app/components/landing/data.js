@@ -21,7 +21,8 @@ export const modules = [
   { id: 'starry-hideout', title: '星月魔法躲屋', price: '¥89', species: '守宫 / 蛇 / 蜘蛛', material: 'PETG', weight: '190g', image: '/assets/pet-products/starry-hideout.png', shape: 'hide', description: '黑色星月主题躲避屋，偏艺术摆件感，适合主题景观。' },
   { id: 'star-bridge-hide', title: '星桥拱门躲屋', price: '¥59', species: '守宫 / 蛇 / 蜘蛛', material: 'PETG', weight: '150g', image: '/assets/pet-products/star-bridge-hide.png', shape: 'hide', description: '镂空拱桥带星星装饰，能做躲避、穿行和拍摄背景。' },
   { id: 'mushroom-climb-tree', title: '蘑菇攀爬树', price: '¥59', species: '守宫 / 蜘蛛', material: 'PETG', weight: '150g', image: '/assets/pet-products/mushroom-climb-tree.png', shape: 'rock', description: '柔和蘑菇群造型，适合雨林或童话主题的攀爬点。' },
-  { id: 'spiral-star-perch', title: '星旋攀爬立柱', price: '¥39', species: '鹦鹉 / 守宫 / 蜘蛛', material: 'PETG', weight: '110g', image: '/assets/pet-products/spiral-star-perch.png', shape: 'rock', description: '螺旋星形立柱偏艺术款，可作为场景里的视觉焦点。' }
+  { id: 'spiral-star-perch', title: '星旋攀爬立柱', price: '¥39', species: '鹦鹉 / 守宫 / 蜘蛛', material: 'PETG', weight: '110g', image: '/assets/pet-products/spiral-star-perch.png', shape: 'rock', description: '螺旋星形立柱偏艺术款，可作为场景里的视觉焦点。' },
+  { id: 'pink-teapot', title: '粉色茶壶模型', price: '¥0', species: '测试场景包', material: 'STL 转 GLB', weight: '外部导入', shape: 'hide', description: '根目录导入的粉色茶壶 STL，用于测试外部场景包接入真实 3D 预设。' }
 ];
 
 export const wearableItems = [
@@ -58,6 +59,17 @@ export const scenePacks = [
       { instanceId: 'pack-forest-banana-bed', moduleId: 'banana-bed', position: { x: 165, y: 0, z: -115 }, rotationY: -0.45, scale: 0.9, collisionSize: { x: 234.107, y: 100, z: 94.742 }, assetKind: 'glb' },
       { instanceId: 'pack-forest-hanging-climb-baskets', moduleId: 'hanging-climb-baskets', position: { x: 185, y: 0, z: 92 }, rotationY: 0.35, scale: 1, collisionSize: { x: 82.924, y: 120, z: 57.215 }, assetKind: 'glb' },
       { instanceId: 'pack-forest-cheese-play-mat', moduleId: 'cheese-play-mat', position: { x: -150, y: 0, z: 118 }, rotationY: -0.28, scale: 0.95, collisionSize: { x: 162.435, y: 60, z: 162.434 }, assetKind: 'glb' },
+    ],
+  },
+  {
+    title: '粉色茶壶测试包',
+    tag: '外部 STL 导入',
+    copy: '把根目录新放入的茶壶模型接入真实 3D 场景预设，用来快速检查外部场景包效果。',
+    price: '测试',
+    moduleIds: ['pink-teapot'],
+    layoutStatus: 'ready',
+    layout: [
+      { instanceId: 'pack-pink-teapot', moduleId: 'pink-teapot', position: { x: 0, y: 0, z: 0 }, rotationY: -0.35, scale: 1, collisionSize: { x: 86.999, y: 140, z: 89.719 }, assetKind: 'glb' },
     ],
   },
   { title: '都市基地', tag: '适合分享传播', copy: '工业风模块和可清洗平台，把普通笼箱变成主题空间。', price: '¥459+', image: '/assets/scene-urban-base.jpg', moduleIds: ['sunny-climb-station', 'hanging-z-ladder', 'cheese-storage-tower'], layoutStatus: 'in-development' },

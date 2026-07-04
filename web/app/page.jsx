@@ -27,6 +27,7 @@ const DEFAULT_COLLISION_BY_MODULE = {
   'hanging-climb-baskets': { x: 82.924, y: 120, z: 57.215 },
   'cheese-play-mat': { x: 162.435, y: 60, z: 162.434 },
   'starry-hideout': { x: 186.334, y: 150, z: 186.351 },
+  'pink-teapot': { x: 86.999, y: 140, z: 89.719 },
 };
 
 const DEFAULT_BILLBOARD_COLLISION = { x: 120, y: 150, z: 80 };
