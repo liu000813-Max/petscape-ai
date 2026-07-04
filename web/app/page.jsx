@@ -1,0 +1,42 @@
+'use client';
+
+import React, { useRef, useState } from 'react';
+import { motion } from 'motion/react';
+import { ease, species, modules } from './components/landing/data';
+import { Navbar } from './components/landing/Navbar';
+import { HeroFooter } from './components/landing/HeroFooter';
+import { DetailDrawer } from './components/landing/DetailDrawer';
+import { SpeciesShowcase } from './components/landing/SpeciesShowcase';
+import { PetCreatorSection } from './components/landing/PetCreatorSection';
+import { IntroSection } from './components/landing/IntroSection';
+import { ModuleCommunitySection } from './components/landing/ModuleCommunitySection';
+import { EnvironmentPreviewSection } from './components/landing/EnvironmentPreviewSection';
+import { UploadVibeSection } from './components/landing/UploadVibeSection';
+import { RenderSection } from './components/landing/RenderSection';
+import { ScenePackSection } from './components/landing/ScenePackSection';
+import { ManufacturingSection } from './components/landing/ManufacturingSection';
+import { GiftSection } from './components/landing/GiftSection';
+import { OrderFlowSection } from './components/landing/OrderFlowSection';
+import { FlipCards } from './components/landing/FlipCards';
+import './components/landing/styles.css';
+
+export default function App() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedSpeciesId, setSelectedSpeciesId] = useState('rat');
+  const [selectedIds, setSelectedIds] = useState(['cheese-lounge-bed', 'hanging-climb-baskets']);
+  const [petName, setPetName] = useState('Nomi');
+  const [petSize, setPetSize] = useState(3);
+  const [petImageUrl, setPetImageUrl] = useState('');
+  const [avatarGenerated, setAvatarGenerated] = useState(false);
+  const [avatarRotation, setAvatarRotation] = useState(32);
+  const [selectedWearables, setSelectedWearables] = useState(['knit-hat']);
+  const moduleMarketRef = useRef(null);
+  const selectedSpecies = species.find(item => item.id === selectedSpeciesId) || species[0];
+  const selectedModules = modules.filter(module => selectedIds.includes(module.id));
+  const scrollToModules = () => moduleMarketRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const toggleModule = moduleId => setSelectedIds(current => current.includes(moduleId) ? current.filter(id => id !== moduleId) : [...current, moduleId]);
+  const toggleWearable = wearableId => setSelectedWearables(current => current.includes(wearableId) ? current.filter(id => id !== wearableId) : [...current, wearableId]);
+  const handlePetImageUpload = event => { const file = event.target.files?.[0]; if (!file) return; if (petImageUrl) URL.revokeObjectURL(petImageUrl); setPetImageUrl(URL.createObjectURL(file)); setAvatarGenerated(false); };
+  const handleGenerateAvatar = () => { setAvatarGenerated(true); setAvatarRotation(32); };
+  return <main><section className="hero-shell"><Navbar onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} /><motion.div className="video-wrap" initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.8, ease }}><video className="hero-video" src="/assets/hero-mouse.mp4" poster="/assets/hero-mouse-poster.jpeg" autoPlay muted playsInline loop /></motion.div><HeroFooter onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} /><DetailDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} /></section><SpeciesShowcase selectedSpeciesId={selectedSpeciesId} onSelectSpecies={setSelectedSpeciesId} onAddPet={() => setDrawerOpen(true)} /><PetCreatorSection selectedSpecies={selectedSpecies} onSelectSpecies={setSelectedSpeciesId} petName={petName} onPetNameChange={setPetName} petSize={petSize} onPetSizeChange={setPetSize} petImageUrl={petImageUrl} onPetImageUpload={handlePetImageUpload} avatarGenerated={avatarGenerated} onGenerateAvatar={handleGenerateAvatar} avatarRotation={avatarRotation} onAvatarRotationChange={setAvatarRotation} selectedWearables={selectedWearables} onToggleWearable={toggleWearable} /><IntroSection /><ModuleCommunitySection selectedIds={selectedIds} onToggleModule={toggleModule} marketRef={moduleMarketRef} /><EnvironmentPreviewSection selectedModules={selectedModules} /><UploadVibeSection /><RenderSection /><ScenePackSection /><ManufacturingSection /><GiftSection /><OrderFlowSection /><FlipCards /></main>;
+}

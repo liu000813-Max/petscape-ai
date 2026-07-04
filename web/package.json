@@ -16,6 +16,8 @@
     "@google/model-viewer": "^4.3.1",
     "@openai/codex-sdk": "^0.142.5",
     "@types/three": "^0.185.0",
+    "lucide-react": "1.23.0",
+    "motion": "12.42.2",
     "next": "^16.2.10",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

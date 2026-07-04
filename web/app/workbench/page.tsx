@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import type { CanvasItem, ModelConfig, PetScapeProject, UserState } from './lib/types/project';
-import { defaultModelConfig } from './lib/types/project';
-import type { WorkbenchCanvasHandle } from './components/WorkbenchCanvas';
-import ModelStudio from './components/ModelStudio';
+import type { CanvasItem, ModelConfig, PetScapeProject, UserState } from '../lib/types/project';
+import { defaultModelConfig } from '../lib/types/project';
+import type { WorkbenchCanvasHandle } from '../components/WorkbenchCanvas';
+import ModelStudio from '../components/ModelStudio';
 
 // tldraw 必须 client-only：SSR 会因 window/document 报错。next/dynamic ssr:false 隔离。
-const WorkbenchCanvas = dynamic(() => import('./components/WorkbenchCanvas'), {
+const WorkbenchCanvas = dynamic(() => import('../components/WorkbenchCanvas'), {
   ssr: false,
   loading: () => <div className="flex h-full items-center justify-center text-ink-soft">画布加载中…</div>,
 });

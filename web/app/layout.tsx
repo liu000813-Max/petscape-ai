@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'PetScape',
-  description: '自然语言到宠物造景 3D 打印 Demo',
+  title: 'TinyHabitat AI',
+  description: '为爱宠定制，把想象打印成家。',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
