@@ -12,7 +12,7 @@ function parsePrice(priceStr) {
   return Number.parseInt(priceStr.replace(/[^\d]/g, ''), 10) || 0;
 }
 
-export function EnvironmentPreviewSection({ selectedModules, projectId, mockMode }) {
+export function EnvironmentPreviewSection({ selectedModules, sceneItems, onSceneItemsChange, projectId, mockMode }) {
   const total = useMemo(() => selectedModules.reduce((sum, item) => sum + parsePrice(item.price), 0), [selectedModules]);
   const [avatarModelUrl, setAvatarModelUrl] = useState(null);
   const [quoteOpen, setQuoteOpen] = useState(false);
@@ -40,7 +40,7 @@ export function EnvironmentPreviewSection({ selectedModules, projectId, mockMode
     };
   }, [projectId, mockMode]);
 
-  const sceneModules = useMemo(() => selectedModules.map((item) => ({ id: item.id, title: item.title })), [selectedModules]);
+  const moduleTitleById = useMemo(() => new Map(selectedModules.map(item => [item.id, item.title])), [selectedModules]);
 
   const handleGenerateQuote = () => {
     setQuoteSnapshot(selectedModules.map((item) => ({ id: item.id, title: item.title, price: item.price })));
@@ -60,10 +60,10 @@ export function EnvironmentPreviewSection({ selectedModules, projectId, mockMode
       <div className="preview-board">
         <div className="preview-stage">
           <div className="asset-placeholder dark" style={{ display: 'block', height: 420, minHeight: 420, padding: 0, overflow: 'hidden' }}>
-            <SceneViewer selectedModules={sceneModules} petAvatarUrl={avatarModelUrl} />
+            <SceneViewer items={sceneItems} selectedModuleTitles={Object.fromEntries(moduleTitleById)} onItemsChange={onSceneItemsChange} petAvatarUrl={avatarModelUrl} />
           </div>
           <div className="preview-chips">
-            {selectedModules.length === 0 ? <span>还没有添加模块</span> : selectedModules.map(item => <span key={item.id}>{item.title}</span>)}
+            {sceneItems.length === 0 ? <span>还没有添加模块</span> : sceneItems.map((item, index) => <span key={item.instanceId}>{moduleTitleById.get(item.moduleId) || item.moduleId} #{index + 1}</span>)}
           </div>
         </div>
         <div className="preview-side">

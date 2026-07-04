@@ -2010,6 +2010,96 @@ main {
   min-height: 420px;
 }
 
+.scene-viewer-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.scene-viewer-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+
+.scene-viewer-canvas canvas {
+  display: block;
+}
+
+.scene-viewer-panel {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  color: #111;
+}
+
+.scene-viewer-panel > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.scene-viewer-panel span {
+  color: rgba(0, 0, 0, 0.5);
+  font-size: 11px;
+}
+
+.scene-viewer-panel strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.scene-viewer-panel em {
+  font-size: 11px;
+  font-style: normal;
+  color: #a54b00;
+}
+
+.scene-viewer-controls {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.scene-viewer-controls button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.scene-viewer-controls button:disabled {
+  cursor: not-allowed;
+  background: #e6e4dc;
+  color: rgba(0, 0, 0, 0.42);
+}
+
+.scene-viewer-status {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+}
+
+.scene-viewer-status.error {
+  color: #c83220;
+  font-weight: 600;
+}
+
 .preview-chips {
   display: flex;
   flex-wrap: wrap;
@@ -2136,6 +2226,13 @@ main {
 
 .scene-body h3 {
   font-size: 34px;
+}
+
+.scene-layout-note {
+  margin-top: 10px;
+  color: #9b4b00;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .scene-body strong {
