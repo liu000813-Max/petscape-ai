@@ -2469,3 +2469,30 @@ main {
     grid-template-columns: 1fr;
   }
 }
+
+/* F48 · 物种推荐徽标（复用导航 .dark-circle 的黑底白字胶囊语汇；仅置顶排序 + 徽标，不改布局） */
+.module-card-slot {
+  position: relative;
+  display: flex;
+}
+
+.module-card-slot > .module-card {
+  flex: 1 1 auto;
+}
+
+.module-recommend-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #000;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
