@@ -34,11 +34,25 @@ export default function App() {
   const [projectId, setProjectId] = useState(null);
   const [mockMode, setMockMode] = useState(false);
   useEffect(() => {
-    setMockMode(new URLSearchParams(window.location.search).has('mock'));
-    fetch('/api/project', { method: 'POST' })
-      .then(res => res.json())
-      .then(project => setProjectId(project.id))
-      .catch(() => setProjectId(null));
+    const params = new URLSearchParams(window.location.search);
+    setMockMode(params.has('mock'));
+    const existing = params.get('project');
+    const boot = async () => {
+      // demo 双轨：?project=<id> 恢复已有项目（预生成的第二轨），无效或缺省则新建。
+      if (existing) {
+        const res = await fetch(`/api/project/${existing}`);
+        if (res.ok) {
+          const proj = await res.json();
+          if (proj?.avatar?.status === 'done') setAvatarGenerated(true); // 舞台直接进 GLB 态
+          setProjectId(existing);
+          return;
+        }
+      }
+      const res = await fetch('/api/project', { method: 'POST' });
+      const project = await res.json();
+      setProjectId(project.id);
+    };
+    boot().catch(() => setProjectId(null));
   }, []);
   const moduleMarketRef = useRef(null);
   const petCreatorRef = useRef(null);
