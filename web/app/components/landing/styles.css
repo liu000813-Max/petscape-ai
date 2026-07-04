@@ -916,9 +916,9 @@ main {
 .share-badge {
   position: absolute;
   left: 14px;
-  right: 14px;
   bottom: 14px;
-  display: flex;
+  max-width: calc(100% - 28px);
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   background: rgba(0, 0, 0, 0.5);
@@ -927,17 +927,22 @@ main {
   backdrop-filter: blur(10px);
 }
 
-.share-badge-logo {
+/* 双类+标签提特异性：需胜过 .render-photo-card img (0,1,1) 的 width:100% 铺满规则 */
+.share-badge img.share-badge-logo {
   width: 20px;
   height: 20px;
   object-fit: contain;
   border-radius: 50%;
   background: #fff;
+  flex: 0 0 auto;
 }
 
 .share-badge span {
   color: #fff;
   font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .builder-section {
