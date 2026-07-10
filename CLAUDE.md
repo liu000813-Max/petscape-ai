@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目
 
-PetScape / TinyHabitat AI——宠物 3D 打印定制电商的黑客松交付版。设计师定稿前端 + 真实生成管线（fal 生图 → Tripo/Meshy 图生3D → PrusaSlicer 切片）。产品叙事与工程决策的**单一真相源**是 `docs/integration-mapping.md`（51 前端功能点 × 74 后端能力映射、全部用户拍板记录）；各批次的闭合 spec（含可执行验收 Story）在 `docs/specs/`。
+PetScape / TinyHabitat AI——从 AI 宠物空间灵感走向单件 3D 打印交付的产品，当前仓库代码仍是黑客松交付基线。产品定位、用户承诺与 Web V1 范围以 `docs/TinyHabitat-PRD.md` 为单一真相源；`docs/integration-mapping.md` 只记录黑客松时期的已交付能力、降级方案和拍板历史；各批次闭合 spec 在 `docs/specs/`。
+
+改产品流程、3D 场景或制造链时：效果图只承担灵感表达，3D 场景承担近似摆放预览，制造与报价绑定经过确认的可打印单件。不要默认整张效果图可以 1:1 重建，也不要把自由图片转 3D 当成 Web V1 的必经路径。三种交付路径见 `docs/TinyHabitat-PRD.md` 的“效果图选物后的交付路径”。
 
 ## 常用命令
 

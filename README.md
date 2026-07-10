@@ -4,6 +4,12 @@
 
 前端为设计师定稿的 TinyHabitat 页面（视觉零回归移植），后端为已验证的生成管线（fal 生图 + Meshy/Tripo 图生3D + PrusaSlicer 切片）。
 
+## 当前产品方向
+
+黑客松版本同时展示了宠物 Avatar、AI 环境效果图、3D 场景和切片下载。获奖后的 Web 产品主线已经收敛为：用户先通过 AI 效果图获得宠物空间灵感，再选择图中感兴趣的单个物品，通过现有商品匹配、模板化定制或人工辅助原创，将它转化为可确认、可报价、可打印和可交付的单件模块。
+
+效果图负责灵感，3D 场景负责近似摆放预览，经过确认的可打印单件负责制造。当前代码仍是黑客松交付基线，不代表这条长期链路已经完成。完整产品定义见 `docs/TinyHabitat-PRD.md`；已交付能力和历史拍板见 `docs/integration-mapping.md`。
+
 ## 快速开始
 
 ```bash
@@ -52,8 +58,8 @@ store = globalThis 内存 Map（无数据库）；产物落 web/public/generated
 
 ## 文档地图（真相源）
 
-- `docs/integration-mapping.md` — **工程真相源**：51 前端功能点 × 74 后端能力映射、全部拍板记录、批次划分
-- `docs/TinyHabitat-PRD.md` — 产品愿景（设计师侧）
+- `docs/TinyHabitat-PRD.md` — **产品真相源**：产品定位、用户承诺、表现层边界与 Web V1 范围
+- `docs/integration-mapping.md` — **黑客松工程快照**：51 前端功能点 × 74 后端能力映射、交付拍板记录、批次划分
 - `docs/specs/` — 各批次闭合 spec（含验收 Story）；`docs/reports/` — builder/verifier 报告与证据
 - `docs/research/` — 前端/后端两条隔离研究线的三级文档（worker → AGGREGATE）
 - `assets-3d/` — 离线生成的 9 个 3D 资产（5 模块 + 4 装扮，Meshy，含预览图）
