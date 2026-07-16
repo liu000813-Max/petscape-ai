@@ -1,6 +1,8 @@
 # PetScape Web
 
-三栏工作台前端，承载「对话落表 → 改造图 → 门 1 选件 → 2D→3D → 挖腔 → 调参 → 门 2 → 切片下载」的生成链 E2E。产品需求/用户故事/模块边界的 SSOT 见项目根 `PRD.md`；硬技术裁决与前端约束（表单/画布真相源、tldraw 坑、Tripo 主链、混合内核挖腔等）见项目根 `CLAUDE.md`，本文件不复述，只做工程入门 + 指针。
+> 文档边界：本文件记录旧 `/workbench` 的工程形态与历史生成管线，不是当前首页或产品需求的单一真相源。产品方向与用户故事见 [`../docs/TinyHabitat-PRD.md`](../docs/TinyHabitat-PRD.md)，当前首页与黑客松交付说明见 [`../README.md`](../README.md)。
+
+旧三栏工作台承载「对话落表 → 改造图 → 门 1 选件 → 2D→3D → 挖腔 → 调参 → 门 2 → 切片下载」的生成链 E2E。本文件只保留历史工程入门和指针。
 
 ## 启动
 
@@ -21,7 +23,7 @@ npm run dev
 
 ## 当前架构：三栏工作台
 
-入口 `web/app/page.tsx`，前台收敛为 3 个用户状态（需求收集 → 2D 方案画布 → 3D 预览调参，见 `PRD.md` §3）：
+以下内容描述旧 workbench 的当前实现。目标用户旅程见产品 PRD。
 
 - **左栏 · Brief 表单（真相源）**：PetProfile 语义（物种 slug、petName、习性 chips、vibe、宠物/笼箱照上传、目标物品、禁忌），即时 PATCH 落到服务端 `app/lib/store/projects.ts` 的 in-memory 单例（`PetScapeProject`）。
 - **中栏 · 画布（tldraw）**：`app/components/WorkbenchCanvas`，展示 2D 方案卡 / 标注反馈 / 3D 预览。内容真相源是 `project.canvasItems`，不是 tldraw snapshot（snapshot 只存布局）。

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PetScape / TinyHabitat AI——从 AI 宠物空间灵感走向单件 3D 打印交付的产品，当前仓库代码仍是黑客松交付基线。产品定位、用户承诺与 Web V1 范围以 `docs/TinyHabitat-PRD.md` 为单一真相源；`docs/integration-mapping.md` 只记录黑客松时期的已交付能力、降级方案和拍板历史；各批次闭合 spec 在 `docs/specs/`。
 
-改产品流程、3D 场景或制造链时：效果图只承担灵感表达，3D 场景承担近似摆放预览，制造与报价绑定经过确认的可打印单件。不要默认整张效果图可以 1:1 重建，也不要把自由图片转 3D 当成 Web V1 的必经路径。三种交付路径见 `docs/TinyHabitat-PRD.md` 的“效果图选物后的交付路径”。
+改产品流程、3D 场景或制造链时，以 PRD 中的 Web V1 顺序为准：先用 2D 整体方案完成选择，再将用户框选的单个原创躲避屋推进到 3D 候选确认、人工制造审核和正式报价。2D 效果图与 3D 候选都不代表生产批准。具体实现尚未拍板，不得从历史 batch spec 自动推导新实现。
 
 ## 常用命令
 
