@@ -27,6 +27,8 @@ node ../tools/demo-prep.mjs [--real]  # demo 预热：生成第二轨项目并�
 
 当前原型的外部二进制依赖（切片链）：`uv`（跑 `scripts/normalize_mesh.py`，trimesh）与 PrusaSlicer CLI；路径可用 `UV_BIN` / `PRUSASLICER_BIN` 覆盖（默认见 `avatarJob.ts`）。这些信息只用于运行和迁移现有基线，正式模型处理与切片方案仍在 `ARCHITECTURE.md` 的待决策队列中；新增正式代码不得默认延续该工具组合。
 
+**阿里云操作一律走 `tools/aliyun <命令> ...`，禁止裸调 `aliyun`**：本机全局 `~/.aliyun/config.json` 的默认凭证属于用户个人账号（<PERSONAL_CLOUD_ACCOUNT_ID>），裸调必打错账号。封装脚本自动注入项目 `.env` 的 `ALIBABA_CLOUD_*` 凭证并在执行前断言账号 = PETSCAPE（<PROJECT_CLOUD_ACCOUNT_ID>），不符即拒绝。SDK 代码同理：显式传 `.env` 凭证，不依赖环境默认链。
+
 当前 API key 放**项目根** `.env`（`web/` 的上一级）：`FAL_KEY`、`MESHY_API_KEY`、`TRIPO_API_KEY`、`TRIPO_API_KEY_2`。现有 client 使用“process.env 优先，兜底手读 `../.env`”的原型机制；新增正式代码不得继续复制该模式，应按 `ARCHITECTURE.md` 收敛到统一配置入口。
 
 ## 当前基线实现（不是目标架构）
