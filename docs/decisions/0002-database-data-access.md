@@ -20,6 +20,8 @@ PetScape 需要持久保存用户、项目、资产元数据、任务、检查�
 - 业务增长或可用性目标提高后，升级到 RDS PostgreSQL 高可用版；
 - Prisma 作为数据访问与迁移工具。
 
+版本拍板（2026-07-18 修订）：采用 Prisma 7（`prisma.config.ts` + `@prisma/adapter-pg` driver adapter 路径）。理由：绿地阶段承担 breaking 配置的成本约为零，选 6 等于把大版本迁移推迟到有生产数据之后；7 的 TS/WASM 引擎无 Rust 二进制，直接消除容器化部署中的引擎二进制适配问题；Better Auth peerDependencies 已声明支持 `^7`。身份 tracer 曾锁定 Prisma 6.19.3，系 SQLite 最小路径的特例，不构成对 7 的否定证据。前置条件：Phase B 工程骨架搭建时先以小型 tracer 验证 Prisma 7 + adapter-pg + Better Auth adapter + `migrate deploy` 在真实 RDS PostgreSQL 上闭环，未通过则回退 Prisma 6（回退成本仅限配置文件）。
+
 `schema.prisma` 是关系模型、约束表达和 Prisma Client 生成的代码正本；已提交的 Prisma migration 是数据库结构演进历史。生产结构变更只通过受控 migration 流程执行，不使用会绕过迁移历史的临时推送作为生产发布方式。
 
 Web 与 Worker 使用同一份生成的 Prisma Client 和 schema，但连接池、事务入口和 Repository 适配器分别按进程管理。Prisma Client 只能出现在基础设施适配层，不得扩散到 React、Route Handler、领域模型或跨模块公共接口。
