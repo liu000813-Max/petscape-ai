@@ -11,8 +11,3 @@ body { @apply bg-slate-50 text-slate-900; }
     @apply w-full rounded-lg border border-line bg-[#FDFCF9] px-2.5 py-2 text-[13px] text-ink outline-none transition focus:border-forest-soft;
   }
 }
-
-/* tldraw 画布容器需要显式高度撑满中栏 */
-.tldraw__editor {
-  position: relative;
-}

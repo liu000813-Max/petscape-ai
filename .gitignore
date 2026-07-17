@@ -2,6 +2,10 @@
 node_modules/
 **/node_modules/
 
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
 # next build output
 .next/
 **/.next/
@@ -13,6 +17,9 @@ tsconfig.tsbuildinfo
 # user uploads (runtime, not source)
 web/public/uploads/*
 !web/public/uploads/.gitkeep
+
+# generated runtime outputs; existing tracked evidence is classified in the Phase A inventory
+web/public/generated/
 
 # env / secrets
 .env

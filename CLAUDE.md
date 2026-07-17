@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目
 
-PetScape / TinyHabitat AI——把原创宠物空间物品推进到 3D 确认、自动检查、自动报价、直接付款和真实交付的产品，当前仓库代码仍是黑客松交付基线。产品定位、用户承诺与功能范围以根目录的 `PetScape-PRD.md` 为单一真相源；目标系统结构、模块与数据归属、依赖方向以 `ARCHITECTURE.md` 为单一真相源；当前实现行为以代码为准。`docs/specs/` 和 `docs/reports/` 是黑客松批次的历史 Spec 与证据，不得自动推导未来实现。
+PetScape / TinyHabitat AI——把原创宠物空间物品推进到 3D 确认、自动检查、自动报价、直接付款和真实交付的产品，当前仓库代码仍是黑客松交付基线。产品定位、用户承诺与功能范围以根目录的 `PetScape-PRD.md` 为单一真相源；目标系统结构、模块与数据归属、依赖方向以 `ARCHITECTURE.md` 为单一真相源；当前实现行为以代码为准。`archive/hackathon/docs/specs/` 和 `archive/hackathon/docs/reports/` 是黑客松批次的历史 Spec 与证据，不得自动推导未来实现。
 
-根目录的 `DEVELOPMENT-PLAYBOOK.md` 仅供用户阅读和回顾。Agent 不应读取、引用或修改该文件。
+黑客松批次 Spec、报告与历史探查已统一归档在 `archive/hackathon/docs/`，不得自动推导未来实现。根目录的 `DEVELOPMENT-PLAYBOOK.md` 仅供用户阅读和回顾。Agent 不应读取、引用或修改该文件。
 
 改产品流程、3D 场景或制造链时，以 PRD 的核心闭环为准：生成或上传可制造物品模型，完成 3D 场景确认、材料和颜色选择、制作与宠物安全检查、自动报价、直接付款、真实订单以及生产物流跟踪。生成结果与 3D 预览都不自动代表适合制造或宠物使用。新增正式代码同时遵守 `ARCHITECTURE.md` 的模块化单体、多客户端 API、薄 Route Handler、独立应用层和 Web/Worker 进程边界。具体技术选型尚未拍板，不得从历史 batch spec 或旧实施计划自动推导新实现。
 
@@ -17,10 +17,13 @@ cd web && pnpm install        # 包管理统一 pnpm
 pnpm dev                      # 开发（默认 3000）
 pnpm build && pnpm exec next start  # demo/生产模式（无 dev overlay）
 npx tsc --noEmit              # 类型检查——本仓库最主要的硬校验，改动后必跑
+pnpm lint                     # 输出完整 ESLint 存量，当前会非零退出
+pnpm lint:baseline            # 迁移期门禁：既有错误只降不升，总上限 17
+pnpm test                     # 当前单测入口（Node test runner）
 node ../tools/demo-prep.mjs [--real]  # demo 预热：生成第二轨项目并打印恢复 URL
 ```
 
-当前 `package.json` 的 `lint` 脚本仍指向 Next 16 已移除的 `next lint`，`tests/timeoutQueue.test.mjs` 仍引用已删除模块；两者属于 Phase A 治理项，修复前不能作为验证证据。
+`tests/timeouts.test.mjs` 只验证仍在使用的 `jobs/timeouts.ts`；已删除的 `codexQueue` 不再有 active 测试或依赖。
 
 当前原型的外部二进制依赖（切片链）：`uv`（跑 `scripts/normalize_mesh.py`，trimesh）与 PrusaSlicer CLI；路径可用 `UV_BIN` / `PRUSASLICER_BIN` 覆盖（默认见 `avatarJob.ts`）。这些信息只用于运行和迁移现有基线，正式模型处理与切片方案仍在 `ARCHITECTURE.md` 的待决策队列中；新增正式代码不得默认延续该工具组合。
 
@@ -30,10 +33,10 @@ node ../tools/demo-prep.mjs [--real]  # demo 预热：生成第二轨项目并�
 
 目标架构以根目录 `ARCHITECTURE.md` 为准。本节仅记录迁移前的现有实现事实，不能作为新增代码继续沿用内存状态、公开运行资产或进程内后台任务的理由。
 
-**两个前端世代并存于一个 Next.js 单体**：
+**当前 active Web 与历史原型已经分离**：
 
 - `app/page.jsx` + `app/components/landing/` = 设计师 V3 定稿页（.jsx + 纯 CSS `landing/styles.css`）。**视觉零回归是硬约束**——这是设计师交稿的像素基准，改样式前先想清楚。
-- `app/workbench/`（旧三栏工作台）是历史原型；`app/scene-lab/` 是场景实验页（.tsx + Tailwind）。二者都不是未来产品架构入口，待 Phase A 查清依赖后归档或收口。
+- 旧三栏 Workbench、Scene Lab、专用 API 和 Gate Job 已迁入 `archive/hackathon/`，不再参与 active build 或路由。
 - 两套样式共存的已知坑：Tailwind preflight 会污染 landing（曾发生 `html{line-height:1.5}` 全页漂移，靠 styles.css 末尾恢复）；landing 里 `.render-photo-card img { width:100% }` 这类通用规则会以特异性压过单类名（曾把品牌 logo 拉成全幅）。
 
 **数据层没有数据库**：`app/lib/store/projects.ts` 用 `globalThis` 挂内存 Map（HMR 保活，**server 重启即全丢**——所以 demo 前要重跑 demo-prep）。产物文件落 `web/public/generated/{projectId}/`。
@@ -50,4 +53,4 @@ node ../tools/demo-prep.mjs [--real]  # demo 预热：生成第二轨项目并�
 
 ## 老仓库
 
-`../../legacy/3D宠物打印` 是本仓库的骨架来源（只读参考）：legacy 8 阶段聊天链、Meshy 旧编排、tldraw 画布、实验区（选型证据）都保留在那里。`assets-3d/` 里的 9 个 GLB（5 商品模块+4 装扮）是 Meshy 离线生成的成品资产，场景消费的归一化版本在 `web/public/scene-assets/`（烘焙脚本 `tools/bake-assets/`）。
+`../../legacy/3D宠物打印` 是本仓库的骨架来源（只读参考）；本 checkout 的黑客松历史材料统一位于 `archive/hackathon/`。`assets-3d/` 里的 9 个 GLB（5 商品模块+4 装扮）是 Meshy 离线生成的成品资产，场景消费的归一化版本在 `web/public/scene-assets/`（烘焙脚本 `tools/bake-assets/`）。

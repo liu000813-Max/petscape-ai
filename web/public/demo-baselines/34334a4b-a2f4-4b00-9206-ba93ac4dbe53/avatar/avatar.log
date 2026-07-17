@@ -1,0 +1,17 @@
+[2026-07-04T14:10:14.786Z] fal style edit start input=<USER_HOME>/Desktop/PetScape-final/web/public/uploads/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/pet.jpg STYLE_ENABLED=true
+[2026-07-04T14:10:28.393Z] fal style success → /generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/styled.png
+[2026-07-04T14:10:28.395Z] meshy submit image-to-3d input=<USER_HOME>/Desktop/PetScape-final/web/public/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/styled.png
+[2026-07-04T14:10:34.643Z] meshy taskId=019f2d77-6f2e-766b-85af-32d8aee76fb2
+[2026-07-04T14:10:35.051Z] poll meshy #1 status=IN_PROGRESS progress=1
+[2026-07-04T14:10:51.048Z] poll meshy #2 status=IN_PROGRESS progress=7
+[2026-07-04T14:11:07.031Z] poll meshy #3 status=IN_PROGRESS progress=27
+[2026-07-04T14:11:23.098Z] poll meshy #4 status=IN_PROGRESS progress=42
+[2026-07-04T14:11:39.190Z] poll meshy #5 status=IN_PROGRESS progress=49
+[2026-07-04T14:11:55.182Z] poll meshy #6 status=IN_PROGRESS progress=51
+[2026-07-04T14:12:11.283Z] poll meshy #7 status=IN_PROGRESS progress=51
+[2026-07-04T14:12:29.323Z] poll meshy #8 status=IN_PROGRESS progress=99
+[2026-07-04T14:12:45.415Z] poll meshy #9 status=IN_PROGRESS progress=99
+[2026-07-04T14:13:01.552Z] poll meshy #10 status=SUCCEEDED progress=100
+[2026-07-04T14:13:06.335Z] meshy glb downloaded bytes=7958136 → /generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/model.glb
+[2026-07-04T14:13:06.336Z] SUCCEEDED engine=meshy glb=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/model.glb bytes=7958136
+[2026-07-04T14:13:06.337Z] auto-trigger avatar-slice scaleMm=120

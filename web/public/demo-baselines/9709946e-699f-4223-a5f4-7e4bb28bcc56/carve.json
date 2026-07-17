@@ -1,0 +1,66 @@
+{
+  "watertight": true,
+  "entranceThrough": true,
+  "minWallMm": 5.59,
+  "entranceAxis": "+x",
+  "detail": {
+    "params": {
+      "standHeightMm": 150.0,
+      "entranceDiameterMm": 69.0,
+      "wallMinMm": 3.0
+    },
+    "input": {
+      "faces": 971766,
+      "verts": 497776,
+      "watertight": false
+    },
+    "repair_strategy": "L1 cell=0.5% off=50% largest-shell",
+    "repaired": {
+      "faces": 138068,
+      "watertight": true,
+      "is_volume": true,
+      "volume": 0.47199137224528315
+    },
+    "scale": {
+      "factor": 150.1279,
+      "extents_mm": [
+        149.98,
+        148.49,
+        150.0
+      ]
+    },
+    "entrance_axis": {
+      "name": "+x",
+      "depth_mm": 24.27
+    },
+    "carve_rounds": [
+      {
+        "round": 0,
+        "cavity_scale": 0.62,
+        "bool_ms": 4.4,
+        "watertight": true,
+        "wall_min_mm": 5.59,
+        "n_wall_samples": 4044
+      }
+    ],
+    "entrance": {
+      "axis": "+x",
+      "dir_vec": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "center_hollow": true,
+      "axis_ray_crossings": 4
+    },
+    "summary": {
+      "watertight": true,
+      "entranceThrough": true,
+      "minWallMm": 5.59,
+      "finalCavityScale": 0.62,
+      "centerHollow": true,
+      "axisRayCrossings": 4
+    },
+    "seconds": 5.2
+  }
+}

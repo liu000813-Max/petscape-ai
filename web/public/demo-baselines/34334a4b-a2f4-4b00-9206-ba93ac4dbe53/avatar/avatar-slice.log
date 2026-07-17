@@ -1,0 +1,10 @@
+[2026-07-04T14:13:06.339Z] START mock=false input=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/model.glb targetMm=120
+[2026-07-04T14:13:06.340Z] normalize input=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/model.glb targetMm=120
+[2026-07-04T14:13:08.427Z] prusaslicer export gcode=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/print-120mm.gcode
+[2026-07-04T14:13:13.150Z] prusaslicer done
+[2026-07-04T14:13:13.163Z] SUCCEEDED stl=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/print-120mm.stl gcode=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/print-120mm.gcode weightG=128.3 time=7h 20m 23s
+[2026-07-04T14:14:19.758Z] START mock=false input=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/model.glb targetMm=160
+[2026-07-04T14:14:19.758Z] normalize input=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/model.glb targetMm=160
+[2026-07-04T14:14:19.920Z] prusaslicer export gcode=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/print-160mm.gcode
+[2026-07-04T14:14:24.474Z] prusaslicer done
+[2026-07-04T14:14:24.488Z] SUCCEEDED stl=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/print-160mm.stl gcode=/generated/34334a4b-a2f4-4b00-9206-ba93ac4dbe53/avatar/print-160mm.gcode weightG=274.9 time=14h 44m 27s

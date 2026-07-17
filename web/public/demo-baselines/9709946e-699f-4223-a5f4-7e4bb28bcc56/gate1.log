@@ -1,0 +1,112 @@
+[2026-07-04T08:24:35.154Z] fal edit start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/scene-1783153189442-1.png → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:24:57.926Z] fal edit success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:24:57.928Z] fal multiview-grid start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:25:18.909Z] fal multiview-grid success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/multiview-grid.png
+[2026-07-04T08:25:19.010Z] crop grid → front/back/left/right（Tripo 顺序 FLBR）
+[2026-07-04T08:25:19.010Z] submit tripo multiview_to_model
+[2026-07-04T08:25:35.799Z] tripo taskId=08ab2597-f17e-480e-81d0-6612197351b6
+[2026-07-04T08:25:36.181Z] poll tripo #1 status=running progress=2
+[2026-07-04T08:25:42.128Z] poll tripo #2 status=running progress=9
+[2026-07-04T08:25:50.730Z] poll tripo #3 status=running progress=17
+[2026-07-04T08:25:56.675Z] poll tripo #4 status=running progress=29
+[2026-07-04T08:26:04.648Z] poll tripo #5 status=running progress=38
+[2026-07-04T08:26:11.706Z] poll tripo #6 status=running progress=47
+[2026-07-04T08:26:18.405Z] poll tripo #7 status=running progress=57
+[2026-07-04T08:26:24.564Z] poll tripo #8 status=running progress=66
+[2026-07-04T08:26:31.831Z] poll tripo #9 status=running progress=74
+[2026-07-04T08:26:38.415Z] poll tripo #10 status=running progress=85
+[2026-07-04T08:26:45.352Z] poll tripo #11 status=running progress=93
+[2026-07-04T08:26:51.306Z] poll tripo #12 status=running progress=99
+[2026-07-04T08:26:57.538Z] poll tripo #13 status=running progress=99
+[2026-07-04T08:27:04.899Z] poll tripo #14 status=success progress=100
+[2026-07-04T08:27:32.602Z] download tripo glb=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model-raw.glb bytes=28594228
+[2026-07-04T08:27:32.603Z] carve_shell start raw=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model-raw.glb → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb
+[2026-07-04T08:27:55.577Z] carve FAILED, fallback raw glb: carve_shell 退出码=1: ~~~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"<USER_HOME>/Desktop/3D宠物打印/scripts/carve_shell.py"[0m, line [35m85[0m, in [35mrepair_watertight[0m
+    raise RuntimeError('remesh 未能产出水密体（尝试了 cell 0.5~3.0%）')
+[1;35mRuntimeError[0m: [35mremesh 未能产出水密体（尝试了 cell 0.5~3.0%）[0m
+
+[2026-07-04T08:27:55.577Z] SUCCEEDED glb=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb repaired=(none) issues=carve_error=carve_shell 退出码=1: ~~~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"<USER_HOME>/Desktop/3D宠物打印/scripts/carve_shell.py"[0m, line [35m85[0m, in [35mrepair_watertight[0m
+    raise RuntimeError('remesh 未能产出水密体（尝试了 cell 0.5~3.0%）')
+[1;35mRuntimeError[0m: [35mremesh 未能产出水密体（尝试了 cell 0.5~3.0%）[0m
+; fallback=raw-glb; watertight=false; components=492; vertices=511385; faces=967714; euler=492
+[2026-07-04T08:31:07.464Z] fal edit start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/scene-1783153189451-2.png → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:31:45.878Z] fal edit success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:31:45.879Z] fal multiview-grid start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:32:08.872Z] fal multiview-grid success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/multiview-grid.png
+[2026-07-04T08:32:08.961Z] crop grid → front/back/left/right（Tripo 顺序 FLBR）
+[2026-07-04T08:32:08.962Z] submit tripo multiview_to_model
+[2026-07-04T08:32:20.258Z] tripo taskId=5a5d0ecc-6d79-4975-a7ef-6c3163771ae0
+[2026-07-04T08:32:20.506Z] poll tripo #1 status=running progress=1
+[2026-07-04T08:32:26.521Z] poll tripo #2 status=running progress=9
+[2026-07-04T08:32:33.019Z] poll tripo #3 status=running progress=16
+[2026-07-04T08:32:39.584Z] poll tripo #4 status=running progress=24
+[2026-07-04T08:32:45.553Z] poll tripo #5 status=running progress=33
+[2026-07-04T08:32:53.043Z] poll tripo #6 status=running progress=42
+[2026-07-04T08:33:01.026Z] poll tripo #7 status=running progress=50
+[2026-07-04T08:33:07.210Z] poll tripo #8 status=running progress=60
+[2026-07-04T08:33:15.117Z] poll tripo #9 status=running progress=69
+[2026-07-04T08:33:30.624Z] FAILED fetch failed
+[2026-07-04T08:35:36.616Z] fal edit start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/scene-1783153189451-2.png → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:35:55.846Z] fal edit success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:35:55.855Z] fal multiview-grid start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:36:18.236Z] fal multiview-grid success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/multiview-grid.png
+[2026-07-04T08:36:18.340Z] crop grid → front/back/left/right（Tripo 顺序 FLBR）
+[2026-07-04T08:36:18.340Z] submit tripo multiview_to_model
+[2026-07-04T08:36:30.260Z] tripo taskId=655a4e45-c46d-41d1-995a-f980addbb2fc
+[2026-07-04T08:36:30.526Z] poll tripo #1 status=running progress=1
+[2026-07-04T08:36:36.558Z] poll tripo #2 status=running progress=7
+[2026-07-04T08:36:43.827Z] poll tripo #3 status=running progress=14
+[2026-07-04T08:36:50.328Z] poll tripo #4 status=running progress=22
+[2026-07-04T08:36:56.557Z] poll tripo #5 status=running progress=30
+[2026-07-04T08:37:02.814Z] poll tripo #6 status=running progress=36
+[2026-07-04T08:37:09.812Z] poll tripo #7 status=running progress=43
+[2026-07-04T08:37:15.875Z] poll tripo #8 status=running progress=51
+[2026-07-04T08:37:22.782Z] poll tripo #9 status=running progress=58
+[2026-07-04T08:37:28.741Z] poll tripo #10 status=running progress=66
+[2026-07-04T08:37:34.677Z] poll tripo #11 status=running progress=72
+[2026-07-04T08:37:40.520Z] poll tripo #12 status=running progress=79
+[2026-07-04T08:37:46.795Z] poll tripo #13 status=running progress=86
+[2026-07-04T08:37:53.284Z] poll tripo #14 status=running progress=94
+[2026-07-04T08:37:59.893Z] poll tripo #15 status=success progress=100
+[2026-07-04T08:38:37.340Z] download tripo glb=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model-raw.glb bytes=27956140
+[2026-07-04T08:38:37.342Z] carve_shell start raw=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model-raw.glb → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb
+[2026-07-04T08:38:50.599Z] carve success: watertight=true; entranceThrough=false; minWallMm=0.11; entranceAxis=+x
+[2026-07-04T08:38:50.600Z] SUCCEEDED glb=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb repaired=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb issues=watertight=true; entranceThrough=false; minWallMm=0.11; entranceAxis=+x
+[2026-07-04T08:48:47.103Z] fal edit start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/scene-1783153189451-2.png → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:49:31.142Z] fal edit success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:49:31.143Z] fal multiview-grid start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:49:46.342Z] fal multiview-grid success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/multiview-grid.png
+[2026-07-04T08:49:46.435Z] crop grid → front/back/left/right（Tripo 顺序 FLBR）
+[2026-07-04T08:49:46.435Z] submit tripo multiview_to_model
+[2026-07-04T08:53:28.205Z] FAILED fetch failed
+[2026-07-04T08:54:12.229Z] fal edit start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/scene-1783153189451-2.png → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:54:31.952Z] fal edit success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:54:31.953Z] fal multiview-grid start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:54:54.006Z] FAILED fal fal-ai/nano-banana/edit HTTP 422: {"detail":[{"loc":["body"],"msg":"The model did not generate the expected output for this prompt. This may occur for several reasons, including unsafe content, a prompt that is incompatible with the selected media type (e.g., prompting an image model to generate audio), references to missing attachm
+[2026-07-04T08:56:28.246Z] fal edit start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/scene-1783153189451-2.png → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:56:45.651Z] fal edit success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:56:45.652Z] fal multiview-grid start input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/clean-item.png
+[2026-07-04T08:56:59.294Z] fal multiview-grid success → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/multiview-grid.png
+[2026-07-04T08:56:59.370Z] crop grid → front/back/left/right（Tripo 顺序 FLBR）
+[2026-07-04T08:56:59.370Z] submit tripo multiview_to_model
+[2026-07-04T08:57:12.592Z] tripo taskId=59fb0512-6c81-4fc0-9c89-0bc1aa795ab9
+[2026-07-04T08:57:12.852Z] poll tripo #1 status=running progress=1
+[2026-07-04T08:57:18.735Z] poll tripo #2 status=running progress=9
+[2026-07-04T08:57:26.813Z] poll tripo #3 status=running progress=20
+[2026-07-04T08:57:32.679Z] poll tripo #4 status=running progress=27
+[2026-07-04T08:57:38.588Z] poll tripo #5 status=running progress=35
+[2026-07-04T08:57:45.871Z] poll tripo #6 status=running progress=43
+[2026-07-04T08:57:52.494Z] poll tripo #7 status=running progress=54
+[2026-07-04T08:57:58.487Z] poll tripo #8 status=running progress=61
+[2026-07-04T08:58:05.291Z] poll tripo #9 status=running progress=69
+[2026-07-04T08:58:11.127Z] poll tripo #10 status=running progress=77
+[2026-07-04T08:58:24.528Z] poll tripo #11 status=running progress=89
+[2026-07-04T08:58:30.465Z] poll tripo #12 status=running progress=99
+[2026-07-04T08:58:36.379Z] poll tripo #13 status=running progress=99
+[2026-07-04T08:58:42.705Z] poll tripo #14 status=success progress=100
+[2026-07-04T08:59:10.078Z] download tripo glb=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model-raw.glb bytes=28119584
+[2026-07-04T08:59:10.079Z] carve_shell start raw=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model-raw.glb → /generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb
+[2026-07-04T08:59:17.311Z] carve success: watertight=true; entranceThrough=true; minWallMm=5.59; entranceAxis=+x
+[2026-07-04T08:59:17.312Z] SUCCEEDED glb=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb repaired=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb issues=watertight=true; entranceThrough=true; minWallMm=5.59; entranceAxis=+x

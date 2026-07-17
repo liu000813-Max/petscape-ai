@@ -1,8 +1,10 @@
 node_modules/
 .next/
 public/uploads/
+public/generated/
 tsconfig.tsbuildinfo
-# 大体积 mock 3D 产物（本地开发/回归用；从 experiments/meshy-test 拷入，不入库避免仓库膨胀）
+
+# public/mockup-assets/ 是受 tests/mockFixtures.test.mjs 保护的正式测试夹具，必须入库。
 
 # scene-lab tracer bullet 用的测试 GLB（从 experiments/ 拷入，同上不入库避免仓库膨胀）
 public/scene-lab-assets/

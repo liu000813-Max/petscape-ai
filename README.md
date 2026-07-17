@@ -19,7 +19,7 @@ pnpm dev            # 开发（含 dev overlay）
 pnpm build && pnpm exec next start   # demo 推荐：production 模式，无 overlay 干扰
 ```
 
-- 首页 `/` = 当前产品页；`/workbench` = 历史工作台原型；`/scene-lab` = three.js 场景实验页。两者都不是未来产品架构入口。
+- 首页 `/` = 当前产品页。旧 `/workbench` 与 `/scene-lab` 已迁入 `archive/hackathon/`，不再是 active route。
 - `?mock=1` = 全链 mock（零 API 消耗、秒级出结果）——**demo 网络故障时的保险丝**。
 - `?project=<id>` = 恢复已有项目（舞台 GLB / 报价 / 下载全恢复）。
 
@@ -61,6 +61,8 @@ store = globalThis 内存 Map（无数据库）；产物落 web/public/generated
 - `PetScape-PRD.md` — **产品真相源**：产品定位、核心闭环、模块定义与范围边界
 - `ARCHITECTURE.md` — **架构真相源**：目标系统结构、模块与数据归属、依赖方向和迁移边界
 - `DEVELOPMENT-PLAYBOOK.md` — 开发流程与可靠性方法，不定义产品或架构结论
-- `docs/specs/`、`docs/reports/` — 黑客松批次的历史 Spec 与验收证据，不自动约束未来实现
-- `docs/research/` — 历史研究与探查证据，不作为当前架构或代码现状的正本
+- `docs/governance/phase-a-inventory.md` — Phase A 分类、处置决定与执行证据
+- `archive/hackathon/docs/specs/`、`archive/hackathon/docs/reports/` — 黑客松批次的历史 Spec 与验收证据，不自动约束未来实现
+- `archive/hackathon/docs/research/` — 历史研究与探查证据，不作为当前架构或代码现状的正本
+- `archive/hackathon/` — 旧 Workbench、Scene Lab、验证工具和 dogfood 证据的统一归档区
 - `assets-3d/` — 离线 3D 素材、生成来源与参考资产；迁移或清理前必须先分类

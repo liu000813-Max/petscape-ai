@@ -1,0 +1,43 @@
+{
+  "maxErrors": 17,
+  "allowedErrors": {
+    "app/components/ModelStudio.tsx": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "app/components/SceneViewer.tsx": {
+      "react-hooks/refs": 2,
+      "react-hooks/set-state-in-effect": 2
+    },
+    "app/components/WorkbenchCanvas.tsx": {
+      "react-hooks/immutability": 1,
+      "react-hooks/refs": 1
+    },
+    "app/components/landing/ManufacturingSection.jsx": {
+      "react-hooks/set-state-in-effect": 1
+    },
+    "app/components/landing/PetCreatorSection.jsx": {
+      "react-hooks/set-state-in-effect": 2
+    },
+    "app/components/landing/SpeciesShowcase.jsx": {
+      "react-hooks/set-state-in-effect": 1
+    },
+    "app/components/landing/UploadVibeSection.jsx": {
+      "react-hooks/refs": 1
+    },
+    "app/lib/jobs/avatarJob.ts": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "app/lib/jobs/gate2Job.ts": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "app/page.jsx": {
+      "react-hooks/set-state-in-effect": 1
+    },
+    "app/scene-lab/SceneLabViewer.tsx": {
+      "react-hooks/refs": 1
+    },
+    "app/workbench/page.tsx": {
+      "react-hooks/set-state-in-effect": 1
+    }
+  }
+}

@@ -1,0 +1,5 @@
+[2026-07-04T14:00:57.772Z] START mock=false input=/generated/faacd227-1192-4591-a022-3b8803b1691b/avatar/model.glb targetMm=120
+[2026-07-04T14:00:57.773Z] normalize input=/generated/faacd227-1192-4591-a022-3b8803b1691b/avatar/model.glb targetMm=120
+[2026-07-04T14:00:59.460Z] prusaslicer export gcode=/generated/faacd227-1192-4591-a022-3b8803b1691b/avatar/print-120mm.gcode
+[2026-07-04T14:01:02.764Z] prusaslicer done
+[2026-07-04T14:01:02.773Z] SUCCEEDED stl=/generated/faacd227-1192-4591-a022-3b8803b1691b/avatar/print-120mm.stl gcode=/generated/faacd227-1192-4591-a022-3b8803b1691b/avatar/print-120mm.gcode weightG=0 time=7h 35m 19s

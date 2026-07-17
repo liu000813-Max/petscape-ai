@@ -1,0 +1,12 @@
+[2026-07-04T08:40:37.880Z] START mock=false input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb targetMm=120 color=#C08A5A material=PLA 木纹
+[2026-07-04T08:40:37.881Z] normalize input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb targetMm=120
+[2026-07-04T08:40:38.118Z] normalize ok extents=[71.944,120,99.685]
+[2026-07-04T08:40:38.118Z] prusaslicer export gcode=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.gcode
+[2026-07-04T08:40:43.722Z] prusaslicer done output=10 => Processing triangulated mesh | 20 => Generating perimeters | 30 => Preparing infill | 45 => Making infill | 65 => Searching support spots | 69 => Alert if supports needed | 70 => Generating support material | 89 => Calculating overhanging perimeters | 88 => Generating skirt and brim | 90 => Exporting G-code to <USER_HOME>/Desktop/3D宠物打印/web/public/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.gcode | Slicing result exported to <USER_HOME>/Desktop/3D宠物打印/web/public/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.gcode |  | 
+[2026-07-04T08:40:43.740Z] SUCCEEDED stl=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.stl gcode=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.gcode bytes=32860043 time=14h 23m 22s
+[2026-07-04T09:02:03.258Z] START mock=false input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb targetMm=120 color=#C08A5A material=PLA 木纹
+[2026-07-04T09:02:03.261Z] normalize input=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/model.glb targetMm=120
+[2026-07-04T09:02:03.517Z] normalize ok extents=[119.987,120,118.792]
+[2026-07-04T09:02:03.517Z] prusaslicer export gcode=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.gcode
+[2026-07-04T09:02:10.216Z] prusaslicer done output=10 => Processing triangulated mesh | 20 => Generating perimeters | 30 => Preparing infill | 45 => Making infill | 65 => Searching support spots | 69 => Alert if supports needed | 70 => Generating support material | 89 => Calculating overhanging perimeters | 88 => Generating skirt and brim | 90 => Exporting G-code to <USER_HOME>/Desktop/3D宠物打印/web/public/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.gcode | Slicing result exported to <USER_HOME>/Desktop/3D宠物打印/web/public/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.gcode |  | 
+[2026-07-04T09:02:10.235Z] SUCCEEDED stl=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.stl gcode=/generated/9709946e-699f-4223-a5f4-7e4bb28bcc56/print-120mm.gcode bytes=38451361 time=21h 14m 41s
