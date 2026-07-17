@@ -1,12 +1,12 @@
 // Batch2 4B verifier — independent acceptance run against spec assertions only.
 // Playwright borrowed from main-repo tools/verify-batch0/node_modules (same repo tooling).
-const { chromium } = require('<USER_HOME>/Desktop/PetScape-final/tools/verify-batch0/node_modules/playwright');
+const { chromium } = require('<REPOSITORY_ROOT>/tools/verify-batch0/node_modules/playwright');
 const fs = require('fs');
 const path = require('path');
 
 const BASE = 'http://localhost:3012';
-const WT = '<USER_HOME>/Desktop/PetScape-final/.claude/worktrees/agent-a82575011fef2753b/web';
-const SHOTS = '<USER_HOME>/Desktop/PetScape-final/.claude/worktrees/agent-a82575011fef2753b/tools/verify-batch2/shots';
+const WT = '<REPOSITORY_ROOT>/.claude/worktrees/agent-a82575011fef2753b/web';
+const SHOTS = '<REPOSITORY_ROOT>/.claude/worktrees/agent-a82575011fef2753b/tools/verify-batch2/shots';
 const CAGE_IMG = path.join(WT, 'public/assets/scene-urban-base.jpg');
 const PET_IMG = path.join(WT, 'public/mockup-assets/pet-hamster-ref.jpg');
 const PET_IMG2 = path.join(WT, 'public/assets/species-rat.png');

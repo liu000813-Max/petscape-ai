@@ -1,6 +1,6 @@
 # 批次3 Spec：3D 环境预览 + 电商假闭环（F31/F42/F46/F47）
 
-> 上游依据：`../integration-mapping.md`（grilling #7/#8）。前置：批次0 已验收、接驳层冻结；批次A 资产（assets-3d/modules/*/raw.glb）已产出——若批次A 未完成或产出不足，用 `web/public/generated/` 与老仓库 scene-lab 现有 .norm.glb 资产先行开发，资产到位后只替换文件。
+> 历史交付 Spec，不作为当前开发计划；当前产品范围见根目录 `PetScape-PRD.md`，当前实现以代码为准。
 > 文件所有权：只改/新建——`app/components/landing/EnvironmentPreviewSection.jsx`、`ScenePackSection.jsx`、`OrderFlowSection.jsx`、`app/components/landing/data.js`（**只追加场景包→模块子集常量，不改现有数据**）、`app/components/SceneViewer.tsx`（新建）、`public/scene-assets/**`（新建，资产烘焙产物）、`tools/bake-assets/**`（新建）。`app/page.jsx` 已注入 projectId/selectedIds/onAddModules 及订单条推导所需 props（petImageUrl/avatarGenerated/selectedWearables/selectedIds），禁改。**不建 PetViewer（批次1 所有权）、不动模块商城组件。不执行任何 git 操作——完成后报告，由主控统一 commit。** 验证用自己起的 dev server（端口 3003）。越界需求停下报主控。
 批次A 现状注记：Tripo 余额阻塞，5 模块 GLB 未产出（assets-3d/ 只有 source.png）。按 spec 预案先用老仓库 scene-lab 现有 .norm.glb 资产 + billboard 开发全部功能，资产到位后仅替换文件与 assetIndex。
 

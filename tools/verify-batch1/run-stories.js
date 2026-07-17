@@ -6,7 +6,7 @@ const pixelmatch = require('pixelmatch');
 const { chromium, preparePage, shot, SHOTS, BASE } = require('./lib');
 
 const PET_IMG =
-  '<USER_HOME>/Desktop/PetScape-final/.claude/worktrees/agent-aaed965fde3697a2b/web/public/mockup-assets/pet-hamster-ref.jpg';
+  '<REPOSITORY_ROOT>/.claude/worktrees/agent-aaed965fde3697a2b/web/public/mockup-assets/pet-hamster-ref.jpg';
 
 const log = (...a) => console.log(...a);
 

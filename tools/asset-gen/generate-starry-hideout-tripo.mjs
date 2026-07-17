@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-const ROOT = '<USER_HOME>/Desktop/PetScape-final';
+const ROOT = '<REPOSITORY_ROOT>';
 const WEB_NODE_MODULES = path.join(ROOT, 'web', 'node_modules');
 const require = createRequire(import.meta.url);
 const sharp = require(path.join(WEB_NODE_MODULES, 'sharp'));

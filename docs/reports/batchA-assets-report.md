@@ -79,7 +79,7 @@ PetScape-final/tools/asset-gen/
 1. **用户操作（唯一人工步）**：登录 https://platform.tripo3d.ai 为该账户充值（至少够 5 模块 + 4 装扮 = 9 个 image_to_model 任务，约 9×20=180 credit，建议留冗余）。
 2. 重跑：
    ```
-   cd <USER_HOME>/Desktop/PetScape-final/tools/asset-gen && node generate.mjs
+   cd <REPOSITORY_ROOT>/tools/asset-gen && node generate.mjs
    ```
    脚本会并发提交 5 模块 + 4 装扮、轮询下载 GLB。装扮图会被重新 fal 生成一次（无害，成本约 $0.16）；如要省这次可改脚本跳过已存在的 `source.png`。
 3. GLB 就绪后渲染预览：对每个 `raw.glb` 跑

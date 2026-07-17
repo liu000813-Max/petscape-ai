@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目
 
-PetScape / TinyHabitat AI——从 AI 宠物空间灵感走向单件 3D 打印交付的产品，当前仓库代码仍是黑客松交付基线。产品定位、用户承诺与 Web V1 范围以 `docs/TinyHabitat-PRD.md` 为单一真相源；`docs/integration-mapping.md` 只记录黑客松时期的已交付能力、降级方案和拍板历史；各批次闭合 spec 在 `docs/specs/`。
+PetScape / TinyHabitat AI——把原创宠物空间物品推进到 3D 确认、自动检查、自动报价、直接付款和真实交付的产品，当前仓库代码仍是黑客松交付基线。产品定位、用户承诺与功能范围以根目录的 `PetScape-PRD.md` 为单一真相源；当前实现以代码为准；各批次闭合 spec 在 `docs/specs/`。
 
-改产品流程、3D 场景或制造链时，以 PRD 中的 Web V1 顺序为准：先用 2D 整体方案完成选择，再将用户框选的单个原创躲避屋推进到 3D 候选确认、人工制造审核和正式报价。2D 效果图与 3D 候选都不代表生产批准。具体实现尚未拍板，不得从历史 batch spec 自动推导新实现。
+根目录的 `DEVELOPMENT-PLAYBOOK.md` 是**面向用户阅读和后续回顾**的开发流程与可靠性指南，不是 Agent 内部执行记录。更新时保持自然语言、高信噪比和长期可读性；不要写入临时任务状态、工具日志或一次性实现细节。
+
+改产品流程、3D 场景或制造链时，以 PRD 的核心闭环为准：生成或上传可制造物品模型，完成 3D 场景确认、材料和颜色选择、制作与宠物安全检查、自动报价、直接付款、真实订单以及生产物流跟踪。生成结果与 3D 预览都不自动代表适合制造或宠物使用。具体实现尚未拍板，不得从历史 batch spec 或旧实施计划自动推导新实现。
 
 ## 常用命令
 
@@ -46,4 +48,4 @@ API key 放**项目根** `.env`（`web/` 的上一级）：`FAL_KEY`、`MESHY_AP
 
 ## 老仓库
 
-`<USER_HOME>/Desktop/3D宠物打印` 是本仓库的骨架来源（只读参考）：legacy 8 阶段聊天链、Meshy 旧编排、tldraw 画布、实验区（选型证据）都留在那边未迁移。`assets-3d/` 里的 9 个 GLB（5 商品模块+4 装扮）是 Meshy 离线生成的成品资产，场景消费的归一化版本在 `web/public/scene-assets/`（烘焙脚本 `tools/bake-assets/`）。
+`../../legacy/3D宠物打印` 是本仓库的骨架来源（只读参考）：legacy 8 阶段聊天链、Meshy 旧编排、tldraw 画布、实验区（选型证据）都保留在那里。`assets-3d/` 里的 9 个 GLB（5 商品模块+4 装扮）是 Meshy 离线生成的成品资产，场景消费的归一化版本在 `web/public/scene-assets/`（烘焙脚本 `tools/bake-assets/`）。

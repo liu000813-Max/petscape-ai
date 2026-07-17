@@ -5,7 +5,7 @@
 const fs = require('fs');
 const { chromium, preparePage, shot, BASE } = require('./lib');
 
-const ASSETS = '<USER_HOME>/Desktop/PetScape-final/.claude/worktrees/agent-aaed965fde3697a2b/web/public/mockup-assets';
+const ASSETS = '<REPOSITORY_ROOT>/.claude/worktrees/agent-aaed965fde3697a2b/web/public/mockup-assets';
 const GLB = `${ASSETS}/mock-model.glb`;
 const GLB_BAK = `${ASSETS}/mock-model.glb.injected-away`;
 const PET_IMG = `${ASSETS}/pet-hamster-ref.jpg`;

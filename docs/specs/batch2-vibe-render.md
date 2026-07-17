@@ -1,6 +1,6 @@
 # 批次2 Spec：vibe 环境改造效果图（F36-F39）
 
-> 上游依据：`../integration-mapping.md`（grilling #6）。前置：批次0 已验收、接驳层冻结。
+> 历史交付 Spec，不作为当前开发计划；当前产品范围见根目录 `PetScape-PRD.md`，当前实现以代码为准。
 > 文件所有权：只改/新建——`app/components/landing/UploadVibeSection.jsx`、`RenderSection.jsx`、`app/api/project/[id]/vibe/**`（新建）、`app/lib/jobs/vibeJob.ts`（新建）。**`app/lib/types/project.ts` 已由接驳层预铺 `VibeRenderJob` 字段（注意字段名是 `vibeRender`，因 brief 里已有 `vibe?: string` 文本字段）——只消费、禁改**；`app/page.jsx` 已注入 projectId/mockMode/petImageUrl props，禁改。**不改其它组件、不动 scenePrompt.ts 现有函数（可新增函数）。不执行任何 git 操作——完成后报告，由主控统一 commit。** 验证用自己起的 dev server（端口 3002）。越界需求停下报主控。
 
 ## 1. 任务

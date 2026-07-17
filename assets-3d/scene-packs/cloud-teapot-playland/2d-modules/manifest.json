@@ -4,7 +4,7 @@
     "width": 4096,
     "height": 2304
   },
-  "outputDir": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules",
+  "outputDir": "<REPOSITORY_ROOT>/assets-3d/scene-packs/cloud-teapot-playland/2d-modules",
   "generationPolicy": {
     "phase1": "local crop extraction only; no external image or 3D generation",
     "phase2": "generate clean white-background multiview images per unique module after user confirms external-cost generation",
@@ -44,7 +44,7 @@
         "round pet entrance must be carved into the teapot body",
         "small pastel star decorations on the front body"
       ],
-      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-large-hideout.png",
+      "output": "<REPOSITORY_ROOT>/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-large-hideout.png",
       "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-large-hideout.png"
     },
     {
@@ -62,7 +62,7 @@
         "round front entrance, curved handle, short spout, lid knob",
         "same visual family as large teapot but smaller and rounder"
       ],
-      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-small-hideout.png",
+      "output": "<REPOSITORY_ROOT>/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-small-hideout.png",
       "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/pink-teapot-small-hideout.png"
     },
     {
@@ -81,7 +81,7 @@
         "small pastel pink teapot sitting on the moss",
         "cloud lobes visible around the lower edge"
       ],
-      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-moss-teapot-platform.png",
+      "output": "<REPOSITORY_ROOT>/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-moss-teapot-platform.png",
       "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-moss-teapot-platform.png"
     },
     {
@@ -100,7 +100,7 @@
         "rests on a low puffy cloud base",
         "pastel pink star decorations attached to the ramp"
       ],
-      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/s-cloud-star-ramp.png",
+      "output": "<REPOSITORY_ROOT>/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/s-cloud-star-ramp.png",
       "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/s-cloud-star-ramp.png"
     },
     {
@@ -119,7 +119,7 @@
         "thin pastel pink rim around the top",
         "pastel pink star decorations on the side"
       ],
-      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-upper.png",
+      "output": "<REPOSITORY_ROOT>/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-upper.png",
       "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-upper.png"
     },
     {
@@ -138,7 +138,7 @@
         "slightly different pose for layout reference",
         "pink rim and pink star decorations"
       ],
-      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-lower.png",
+      "output": "<REPOSITORY_ROOT>/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-lower.png",
       "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/cloud-star-bowl-lower.png"
     },
     {
@@ -157,7 +157,7 @@
         "green moss clusters at the base",
         "natural light brown wood grain material"
       ],
-      "output": "<USER_HOME>/Desktop/PetScape-final/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/wood-dna-moss-ladder.png",
+      "output": "<REPOSITORY_ROOT>/assets-3d/scene-packs/cloud-teapot-playland/2d-modules/wood-dna-moss-ladder.png",
       "relativeOutput": "assets-3d/scene-packs/cloud-teapot-playland/2d-modules/wood-dna-moss-ladder.png"
     }
   ]

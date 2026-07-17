@@ -5,8 +5,8 @@ const path = require('path');
 
 const EXE = '<USER_HOME>/Library/Caches/ms-playwright/chromium-1187/chrome-mac/Chromium.app/Contents/MacOS/Chromium';
 const BASE = 'http://localhost:3013';
-const SHOTS = '<USER_HOME>/Desktop/PetScape-final/tools/verify-batch3/shots';
-const PET_PHOTO = '<USER_HOME>/Desktop/PetScape-final/.claude/worktrees/agent-a57af23c3c445901b/web/public/assets/species-rat.png';
+const SHOTS = '<REPOSITORY_ROOT>/tools/verify-batch3/shots';
+const PET_PHOTO = '<REPOSITORY_ROOT>/.claude/worktrees/agent-a57af23c3c445901b/web/public/assets/species-rat.png';
 fs.mkdirSync(SHOTS, { recursive: true });
 
 const results = [];

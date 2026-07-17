@@ -2,7 +2,7 @@
 // Each story runs on a fresh page; before/after screenshots saved to shots/.
 const { chromium, preparePage, waitScrollEnd, shot, PORT } = require('./lib');
 
-const UPLOAD_IMG = '<USER_HOME>/Desktop/PetScape-final/web/public/assets/species-rat.png';
+const UPLOAD_IMG = '<REPOSITORY_ROOT>/web/public/assets/species-rat.png';
 const results = [];
 
 function record(id, title, pass, evidence) {

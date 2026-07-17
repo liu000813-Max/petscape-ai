@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const ROOT = '<USER_HOME>/Desktop/PetScape-final';
+const ROOT = '<REPOSITORY_ROOT>';
 const ENV_PATHS = [path.join(ROOT, '.env'), '<USER_HOME>/Desktop/3D宠物打印/.env'];
 const PACK_DIR = path.join(ROOT, 'assets-3d/scene-packs/cloud-teapot-playland');
 const SOURCE_DIR = path.join(PACK_DIR, '2d-modules-image2');

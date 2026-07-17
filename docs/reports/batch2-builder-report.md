@@ -13,7 +13,7 @@ spec: `docs/specs/batch2-vibe-render.md`
 - `RenderSection.jsx`：轮询 project GET 读 `vibeRender`，三态：改造前=beforeUrl 原图直用、改造后=afterUrl、分享图=afterUrl 的 CSS `object-fit:cover` 3:4 中心裁切+品牌角标（`petscape-logo.png`+文案）。生成前保持 `AssetPlaceholder` 原占位。
 - `styles.css` 新增 `.vibe-textarea` / `.vibe-generating-hint` / `.upload-vibe-card` / `.render-photo-card` / `.share-crop` / `.share-badge` 等，复用既有 `.prompt-box`/`.asset-placeholder`/`.brand-logo` 视觉语汇，未自创新风格。
 
-验证方式：因项目目录 `.next/dev/lock` 被并行 builder 的 dev server 占用，端口 3002 无法直接复用同目录起服务；改在 `<USER_HOME>/Desktop/PetScape-final-batch2-verify`（独立 `pnpm install`，非 symlink）起 3002 dev server 验证，验证完已清理删除，未污染主项目。
+验证方式：因项目目录 `.next/dev/lock` 被并行 builder 的 dev server 占用，端口 3002 无法直接复用同目录起服务；改在 `<REPOSITORY_ROOT>-batch2-verify`（独立 `pnpm install`，非 symlink）起 3002 dev server 验证，验证完已清理删除，未污染主项目。
 
 ## 验收证据（spec §4A）
 

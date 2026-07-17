@@ -76,18 +76,18 @@ git diff --stat（所有权范围内 4 个可改文件）：
 
 ## 改动文件
 
-- `<USER_HOME>/Desktop/PetScape-final/web/app/components/assetIndex.ts`（重写：占位映射→5 真实+1 占位+7 billboard）
-- `<USER_HOME>/Desktop/PetScape-final/web/public/scene-assets/cheese-lounge-bed.norm.glb`（+meta.json，真实资产替换占位）
-- `<USER_HOME>/Desktop/PetScape-final/web/public/scene-assets/hanging-climb-baskets.norm.glb`（+meta.json，真实资产替换占位）
-- `<USER_HOME>/Desktop/PetScape-final/web/public/scene-assets/banana-bed.norm.glb`（+meta.json，新增）
-- `<USER_HOME>/Desktop/PetScape-final/web/public/scene-assets/banana-layer-pad.norm.glb`（+meta.json，新增）
-- `<USER_HOME>/Desktop/PetScape-final/web/public/scene-assets/cheese-play-mat.norm.glb`（+meta.json，新增）
-- `<USER_HOME>/Desktop/PetScape-final/docs/reports/batch3-builder-report.md`（本报告，新建）
+- `<REPOSITORY_ROOT>/web/app/components/assetIndex.ts`（重写：占位映射→5 真实+1 占位+7 billboard）
+- `<REPOSITORY_ROOT>/web/public/scene-assets/cheese-lounge-bed.norm.glb`（+meta.json，真实资产替换占位）
+- `<REPOSITORY_ROOT>/web/public/scene-assets/hanging-climb-baskets.norm.glb`（+meta.json，真实资产替换占位）
+- `<REPOSITORY_ROOT>/web/public/scene-assets/banana-bed.norm.glb`（+meta.json，新增）
+- `<REPOSITORY_ROOT>/web/public/scene-assets/banana-layer-pad.norm.glb`（+meta.json，新增）
+- `<REPOSITORY_ROOT>/web/public/scene-assets/cheese-play-mat.norm.glb`（+meta.json，新增）
+- `<REPOSITORY_ROOT>/docs/reports/batch3-builder-report.md`（本报告，新建）
 
 未改动（前任遗产，验证后确认符合 spec，本次未动）：
-- `<USER_HOME>/Desktop/PetScape-final/web/app/components/SceneViewer.tsx`
-- `<USER_HOME>/Desktop/PetScape-final/web/app/components/landing/EnvironmentPreviewSection.jsx`
-- `<USER_HOME>/Desktop/PetScape-final/web/app/components/landing/ScenePackSection.jsx`
-- `<USER_HOME>/Desktop/PetScape-final/web/app/components/landing/OrderFlowSection.jsx`
-- `<USER_HOME>/Desktop/PetScape-final/web/app/components/landing/data.js`
-- `<USER_HOME>/Desktop/PetScape-final/tools/bake-assets/normalize_asset.py`
+- `<REPOSITORY_ROOT>/web/app/components/SceneViewer.tsx`
+- `<REPOSITORY_ROOT>/web/app/components/landing/EnvironmentPreviewSection.jsx`
+- `<REPOSITORY_ROOT>/web/app/components/landing/ScenePackSection.jsx`
+- `<REPOSITORY_ROOT>/web/app/components/landing/OrderFlowSection.jsx`
+- `<REPOSITORY_ROOT>/web/app/components/landing/data.js`
+- `<REPOSITORY_ROOT>/tools/bake-assets/normalize_asset.py`

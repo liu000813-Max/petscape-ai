@@ -1,6 +1,6 @@
 # 批次A Spec：离线生成 3D 资产（4 装扮 + 5 热门模块 GLB）
 
-> 上游依据：`../integration-mapping.md` grilling #3/#7。与批次0 并行，产物供批次1b（装扮挂载）与批次3（环境预览）消费。
+> 历史交付 Spec，不作为当前开发计划；当前产品范围见根目录 `PetScape-PRD.md`，当前实现以代码为准。
 > **真调付费 API（fal + Tripo），已获用户授权。**
 
 ## 1. 任务
@@ -20,7 +20,7 @@
 ## 3. 步骤
 
 1. 读 V3 数据，定 9 个资产清单（落盘 manifest）。
-2. 写 standalone 驱动脚本于 `<USER_HOME>/Desktop/PetScape-final/tools/asset-gen/`（.mjs，参考 experiments 模式；从老仓库 `.env` 读 key，不硬编码）。
+2. 写 standalone 驱动脚本于 `<REPOSITORY_ROOT>/tools/asset-gen/`（.mjs，参考 experiments 模式；从老仓库 `.env` 读 key，不硬编码）。
 3. 逐资产执行：装扮先 fal 文生图 → （全部）fal 四视图网格 → 裁切 4 视图 → Tripo 提交/轮询 → 下载 GLB。串行跑（Tripo 轮询期间可提交下一个，最多 2 并发，防限流）。
 4. 每个 GLB 出一张渲染预览图（参考老仓库 `experiments/fidelity-test-v2/` 的 python 渲染检查脚本模式，或 three.js 无头截图；实在不行用四视图源图代替并注明）。
 5. 失败资产重试 1 次；仍失败则记录跳过，不阻塞其余。
@@ -50,7 +50,7 @@ PetScape-final/assets-3d/
 
 ## 7. 产出形式
 
-- 报告：`<USER_HOME>/Desktop/PetScape-final/docs/reports/batchA-assets-report.md`（每资产：来源→各步结果→耗时；失败项附原因）。
+- 报告：`<REPOSITORY_ROOT>/docs/reports/batchA-assets-report.md`（每资产：来源→各步结果→耗时；失败项附原因）。
 - stdout ≤200 字：{ok 数量/9, 报告路径}。
 - 未完成 → 报告顶部 `INCOMPLETE:`。
 

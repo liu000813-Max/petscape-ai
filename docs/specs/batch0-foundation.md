@@ -1,17 +1,17 @@
 # 批次0 Spec：交付项目基座（骨架复制 + 裁剪 + V3 移植 + 纯前端接线）
 
-> 上游依据：`../integration-mapping.md`（判定与拍板）、`../research/frontend/AGGREGATE.md`（F 编号）、`../research/backend/AGGREGATE.md`（能力编号）。
+> 历史交付 Spec，不作为当前开发计划；当前产品范围见根目录 `PetScape-PRD.md`，当前实现以代码为准。
 > 执行原则：本批次是**机械移植**，不是重构。视觉与行为以原版 V3 为唯一基准，禁止任何"顺手优化"。
 
 ## 1. 任务
 
-在 `<USER_HOME>/Desktop/PetScape-final/web` 建立交付项目：复制老后端为骨架 → 裁剪零依赖孤岛 → 设计师 V3 页面移植为新首页并机械拆分组件 → 老工作台保留为 `/workbench` 调试页 → 完成 5 处纯前端接线。
+在 `<REPOSITORY_ROOT>/web` 建立交付项目：复制老后端为骨架 → 裁剪零依赖孤岛 → 设计师 V3 页面移植为新首页并机械拆分组件 → 老工作台保留为 `/workbench` 调试页 → 完成 5 处纯前端接线。
 
 ## 2. 输入与路径
 
 - **老后端（只读源）**：`<USER_HOME>/Desktop/3D宠物打印/web`（Next.js App Router + TS + Tailwind）
 - **V3 前端（只读源）**：`<USER_HOME>/Desktop/设计师前端页面`——**以 `src/` 为准**（已确证比 dist 新）：`src/main.jsx`（266 行，全部页面代码）、`src/styles.css`（2471 行）、`public/assets/`（全部素材）、`index.html`（title="TinyHabitat AI" 等 meta）
-- **目标**：`<USER_HOME>/Desktop/PetScape-final/web`（目前不存在，docs/ 已存在勿动）
+- **目标**：`<REPOSITORY_ROOT>/web`（目前不存在，docs/ 已存在勿动）
 
 ## 3. 步骤（每步一个 conventional commit，英文）
 
@@ -83,7 +83,7 @@
 
 ## 6. 产出形式
 
-- 详细报告写入 `<USER_HOME>/Desktop/PetScape-final/docs/reports/batch0-builder-report.md`：每条完成标准的证据、Tailwind preflight 冲突的处理方式与自查结论、遗留风险。
+- 详细报告写入 `<REPOSITORY_ROOT>/docs/reports/batch0-builder-report.md`：每条完成标准的证据、Tailwind preflight 冲突的处理方式与自查结论、遗留风险。
 - stdout ≤200 字：{结论一句话, tsc/build 是否绿, 报告路径}。
 - 任一完成标准未达 → 报告顶部 `INCOMPLETE:` + 已试路径。
 

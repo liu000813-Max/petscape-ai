@@ -6,7 +6,7 @@ const { PNG } = require('pngjs');
 const pixelmatch = require('pixelmatch');
 const { chromium, preparePage, shot, SHOTS, BASE } = require('./lib');
 
-const REF = '<USER_HOME>/Desktop/PetScape-final/tools/verify-batch0/shots/s1-port-03-creator.png';
+const REF = '<REPOSITORY_ROOT>/tools/verify-batch0/shots/s1-port-03-creator.png';
 
 (async () => {
   const browser = await chromium.launch();

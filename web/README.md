@@ -1,6 +1,6 @@
 # PetScape Web
 
-> 文档边界：本文件记录旧 `/workbench` 的工程形态与历史生成管线，不是当前首页或产品需求的单一真相源。产品方向与用户故事见 [`../docs/TinyHabitat-PRD.md`](../docs/TinyHabitat-PRD.md)，当前首页与黑客松交付说明见 [`../README.md`](../README.md)。
+> 文档边界：本文件记录旧 `/workbench` 的工程形态与历史生成管线，不是当前首页或产品需求的单一真相源。产品方向与用户故事见 [`../PetScape-PRD.md`](../PetScape-PRD.md)，当前首页与黑客松交付说明见 [`../README.md`](../README.md)。
 
 旧三栏工作台承载「对话落表 → 改造图 → 门 1 选件 → 2D→3D → 挖腔 → 调参 → 门 2 → 切片下载」的生成链 E2E。本文件只保留历史工程入门和指针。
 

@@ -117,7 +117,7 @@
 
 ```bash
 # 前置：3000（移植版）与 5173（原版）dev server 均在运行
-cd <USER_HOME>/Desktop/PetScape-final/tools/verify-batch0
+cd <REPOSITORY_ROOT>/tools/verify-batch0
 node story1.js       # Story 1：7 段截图 + pixelmatch diff 率
 node run-stories.js  # Story 2-10：交互断言 + 前后截图
 ```

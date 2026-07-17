@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const ROOT = '<USER_HOME>/Desktop/PetScape-final';
+const ROOT = '<REPOSITORY_ROOT>';
 const ASSETS = path.join(ROOT, 'assets-3d');
 const V3_PRODUCTS = '<USER_HOME>/Desktop/设计师前端页面/public/assets/pet-products';
 const OLD_ENV = '<USER_HOME>/Desktop/3D宠物打印/.env';

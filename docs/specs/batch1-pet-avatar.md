@@ -1,6 +1,6 @@
 # 批次1 Spec：照片→3D 角色 + 制造链（切片报价/下载）
 
-> 上游依据：`../integration-mapping.md`（grilling #2/#3/#4/#5）。前置：批次0 已验收、接驳层已冻结（App 提供 `projectId` 与全量 state props）。
+> 历史交付 Spec，不作为当前开发计划；当前产品范围见根目录 `PetScape-PRD.md`，当前实现以代码为准。
 > 文件所有权（并行纪律）：本批次只改/新建下列文件——`app/components/landing/PetCreatorSection.jsx`、`ManufacturingSection.jsx`、`app/components/PetViewer.tsx`（新建）、`app/api/project/[id]/avatar/**`（新建）、`app/api/project/[id]/avatar-slice/**`（新建）、`app/lib/prompts/avatarStyle.ts`（新建）、`app/lib/images/triview.ts`（新建）、`app/lib/jobs/avatarJob.ts`（新建）。**`app/lib/types/project.ts` 已由接驳层预铺 `AvatarJob`/`AvatarSliceJob` 字段（avatar/avatarSlice），只消费、禁改**；`app/page.jsx` 已注入 projectId/mockMode/onAvatarGeneratedChange props，禁改。**不改其它 landing 组件、不改老 gate1/gate2 现有行为（workbench 还在用）。不执行任何 git 操作——完成后报告，由主控统一 commit。** 验证用自己起的 dev server（端口 3001），不动主控在 3000 维护的实例。需要越界改动时停下，在报告中提出，等主控裁决。
 
 ## 1. 任务
