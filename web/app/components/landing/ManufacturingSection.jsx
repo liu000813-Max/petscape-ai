@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Factory } from 'lucide-react';
+import { Download, Factory } from 'lucide-react';
 import { materialRows } from './data';
 
 // 材料单价（元/g），与后端 avatarJob FILAMENT_PRICE_PER_G / data.js materialRows PETG 对齐。
@@ -19,7 +19,7 @@ function priceRange(weightG) {
 }
 
 export function ManufacturingSection({ projectId, mockMode, petName, petSize, selectedModules }) {
-  const [slice, setSlice] = useState(null); // avatarSlice：{status, scaleMm, stlUrl, gcodeUrl, weightG, printTimeMin}
+  const [slice, setSlice] = useState(null); // avatarSlice：{status, scaleMm, stlUrl, weightG, printTimeMin}
   const [avatarDone, setAvatarDone] = useState(false);
   const debounceRef = useRef(null);
   const pollRef = useRef(null);
@@ -68,9 +68,11 @@ export function ManufacturingSection({ projectId, mockMode, petName, petSize, se
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [petSize, avatarDone, projectId]);
 
-  const ready = slice?.status === 'done' && slice?.weightG != null;
+  const sliceDone = slice?.status === 'done';
+  const stlReady = sliceDone && Boolean(slice?.stlUrl);
+  const hasQuote = sliceDone && slice?.weightG != null;
   const computing = slice?.status === 'running';
-  const range = ready ? priceRange(slice.weightG) : null;
+  const range = hasQuote ? priceRange(slice.weightG) : null;
   const printMin = slice?.printTimeMin;
   const printTimeLabel = printMin
     ? printMin >= 60
@@ -78,18 +80,20 @@ export function ManufacturingSection({ projectId, mockMode, petName, petSize, se
       : `${printMin} 分`
     : null;
 
-  const title = ready || avatarDone ? `${petName || '你的宠物'} 的专属模型` : '森林奶酪屋套装';
+  const title = sliceDone || avatarDone ? `${petName || '你的宠物'} 的专属模型` : '森林奶酪屋套装';
 
   return (
     <section className="manufacturing-section">
       <style>{`
-        .quote-downloads { display: flex; gap: 10px; margin-top: 12px; }
+        .quote-downloads { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
         .quote-download-btn {
-          flex: 1; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
-          border-radius: 999px; background: #111; color: #fff; text-decoration: none; font-size: 14px;
-          border: 1px solid rgba(0,0,0,0.1); transition: opacity .2s ease;
+          flex: 1 1 180px; min-width: 0; min-height: 44px; padding: 0 16px; gap: 8px;
+          display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;
+          border-radius: 999px; background: #fff; color: #000; text-decoration: none; font-size: 14px;
+          border: 1px solid rgba(255,255,255,0.82); transition: opacity .2s ease, transform .2s ease;
         }
-        .quote-download-btn:hover { opacity: 0.86; }
+        .quote-download-btn svg { flex: 0 0 auto; }
+        .quote-download-btn:hover { opacity: 0.88; transform: translateY(-1px); }
       `}</style>
       <div className="manufacturing-copy">
         <span className="eyebrow">3D 模型与打印</span>
@@ -116,24 +120,31 @@ export function ManufacturingSection({ projectId, mockMode, petName, petSize, se
             ))}
           </div>
 
-          {ready ? (
+          {sliceDone ? (
             <>
-              <div className="quote-total">
-                <span>
-                  重量 {slice.weightG} g{printTimeLabel ? ` / 打印 ${printTimeLabel}` : ''}
-                </span>
-                <strong>
-                  ¥{range.low} - ¥{range.high}
-                </strong>
-              </div>
-              <div className="quote-downloads">
-                <a className="quote-download-btn" href={slice.stlUrl} download>
-                  下载 STL
-                </a>
-                <a className="quote-download-btn" href={slice.gcodeUrl} download>
-                  下载 G-code
-                </a>
-              </div>
+              {hasQuote && range ? (
+                <div className="quote-total">
+                  <span>
+                    重量 {slice.weightG} g{printTimeLabel ? ` / 打印 ${printTimeLabel}` : ''}
+                  </span>
+                  <strong>
+                    ¥{range.low} - ¥{range.high}
+                  </strong>
+                </div>
+              ) : (
+                <div className="quote-total">
+                  <span>{stlReady ? 'STL 模型已就绪' : '模型已完成，报价待计算'}</span>
+                  <strong>待报价</strong>
+                </div>
+              )}
+              {stlReady ? (
+                <div className="quote-downloads">
+                  <a className="quote-download-btn" href={slice.stlUrl} download>
+                    <Download size={16} aria-hidden="true" />
+                    下载 STL 模型
+                  </a>
+                </div>
+              ) : null}
             </>
           ) : computing ? (
             <div className="quote-total">
