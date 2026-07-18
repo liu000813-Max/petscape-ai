@@ -28,7 +28,7 @@
 | `lib/images/`（fal 生图 client，5 文件） | B2 | 随 vibeJob 迁移收编进 infra/vendors | 在役 |
 | `lib/prompts/avatarStyle.ts`（用户亲手调的文案） | B2/B4 | 迁移时保持"改文案即调效果"的可编辑性，位置另定 | 在役 |
 | `lib/auth/`（getWebAuth 接驳） | A3 | 已是正式链接驳层，不退役，随 A3 演进 | 正式链 |
-| `lib/printability/`（空目录） | — | 空壳，A3-1 落地时顺手删除 | 待删 |
+| `lib/printability/`（空目录） | — | 空壳，随 WP-A1 删除 | 已退役（2026-07-18） |
 | `lib/server-context.ts` | 正式链 | 不退役（v1 路由公共接驳） | 正式链 |
 
 ## 三、前端与静态服务

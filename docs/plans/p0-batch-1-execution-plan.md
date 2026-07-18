@@ -20,16 +20,16 @@
 - **builder 一律 TDD**（2026-07-18 用户增补）：凡 spec 含可测行为面，builder 先提交失败测试并附**红灯输出证据**，再实现至绿灯；PR 验收材料必须含红→绿两段证据，缺红灯证据视为未按 TDD 执行。纯文档/纯视觉部分由下条 QA 证据兜底。载体：builder agent 定义已内置该契约，spec 内的验收测试清单是出题依据。
 - **LLM 模拟用户 QA 验收**（2026-07-18 用户增补）：含用户可见面的包，merge 前由**非实现者**的 QA agent 以真实浏览器模拟用户完整走一遍目标流程——纯页面出全页截图，含交互的录屏视频；证据贴进 PR。视频体积：ffmpeg 压缩（720p/H.264）后 ≤10MB 直接贴 PR 评论；仍过大则 `gh release upload qa-evidence <file>` 传到仓库的 rolling release，PR 里贴资产链接（release 附件无 10MB 限制且可 CLI 自动化）。
 - **spec 派发前的用户确认**（2026-07-18 用户增补）：每个 WP 闭合 spec 前，先把用户大概率想调整的决策亮给用户确认——**数据模型变更、新类型/接口、一切用户可见行为**置顶；纯机械改动（接线、重构、配置）不问，直接执行。
-- **migration 串行**：本批次只有 WP-A3 动 `schema.prisma`；任何其他包不得新增 migration。
+- **migration 串行**：同一时间只允许一个在途工作包动 `schema.prisma`，由编排方排序（已发生：WP-A3-2 节流表；待发生：WP-A4-1 宠物表）。
 - **landing 零回归**：所有触及 `web/` 构建面的包，验收含 production build 后首页真实浏览器截图对照。新页面新增路由实现，不改 `app/page.jsx` 之外的 landing 文件；page.jsx 只做计划内最小改动（登录入口）。
 - **样式边界**：新 UI 不得引入影响全局的样式重置（Tailwind preflight 污染 landing 是已知事故）；新页面样式作用域自包含。
 - 原型退役划账：涉及台账部件的包，完成时更新 `docs/governance/prototype-retirement-ledger.md`。
 
-## WP-A0 挂牌小包（本批次 kickoff PR 完成）
+## WP-A0 挂牌小包 ✅（PR #22，2026-07-18 合并）
 
 原型退役台账建账（`docs/governance/prototype-retirement-ledger.md`）、根 README 重写为当前仓库身份、`wp-2-5-report.md` 陈旧状态补记。验收：文档互引无断链；PR merge。
 
-## WP-A1 正式 App 壳 + 登录/注册页首版 ★（designer 档）
+## WP-A1 正式 App 壳 + 登录/注册页首版 ★（designer 档）✅（PR #23，2026-07-18 用户认可视觉基准后合并；该版即正式站视觉基准）
 
 正式站第一批用户界面，同时确立**登录后界面的视觉基准**（landing 是像素定稿，登录后区域此前无基准；本包产出经用户验收后即成为后续所有正式 UI 的基准）。
 
@@ -45,7 +45,7 @@ d. 本包只做 UI 与骨架，OTP 发送/校验可为桩（WP-A2 接线）；�
 3. 未登录访问 `/account` 返回 302 → `/login`（curl 断言）；
 4. 用户过目 UI 首版并认可为视觉基准（主控终审前置）。
 
-## WP-A2 手机号 OTP 登录流接线 ★
+## WP-A2 手机号 OTP 登录流接线 ★ ✅（PR #24，2026-07-18 合并；TDD 红→绿 + 独立 QA 录屏；PNVS 真机冒烟已随 WP-A3-2 S4 闭环）
 
 范围：`/login` 接 Better Auth phone-number 插件真实流（`createAuth` 已有，`app/api/auth/[...all]` 已挂载；客户端用 better-auth 客户端 SDK 或直调 REST）：发送验证码（含倒计时/重发）、校验登录、会话持久（DB Session）、退出；`/account` 显示真实用户（手机号脱敏）；受保护布局读真实 session。开发/验收环境 `smsChannel` 用现有 `log` 通道取码，真发 PNVS 仅冒烟一次。
 
@@ -55,7 +55,9 @@ d. 本包只做 UI 与骨架，OTP 发送/校验可为桩（WP-A2 接线）；�
 3. 权限清单（conventions §1）：未登录调 `/api/me` 401；伪造 session cookie 被拒；
 4. PNVS 真发冒烟：真实手机收码登录一次（截图/日志为证）。
 
-## WP-A3 宠物档案（A4 模块主体）★（测试先行：权限类）
+## WP-A4-1 宠物档案（A4 模块主体）★（测试先行：权限类）
+
+> 命名更正：原编号"WP-A3"与模块编号 A3（注册登录）撞名，按 WP-A3-2 节确立的"模块号-序号"规则更正为 WP-A4-1。**前置**：Pet 字段设计讨论（独立讨论会话，产物 `docs/plans/wp-a3-pet-schema-agreed.md`——文件名沿用历史命名）收敛并经用户拍板后，方可闭合 spec 派工。
 
 范围：
 a. `Pet` 表 migration（ownerUserId、名称、物种/品种、体型档、生活环境、特殊需求、照片 Asset 引用；软删除标记）；本批次唯一 schema 变更；
@@ -73,7 +75,11 @@ d. UI：宠物列表 + 新建/编辑表单 + 照片上传，挂在 App 壳内；
 
 ## WP-A3-2 邮箱验证码登录与双向凭证绑定（模块 A3）
 
-状态：2026-07-18 用户拍板开工。取代原"WP-A4"节（工作包命名自此改为**模块号-序号**式，消除 WP 编号与模块编号撞名）。外部前置已全部就绪：DirectMail 已开通（华东1）、发信域名 `mail.petscape3d.com` 已验证、发信地址 `no-reply@mail.petscape3d.com`（触发类）已建、DNS（DKIM/SPF/DMARC/MX）已配。
+状态：✅ 完成（PR #26，2026-07-18 合并）。S1-S5 全过：TDD 17 用例红→绿；codex 计划审查 6 critical 全落地；独立 QA 首轮抓出"绑定占用邮箱假发送死路"阻塞项、修复后复验翻案通过（录屏与关键帧在 PR）；S4 真发双通道（DirectMail→Gmail 收件箱自动取码登录、PNVS→真机短信经 Messages 数据库自动抓码登录）证据以评论落 PR #26。
+
+**运维事实（S4 沉淀）**：①PNVS 真发需 `PNVS_SIGN_NAME`/`PNVS_TEMPLATE_CODE`（现用系统赠送签名「<SMS_SIGN_NAME>」+ 模板 100001，见 `docs/operations/phase-b-step-0-cloud-resources.md`；根 `.env` 与 ECS `web.env` 均未配置——**真实通道上线前需补，品牌签名申请是既定用户确认项**）；②ECS 部署实例当前 SMS/MAIL 均为默认 `log` 通道，切真实通道只需补 env；③本地无 SSL 的 PG 需在 `DATABASE_URL` 显式 `sslmode=disable`（P1017 教训）。
+
+本节原为开工 spec。取代原"WP-A4"节（工作包命名自此改为**模块号-序号**式，消除 WP 编号与模块编号撞名）。外部前置已全部就绪：DirectMail 已开通（华东1）、发信域名 `mail.petscape3d.com` 已验证、发信地址 `no-reply@mail.petscape3d.com`（触发类）已建、DNS（DKIM/SPF/DMARC/MX）已配。
 
 **已拍板**：注册+登录+绑定都做；无密码（仅验证码）；双账户接受为独立账户+登录页文案引导（不做账户合并）；最小节流本包做；**凭证双向对称**——手机号用户可绑邮箱、邮箱用户可绑手机号，绑定后任一凭证登录为同一 User.id（ADR-0004"换绑不改 id"语义扩展到双向）。
 
@@ -137,10 +143,9 @@ CI（`gh pr checks --json` 显式判定）+ QA 判定 + S4 真发双通道证据
 ## 顺序与依赖
 
 ```
-WP-A0（已含本 PR）
-WP-A1 ★ → 用户认可视觉基准 → WP-A2 ★ → WP-A3 ★ → 锚点闭环用户验收
-WP-A4 随外部依赖就绪插入（A2 后即可并行）
-R 线全程后台
+WP-A0 ✅ → WP-A1 ✅（视觉基准已立）→ WP-A2 ✅ → WP-A3-2 ✅（模块 A3 全部完成）
+WP-A4-1（宠物档案）：等 Pet 字段讨论收敛拍板 → 闭合 spec 派工 → 锚点闭环用户验收
+R 线调研 ✅（报告已入 docs/plans/，ADR 草案挂 B6/B7 前置）
 ```
 
-锚点闭环用户验收通过后，再定批次 2（B 线吸收 + C 骨架）范围。
+**当前批次状态（2026-07-19）**：模块 A3（注册登录，含邮箱与双向绑定）全部完成并上线部署链；锚点闭环只差 WP-A4-1 宠物档案，其前置是 Pet 字段讨论的用户拍板。锚点闭环用户验收通过后，再定批次 2（B 线吸收 + C 骨架）范围。
