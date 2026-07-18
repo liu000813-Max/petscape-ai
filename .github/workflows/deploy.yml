@@ -6,7 +6,12 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  # 部署前置门禁：main 上 quality-gates 不绿不部署（替代付费墙后的分支保护）。
+  gate:
+    uses: ./.github/workflows/ci.yml
+
   build-and-push:
+    needs: gate
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.tag.outputs.value }}

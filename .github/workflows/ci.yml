@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  # 供 deploy.yml 以 workflow_call 复用为部署前置门禁（免费计划私有仓无法启用
+  # branch protection / rulesets，2026-07-18 实测 403 付费墙——部署级门禁是
+  # 免费档下的最大保护子集；升 Pro 后应另配 main 分支保护）。
+  workflow_call:
 
 jobs:
   quality-gates:
