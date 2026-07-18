@@ -14,6 +14,10 @@
 FROM node:22-bookworm-slim AS base
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 
+# WP-4.2：构建期注入 git SHA 作为可观察版本标识（/api/healthz 的 version
+# 字段消费）。未传入时下游 ENV 为空字符串，healthz 按"无该 env 时返回 null"
+# 处理。
+
 # ---- deps（装全部 workspace 依赖，含 packages/server 与 web） ----
 FROM base AS deps
 WORKDIR /workspace
@@ -43,6 +47,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+
+ARG GIT_SHA=""
+ENV GIT_SHA=${GIT_SHA}
 
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs

@@ -20,12 +20,21 @@ async function checkDb(): Promise<boolean> {
   return true;
 }
 
+// WP-4.2：回滚演练用可观察版本标识。构建期由 `deploy/web.Dockerfile` 的
+// `ARG GIT_SHA` 写入同名 ENV；本地/未注入时该 env 不存在，返回 null（不伪造
+// 版本号）。
+function getVersion(): string | null {
+  const sha = process.env.GIT_SHA;
+  return sha && sha.length > 0 ? sha : null;
+}
+
 export async function GET() {
+  const version = getVersion();
   try {
     await checkDb();
-    return NextResponse.json({ ok: true, db: true });
+    return NextResponse.json({ ok: true, db: true, version });
   } catch (error) {
     logError('healthz.db_check_failed', { err: error });
-    return NextResponse.json({ ok: false, db: false }, { status: 503 });
+    return NextResponse.json({ ok: false, db: false, version }, { status: 503 });
   }
 }
