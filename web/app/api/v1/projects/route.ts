@@ -5,35 +5,41 @@
 // 不动现有 `/api/project` 原型路由——本文件是独立的正式 v1 路由。
 import { NextResponse } from 'next/server';
 import { getWebAuth } from '../../../lib/auth';
-import { getWebServerContext } from '../../../lib/server-context';
+import { getWebServerContext, withApiLogging } from '../../../lib/server-context';
 import { createProject, listProjects } from '@petscape/server/application';
 
 export async function POST(req: Request) {
-  const session = await getWebAuth().api.getSession({ headers: req.headers });
-  if (!session) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  return withApiLogging(req, async () => {
+    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    if (!session) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
 
-  let body: { title?: unknown } = {};
-  try {
-    body = await req.json();
-  } catch {
-    // 空 body 也允许（title 可空）。
-  }
-  const title = typeof body.title === 'string' ? body.title : undefined;
+    let body: { title?: unknown } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // 空 body 也允许（title 可空）。
+    }
+    const title = typeof body.title === 'string' ? body.title : undefined;
 
-  const { prisma } = getWebServerContext();
-  const project = await createProject({ prisma, ownerUserId: session.user.id, title });
-  return NextResponse.json(project, { status: 201 });
+    const { prisma } = getWebServerContext();
+    const project = await createProject({ prisma, ownerUserId: session.user.id, title });
+    const res = NextResponse.json(project, { status: 201 });
+    return Object.assign(res, { _loggedUserId: session.user.id });
+  });
 }
 
 export async function GET(req: Request) {
-  const session = await getWebAuth().api.getSession({ headers: req.headers });
-  if (!session) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  return withApiLogging(req, async () => {
+    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    if (!session) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
 
-  const { prisma } = getWebServerContext();
-  const projects = await listProjects({ prisma, ownerUserId: session.user.id });
-  return NextResponse.json({ projects });
+    const { prisma } = getWebServerContext();
+    const projects = await listProjects({ prisma, ownerUserId: session.user.id });
+    const res = NextResponse.json({ projects });
+    return Object.assign(res, { _loggedUserId: session.user.id });
+  });
 }

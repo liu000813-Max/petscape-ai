@@ -22,6 +22,9 @@ import {
   failJob,
   recoverOrphans,
   shutdownJobs,
+  logInfo,
+  logWarn,
+  logError,
   type JobRecord,
 } from '@petscape/server/worker-api';
 import { RetryableError, type JobHandler } from './handlers/types.ts';
@@ -34,8 +37,7 @@ import { sampleEchoHandler } from './handlers/sampleEcho.ts';
 const config = loadWorkerConfig();
 const commonConfig = loadCommonConfig();
 
-console.log('[worker] PetScape worker process starting (WP-3.4)');
-console.log(`[worker] NODE_ENV=${config.NODE_ENV}, config schema validated OK`);
+logInfo('worker.starting', { nodeEnv: config.NODE_ENV });
 
 if (!commonConfig.DATABASE_URL) {
   throw new Error('[worker] DATABASE_URL 未配置——worker 主循环需要数据库连接才能认领任务。');
@@ -73,13 +75,31 @@ const jobTypes = config.WORKER_JOB_TYPES.split(',').map((t) => t.trim()).filter(
 const leaseSeconds = config.WORKER_LEASE_SECONDS;
 const heartbeatIntervalMs = Math.max(1000, Math.floor((leaseSeconds * 1000) / 3));
 
-console.log(
-  `[worker] workerId=${workerId} jobTypes=${jobTypes.join(',')} leaseSeconds=${leaseSeconds} pollIntervalMs=${config.WORKER_POLL_INTERVAL_MS} heartbeatIntervalMs=${heartbeatIntervalMs}`,
-);
+logInfo('worker.config', {
+  workerId,
+  jobTypes: jobTypes.join(','),
+  leaseSeconds,
+  pollIntervalMs: config.WORKER_POLL_INTERVAL_MS,
+  heartbeatIntervalMs,
+});
 
 const handlers: Record<string, JobHandler> = {
   'sample.echo': sampleEchoHandler,
 };
+
+/**
+ * WP-3.5：从 job.input 里尽力而为地取出 web 侧创建该任务时写入的 requestId
+ * （见 application/jobs.ts SampleEchoInput._requestId）。取不到时返回
+ * undefined——生命周期日志仍然打印，只是缺该关联字段（非 sample.echo 类型或
+ * 非本链路创建的任务没有这个字段，属预期）。
+ */
+function extractRequestId(input: unknown): string | undefined {
+  if (input && typeof input === 'object' && '_requestId' in input) {
+    const value = (input as { _requestId?: unknown })._requestId;
+    return typeof value === 'string' ? value : undefined;
+  }
+  return undefined;
+}
 
 let shuttingDown = false;
 let currentJobAbandoned = false;
@@ -89,21 +109,34 @@ let currentJobAbandoned = false;
 function requestShutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(`[worker] 收到 ${signal}，停止认领新任务，等待当前任务结束后退出`);
+  logInfo('worker.shutdown.requested', { signal });
 }
 process.on('SIGTERM', () => requestShutdown('SIGTERM'));
 process.on('SIGINT', () => requestShutdown('SIGINT'));
 
 /** 执行单个已认领 job：分发到对应 handler，期间按 leaseSeconds/3 心跳。 */
 async function runJob(job: JobRecord): Promise<void> {
+  const requestId = extractRequestId(job.input);
+  const claimedAt = Date.now();
+
+  // WP-3.5：job 生命周期事件——claimed（认领成功，本函数入口即认领后）。
+  logInfo('worker.job.claimed', { jobId: job.id, requestId, type: job.type, workerId });
+
   const handler = handlers[job.type];
   if (!handler) {
-    console.error(`[worker] job ${job.id} type=${job.type} 无对应 handler，标记 permanent 失败`);
+    logError('worker.job.no_handler', { jobId: job.id, requestId, type: job.type });
     await failJob({
       jobId: job.id,
       workerId,
       errorClass: 'permanent',
       errorDetail: { message: `no handler registered for type=${job.type}` },
+    });
+    logError('worker.job.failed', {
+      jobId: job.id,
+      requestId,
+      durationMs: Date.now() - claimedAt,
+      errorClass: 'permanent',
+      err: `no handler registered for type=${job.type}`,
     });
     return;
   }
@@ -121,7 +154,7 @@ async function runJob(job: JobRecord): Promise<void> {
       });
       if (!ok) {
         leaseLost = true;
-        console.error(`[worker] job ${job.id} 心跳失败（租约已丢失），放弃当前执行`);
+        logError('worker.job.heartbeat-lost', { jobId: job.id, requestId, workerId });
         clearInterval(heartbeatTimer);
       }
     })();
@@ -142,7 +175,11 @@ async function runJob(job: JobRecord): Promise<void> {
 
     if (leaseLost) {
       currentJobAbandoned = true;
-      console.error(`[worker] job ${job.id} 执行完成但租约已丢失，不写 completeJob（避免覆盖新持有者）`);
+      logWarn('worker.job.completed_after_lease_lost', {
+        jobId: job.id,
+        requestId,
+        durationMs: Date.now() - claimedAt,
+      });
       return;
     }
 
@@ -152,23 +189,42 @@ async function runJob(job: JobRecord): Promise<void> {
       targetVersion: job.targetVersion,
       resultRef,
     });
-    console.log(`[worker] job ${job.id} completeJob outcome=${outcome}`);
+    // WP-3.5：completed 事件记录从 claimed 到 completeJob 落地的执行耗时。
+    logInfo('worker.job.completed', {
+      jobId: job.id,
+      requestId,
+      durationMs: Date.now() - claimedAt,
+      outcome,
+    });
   } catch (error) {
     if (leaseLost) {
       currentJobAbandoned = true;
-      console.error(`[worker] job ${job.id} 执行失败且租约已丢失，不写 failJob`, error);
+      logWarn('worker.job.failed_after_lease_lost', {
+        jobId: job.id,
+        requestId,
+        durationMs: Date.now() - claimedAt,
+        err: error,
+      });
       return;
     }
     const errorClass = error instanceof RetryableError ? 'retryable' : 'permanent';
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[worker] job ${job.id} 执行失败（errorClass=${errorClass}）: ${message}`);
     const outcome = await failJob({
       jobId: job.id,
       workerId,
       errorClass,
       errorDetail: { message, stack: error instanceof Error ? error.stack : undefined },
     });
-    console.log(`[worker] job ${job.id} failJob outcome=${outcome}`);
+    // WP-3.5：failed 事件的 errorClass 字段即"任务失败计数"的日志聚合口径
+    // （spec 明确指示不引指标系统，failed 事件自带 errorClass 供后续聚合）。
+    logError('worker.job.failed', {
+      jobId: job.id,
+      requestId,
+      durationMs: Date.now() - claimedAt,
+      errorClass,
+      outcome,
+      err: error,
+    });
   } finally {
     clearInterval(heartbeatTimer);
   }
@@ -181,7 +237,7 @@ async function claimLoop(): Promise<void> {
     try {
       job = await claimNextJob({ workerId, types: jobTypes, leaseSeconds });
     } catch (error) {
-      console.error('[worker] claimNextJob 出错，等待下一轮轮询', error);
+      logError('worker.claimNextJob.error', { err: error });
     }
 
     if (!job) {
@@ -189,20 +245,20 @@ async function claimLoop(): Promise<void> {
       continue;
     }
 
-    console.log(`[worker] 认领任务 job=${job.id} type=${job.type}`);
     await runJob(job);
   }
-  console.log('[worker] claimLoop 已停止（不再认领新任务）');
+  logInfo('worker.claimLoop.stopped', {});
 }
 
 /** 孤儿恢复：独立定时器周期运行，与认领循环解耦（认领循环忙于执行长任务时孤儿恢复仍需按时跑）。 */
 const recoverTimer = setInterval(() => {
   void recoverOrphans({}).then((results) => {
-    if (results.length > 0) {
-      console.log(`[worker] recoverOrphans 处理了 ${results.length} 个孤儿任务:`, results);
+    // WP-3.5：orphan-recovered 事件——每个被恢复的孤儿任务各记一条。
+    for (const result of results) {
+      logInfo('worker.job.orphan-recovered', { jobId: result.jobId, action: result.action });
     }
   }).catch((error) => {
-    console.error('[worker] recoverOrphans 出错', error);
+    logError('worker.recoverOrphans.error', { err: error });
   });
 }, config.WORKER_RECOVER_ORPHANS_INTERVAL_MS);
 
@@ -211,11 +267,11 @@ async function main(): Promise<void> {
   clearInterval(recoverTimer);
   await shutdownJobs();
   await prisma.$disconnect();
-  console.log(`[worker] 进程退出（currentJobAbandoned=${currentJobAbandoned}）`);
+  logInfo('worker.exiting', { currentJobAbandoned });
   process.exit(0);
 }
 
 main().catch((error) => {
-  console.error('[worker] 主循环异常退出', error);
+  logError('worker.main.crashed', { err: error });
   process.exit(1);
 });

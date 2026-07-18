@@ -3,7 +3,7 @@
 //   伪造 key/尺寸不符时 Asset 不进入可用态。
 import { NextResponse } from 'next/server';
 import { getWebAuth } from '../../../../../lib/auth';
-import { getWebServerContext } from '../../../../../lib/server-context';
+import { getWebServerContext, withApiLogging } from '../../../../../lib/server-context';
 import {
   confirmAssetUpload,
   AssetVerificationError,
@@ -11,37 +11,45 @@ import {
 } from '@petscape/server/application';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getWebAuth().api.getSession({ headers: req.headers });
-  if (!session) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
-
-  const { id: assetId } = await params;
-  let body: { size?: unknown } = {};
-  try {
-    body = await req.json();
-  } catch {
-    // 空 body 允许（declaredSize 落回 Asset 记录中已声明的 size）。
-  }
-  const declaredSize = typeof body.size === 'number' ? body.size : undefined;
-
-  const { prisma, oss } = getWebServerContext();
-  try {
-    const asset = await confirmAssetUpload({
-      prisma,
-      oss,
-      ownerUserId: session.user.id,
-      assetId,
-      declaredSize,
-    });
-    return NextResponse.json(asset);
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  return withApiLogging(req, async () => {
+    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    if (!session) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
-    if (error instanceof AssetVerificationError) {
-      return NextResponse.json({ error: 'verification_failed', detail: error.message }, { status: 409 });
+
+    const { id: assetId } = await params;
+    let body: { size?: unknown } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // 空 body 允许（declaredSize 落回 Asset 记录中已声明的 size）。
     }
-    throw error;
-  }
+    const declaredSize = typeof body.size === 'number' ? body.size : undefined;
+
+    const { prisma, oss } = getWebServerContext();
+    try {
+      const asset = await confirmAssetUpload({
+        prisma,
+        oss,
+        ownerUserId: session.user.id,
+        assetId,
+        declaredSize,
+      });
+      const res = NextResponse.json(asset);
+      return Object.assign(res, { _loggedUserId: session.user.id });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        const res = NextResponse.json({ error: 'not_found' }, { status: 404 });
+        return Object.assign(res, { _loggedUserId: session.user.id });
+      }
+      if (error instanceof AssetVerificationError) {
+        const res = NextResponse.json(
+          { error: 'verification_failed', detail: error.message },
+          { status: 409 },
+        );
+        return Object.assign(res, { _loggedUserId: session.user.id });
+      }
+      throw error;
+    }
+  });
 }
