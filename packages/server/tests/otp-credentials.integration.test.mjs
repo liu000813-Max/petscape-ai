@@ -39,7 +39,7 @@ if (!databaseUrl) {
   const { createPrismaClient } = await import('../src/infra/db/index.ts');
   const { createAuth } = await import('../src/infra/auth/index.ts');
   const { sendThroughThrottle, OtpThrottledError, ROLLING_MAX_SENDS } = await import(
-    '../src/application/otp-throttle.ts'
+    '../src/infra/otp-throttle/index.ts'
   );
 
   const baseURL = 'http://localhost:3200';
@@ -100,16 +100,24 @@ if (!databaseUrl) {
     );
   }
 
+  // 断言状态码 + 失败时附 body 预览（用 clone 读，避免消费掉后续 .json() 需要的 body）。
+  async function expectStatus(res, expected, label) {
+    if (res.status !== expected) {
+      const preview = await res.clone().text();
+      assert.equal(res.status, expected, `${label} 应 ${expected}，实际 ${res.status}: ${preview}`);
+    }
+  }
+
   /** 邮箱：发码 → 从 log 抓码 → sign-in（注册或登录），返回 { cookieHeader, userId, code }。 */
   async function emailSignIn(email) {
     const cap = makeOtpCapture();
     try {
       const sendRes = await req('/email-otp/send-verification-otp', { email, type: 'sign-in' });
-      assert.equal(sendRes.status, 200, `send email otp 应 200，实际 ${sendRes.status}: ${await sendRes.text()}`);
+      await expectStatus(sendRes, 200, 'send email otp');
       const code = cap.get(email);
       assert.ok(code, `应从 log 通道抓到 ${email} 的验证码`);
       const signRes = await req('/sign-in/email-otp', { email, otp: code });
-      assert.equal(signRes.status, 200, `sign-in email otp 应 200，实际 ${signRes.status}: ${await signRes.text()}`);
+      await expectStatus(signRes, 200, 'sign-in email otp');
       const data = await signRes.json();
       const cookieHeader = extractSetCookies(signRes).join('; ');
       return { cookieHeader, userId: data.user.id, code };
@@ -123,11 +131,11 @@ if (!databaseUrl) {
     const cap = makeOtpCapture();
     try {
       const sendRes = await req('/phone-number/send-otp', { phoneNumber: phone });
-      assert.equal(sendRes.status, 200, `send phone otp 应 200，实际 ${sendRes.status}: ${await sendRes.text()}`);
+      await expectStatus(sendRes, 200, 'send phone otp');
       const code = cap.get(phone);
       assert.ok(code, `应从 log 通道抓到 ${phone} 的验证码`);
       const verifyRes = await req('/phone-number/verify', { phoneNumber: phone, code });
-      assert.equal(verifyRes.status, 200, `verify phone otp 应 200，实际 ${verifyRes.status}: ${await verifyRes.text()}`);
+      await expectStatus(verifyRes, 200, 'verify phone otp');
       const data = await verifyRes.json();
       const cookieHeader = extractSetCookies(verifyRes).join('; ');
       return { cookieHeader, userId: data.user.id, code };
@@ -312,11 +320,20 @@ if (!databaseUrl) {
   });
 
   test('[绑定] 未登录调用手机号绑定接口（updatePhoneNumber）→ 401', async () => {
-    const res = await req('/phone-number/verify', {
-      phoneNumber: mkPhone('777'),
-      code: '000000',
-      updatePhoneNumber: true,
-    });
+    // phone-number 的 verify 路由先校验 OTP、再检查 session（见插件 routes.mjs）：
+    // 因此要触到 401 分支，必须先发码拿到有效 OTP，再无 session 调 updatePhoneNumber。
+    const phone = mkPhone('777');
+    const cap = makeOtpCapture();
+    let code;
+    try {
+      const sendRes = await req('/phone-number/send-otp', { phoneNumber: phone });
+      assert.equal(sendRes.status, 200);
+      code = cap.get(phone);
+      assert.ok(code, '应抓到验证码');
+    } finally {
+      cap.restore();
+    }
+    const res = await req('/phone-number/verify', { phoneNumber: phone, code, updatePhoneNumber: true });
     assert.equal(res.status, 401, `未登录 updatePhoneNumber 应 401，实际 ${res.status}: ${await res.text()}`);
   });
 

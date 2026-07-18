@@ -19,6 +19,9 @@ importers:
       '@alicloud/openapi-client':
         specifier: 0.4.15
         version: 0.4.15
+      '@alicloud/openapi-core':
+        specifier: 1.0.8
+        version: 1.0.8
       '@alicloud/tea-util':
         specifier: 1.4.11
         version: 1.4.11
