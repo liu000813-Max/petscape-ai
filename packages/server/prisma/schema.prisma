@@ -32,6 +32,12 @@ model BasecampProbe {
   @@map("basecamp_probe")
 }
 
+// WP-2.4 CI 破坏测试 3/3：坏 schema（未定义类型，临时，验证后删除）
+model __CiBreakSchema {
+  id   Int @id @default(autoincrement())
+  bad  ThisTypeDoesNotExist
+}
+
 // ---- Better Auth 核心表（手写，字段集参考 tracer/auth-tracer） ----
 
 model User {
