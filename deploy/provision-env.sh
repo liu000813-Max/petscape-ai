@@ -26,6 +26,19 @@ get_key() {
   grep "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-
 }
 
+# 仅当值非空时输出 `KEY=VALUE` 行；值为空则完全省略该行。
+# 原因（WP-2.5 ECS 实测踩坑）：env_file 里写 `KEY=`（空字符串）会以空串**覆盖**
+# packages/server config schema 的 .default()/.optional()，触发校验失败
+# （WORKER_DB_POOL_MAX 期望 >0、UV_BIN/PRUSASLICER_BIN 期望非空）。省略行 =
+# 恢复"未设置"语义，让 schema 默认/可选生效。必填键（如 BETTER_AUTH_SECRET）
+# 若缺失应由 schema 直接拒绝启动，不在此静默兜底。
+emit_key() {
+  local val
+  val="$(get_key "$1")"
+  [ -n "$val" ] && printf '%s=%s\n' "$1" "$val"
+  return 0
+}
+
 RDS_HOST=$(get_key ALIBABA_CLOUD_RDS_HOST)
 RDS_PORT=$(get_key ALIBABA_CLOUD_RDS_PORT)
 RDS_DB=$(get_key ALIBABA_CLOUD_RDS_DATABASE)
@@ -37,41 +50,47 @@ if [ -z "$RDS_HOST" ] || [ -z "$RDS_PASSWORD" ]; then
   exit 1
 fi
 
-DATABASE_URL="postgresql://${RDS_USER}:${RDS_PASSWORD}@${RDS_HOST}:${RDS_PORT}/${RDS_DB}?sslmode=require"
+# sslmode=disable：WP-2.5 ECS 实测该 RDS PostgreSQL 实例未启用 SSL
+# （pg 探针：no-ssl 连接 OK；ssl 报 "server does not support SSL connections"），
+# sslmode=require 会强制 TLS 握手并失败（P1011 TlsConnectionError）。ECS↔RDS
+# 走同 VPC 内网私网（172.30.x.x），不经公网。如后续在 RDS 控制台开启 SSL，
+# 再改回 require 并下发 CA。
+DATABASE_URL="postgresql://${RDS_USER}:${RDS_PASSWORD}@${RDS_HOST}:${RDS_PORT}/${RDS_DB}?sslmode=disable"
 
 WEB_ENV_TMP="$(mktemp)"
 WORKER_ENV_TMP="$(mktemp)"
 trap 'rm -f "$WEB_ENV_TMP" "$WORKER_ENV_TMP"' EXIT
 
-cat > "$WEB_ENV_TMP" <<EOF
-NODE_ENV=production
-DATABASE_URL=${DATABASE_URL}
-WEB_DB_POOL_MAX=$(get_key WEB_DB_POOL_MAX)
-ALIBABA_CLOUD_REGION=$(get_key ALIBABA_CLOUD_REGION)
-ALIBABA_CLOUD_ACCESS_KEY_ID=$(get_key ALIBABA_CLOUD_ACCESS_KEY_ID)
-ALIBABA_CLOUD_ACCESS_KEY_SECRET=$(get_key ALIBABA_CLOUD_ACCESS_KEY_SECRET)
-ALIBABA_CLOUD_OSS_BUCKET=$(get_key ALIBABA_CLOUD_OSS_BUCKET)
-ALIBABA_CLOUD_OSS_ENDPOINT=$(get_key ALIBABA_CLOUD_OSS_ENDPOINT)
-ALIBABA_CLOUD_OSS_INTERNAL_ENDPOINT=$(get_key ALIBABA_CLOUD_OSS_INTERNAL_ENDPOINT)
-EOF
+# 必填/固定行直接写；optional 键用 emit_key（空则省略行，见上方注释）。
+{
+  printf 'NODE_ENV=production\n'
+  printf 'DATABASE_URL=%s\n' "${DATABASE_URL}"
+  emit_key WEB_DB_POOL_MAX
+  emit_key ALIBABA_CLOUD_REGION
+  emit_key ALIBABA_CLOUD_ACCESS_KEY_ID
+  emit_key ALIBABA_CLOUD_ACCESS_KEY_SECRET
+  emit_key ALIBABA_CLOUD_OSS_BUCKET
+  emit_key ALIBABA_CLOUD_OSS_ENDPOINT
+  emit_key ALIBABA_CLOUD_OSS_INTERNAL_ENDPOINT
+} > "$WEB_ENV_TMP"
 
-cat > "$WORKER_ENV_TMP" <<EOF
-NODE_ENV=production
-DATABASE_URL=${DATABASE_URL}
-WORKER_DB_POOL_MAX=$(get_key WORKER_DB_POOL_MAX)
-ALIBABA_CLOUD_REGION=$(get_key ALIBABA_CLOUD_REGION)
-ALIBABA_CLOUD_ACCESS_KEY_ID=$(get_key ALIBABA_CLOUD_ACCESS_KEY_ID)
-ALIBABA_CLOUD_ACCESS_KEY_SECRET=$(get_key ALIBABA_CLOUD_ACCESS_KEY_SECRET)
-ALIBABA_CLOUD_OSS_BUCKET=$(get_key ALIBABA_CLOUD_OSS_BUCKET)
-ALIBABA_CLOUD_OSS_ENDPOINT=$(get_key ALIBABA_CLOUD_OSS_ENDPOINT)
-ALIBABA_CLOUD_OSS_INTERNAL_ENDPOINT=$(get_key ALIBABA_CLOUD_OSS_INTERNAL_ENDPOINT)
-FAL_KEY=$(get_key FAL_KEY)
-MESHY_API_KEY=$(get_key MESHY_API_KEY)
-TRIPO_API_KEY=$(get_key TRIPO_API_KEY)
-TRIPO_API_KEY_2=$(get_key TRIPO_API_KEY_2)
-UV_BIN=$(get_key UV_BIN)
-PRUSASLICER_BIN=$(get_key PRUSASLICER_BIN)
-EOF
+{
+  printf 'NODE_ENV=production\n'
+  printf 'DATABASE_URL=%s\n' "${DATABASE_URL}"
+  emit_key WORKER_DB_POOL_MAX
+  emit_key ALIBABA_CLOUD_REGION
+  emit_key ALIBABA_CLOUD_ACCESS_KEY_ID
+  emit_key ALIBABA_CLOUD_ACCESS_KEY_SECRET
+  emit_key ALIBABA_CLOUD_OSS_BUCKET
+  emit_key ALIBABA_CLOUD_OSS_ENDPOINT
+  emit_key ALIBABA_CLOUD_OSS_INTERNAL_ENDPOINT
+  emit_key FAL_KEY
+  emit_key MESHY_API_KEY
+  emit_key TRIPO_API_KEY
+  emit_key TRIPO_API_KEY_2
+  emit_key UV_BIN
+  emit_key PRUSASLICER_BIN
+} > "$WORKER_ENV_TMP"
 
 ssh "root@${ECS_HOST}" "mkdir -p ${REMOTE_DIR}"
 scp "$ROOT/deploy/compose.yml" "root@${ECS_HOST}:${REMOTE_DIR}/compose.yml"
