@@ -12,12 +12,21 @@
 .env.local
 .env.*.local
 
+# WP-2.5 合并：保留分支侧的构建上下文瘦身项（web.Dockerfile 用 `COPY . .`，
+# 这些排除项减小上下文体积、避免大素材目录进镜像；对 worker.Dockerfile 的
+# 显式 COPY 无害）。
 node_modules
+**/node_modules
 .next
+**/.next
+**/dist
+**/src/generated
 .git
 .github
+.claude
 
 archive
+assets-3d
 tracer
 docs/operations/*.log
 

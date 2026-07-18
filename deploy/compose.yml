@@ -1,0 +1,76 @@
+# PetScape ECS 部署 Compose（WP-2.5）。
+#
+# 部署目录：ECS 上 /opt/petscape-compose/（compose.yml + .env）。
+#
+# CONFLICT 说明（见 WP-2.5 报告）：ECS 已有黑客松基线站点通过 PM2 直跑在
+# 127.0.0.1:3000（/opt/petscape/web，nginx 反代 80/443 → petscape3d.com，
+# 备案生效中，不得改动）。本 compose 的 web 容器因此改绑 127.0.0.1:3010，
+# 不占用 3000/80/443；部署目录用 /opt/petscape-compose/ 而非 spec 原文
+# /opt/petscape/，避免覆盖现有站点目录。
+#
+# 镜像 tag 由 CI 注入（git SHA，不可变 tag），部署时通过 IMAGE_TAG 环境变量
+# 或直接在 ECS 上导出后 docker compose pull && up -d。
+#
+# ECS 实测仅 1.6GB 物理内存（非 spec 假设的 2G），且已有现有站点/PM2/
+# nginx/cloudflared 常驻进程占用约 580MB。资源限制在 WP-2.5 报告中
+# 按实测下调，见该报告"资源限制"节。
+
+services:
+  web:
+    image: ${ACR_REGISTRY}/petscape/web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - ./web.env
+    ports:
+      - "127.0.0.1:3010:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/api/healthz', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: ${ACR_REGISTRY}/petscape/worker:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - ./worker.env
+    healthcheck:
+      # bookworm-slim 不含 procps（无 pgrep/ps）；PID 1 即容器主进程。
+      # WP-2.5 合并：deploy/worker.Dockerfile（main WP-3.4 权威版）的 CMD 为
+      # ["node", "--experimental-strip-types", "src/main.ts"]（TS 直跑，无 dist
+      # 构建产物），故 cmdline 匹配串改为 'src/main.ts'，检查 /proc/1/cmdline
+      # 等价于 "进程存活" 判定，且零额外依赖。
+      test:
+        [
+          "CMD-SHELL",
+          "grep -qz 'src/main.ts' /proc/1/cmdline || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
