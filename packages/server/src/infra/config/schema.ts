@@ -61,10 +61,29 @@ export const commonSchema = z.object({
 export type CommonConfig = z.infer<typeof commonSchema>;
 
 /**
- * Web 进程专属键。本阶段 Web 侧真实需要的键极少——身份模块（Better Auth、PNVS 短信）
- * 要到 WP-3.1 才落地，这里如实建模为空对象，不为凑数提前引入未消费的键。
+ * Web 进程专属键。身份模块（Better Auth、PNVS 短信）在 WP-3.1 落地——
+ * 认证只发生在 Web 进程（Route Handler 挂载 Better Auth handler），
+ * 因此 Better Auth 与 PNVS 短信通道的键都归 web，不归 common/worker。
  */
-export const webSchema = z.object({});
+export const webSchema = z.object({
+  // Better Auth 核心配置。secret 对 Web 进程是 required（fail-fast，不允许生产环境
+  // 用弱/缺省 secret 签发 Session）；baseURL 允许缺省，Better Auth 自身默认回落到
+  // localhost:3000（本地开发场景，见 infra/auth）。
+  BETTER_AUTH_SECRET: z.string().min(1),
+  BETTER_AUTH_URL: z.string().min(1).optional(),
+
+  // OTP 短信发送通道分发（"log" = 控制台打印，不发真短信；"pnvs" = 真实阿里云
+  // 号码认证服务）。默认 "log"，避免测试/本地环境意外发出真实短信。
+  SMS_CHANNEL: z.enum(['log', 'pnvs']).default('log'),
+
+  // 阿里云 PNVS SendSmsVerifyCode 所需的签名/模板（控制台既有资源，非账号凭证——
+  // 账号凭证 ALIBABA_CLOUD_ACCESS_KEY_* 已在 common 中）。仅 SMS_CHANNEL=pnvs 时使用，
+  // 故均为 optional；真正调用 pnvs 通道且缺失时由 infra/sms 在运行时报错，不在此处
+  // 提前拒绝启动（log 通道场景下这些键本就不需要）。
+  PNVS_SIGN_NAME: z.string().min(1).optional(),
+  PNVS_TEMPLATE_CODE: z.string().min(1).optional(),
+  PNVS_SCHEME_NAME: z.string().min(1).optional(),
+});
 
 export type WebOnlyConfig = z.infer<typeof webSchema>;
 

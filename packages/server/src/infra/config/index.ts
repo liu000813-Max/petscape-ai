@@ -21,8 +21,10 @@
 // 不依赖 --env-file（该 flag 只是 worker 等裸 Node 进程的本地开发便利手段）。
 
 import {
+  commonSchema,
   webConfigSchema,
   workerConfigSchema,
+  type CommonConfig,
   type WebConfig,
   type WorkerConfig,
 } from './schema.ts';
@@ -82,6 +84,21 @@ export function loadWorkerConfig(env: NodeJS.ProcessEnv = process.env): WorkerCo
   const result = workerConfigSchema.safeParse(env);
   if (!result.success) {
     throw new ConfigValidationError('worker', formatIssues(result.error));
+  }
+  return result.data;
+}
+
+/**
+ * 校验并返回跨进程共享的公共配置对象（NODE_ENV/DATABASE_URL/连接池预算等）。
+ * 供既非纯 Web 也非纯 Worker 的内部模块使用（例如 infra/jobs 构造自己的
+ * Prisma client 单例时需要 DATABASE_URL，但不应要求 Web 专属的
+ * BETTER_AUTH_SECRET 或 Worker 专属的供应商 key 才能启动）。
+ * 校验失败时抛出 ConfigValidationError，语义与 loadWebConfig/loadWorkerConfig 一致。
+ */
+export function loadCommonConfig(env: NodeJS.ProcessEnv = process.env): CommonConfig {
+  const result = commonSchema.safeParse(env);
+  if (!result.success) {
+    throw new ConfigValidationError('common', formatIssues(result.error));
   }
   return result.data;
 }
