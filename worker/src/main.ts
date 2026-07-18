@@ -11,3 +11,6 @@ const config = loadWorkerConfig();
 
 console.log('[worker] PetScape worker process starting (skeleton, WP-2.1/WP-2.2)');
 console.log(`[worker] NODE_ENV=${config.NODE_ENV}, config schema validated OK`);
+
+// WP-2.4 CI 破坏测试 1/3：类型错误（临时，验证后 revert）
+const __ci_break_type_error__: number = "this is not a number";
