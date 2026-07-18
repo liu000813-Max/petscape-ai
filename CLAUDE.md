@@ -8,6 +8,8 @@ PetScape / TinyHabitat AI——把原创宠物空间物品推进到 3D 确认、
 
 黑客松批次 Spec、报告与历史探查已统一归档在 `archive/hackathon/docs/`，不得自动推导未来实现。根目录的 `DEVELOPMENT-PLAYBOOK.md` 仅供用户阅读和回顾。Agent 不应读取、引用或修改该文件。
 
+Phase C/D 新代码的工程实践约束（测试策略分级、zod 运行时校验、支付上线前 checklist 及约束落点分层规则）以 `docs/governance/engineering-conventions.md` 为正本；`packages/server` 的包级注意事项见 `packages/server/CLAUDE.md`。
+
 改产品流程、3D 场景或制造链时，以 PRD 的核心闭环为准：生成或上传可制造物品模型，完成 3D 场景确认、材料和颜色选择、制作与宠物安全检查、自动报价、直接付款、真实订单以及生产物流跟踪。生成结果与 3D 预览都不自动代表适合制造或宠物使用。新增正式代码同时遵守 `ARCHITECTURE.md` 的模块化单体、多客户端 API、薄 Route Handler、独立应用层和 Web/Worker 进程边界。具体技术选型尚未拍板，不得从历史 batch spec 或旧实施计划自动推导新实现。
 
 ## 常用命令

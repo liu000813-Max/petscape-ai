@@ -3,7 +3,9 @@
 //   - 对真实 RDS 完成 CRUD + 事务 + 唯一约束冲突三用例（禁 SQLite/内存替身，ADR-0002 验证条件 6）；
 //   - Better Auth adapter 初始化 + 对 RDS 完成一次 user 表空查询冒烟。
 //
-// 无 DATABASE_URL 时显式 skip 并打印原因（CI 达不到 RDS 内网，WP-2.4 会依赖这个行为）。
+// 无 DATABASE_URL 时本地显式 skip 并打印原因；CI 由 service container 注入一次性
+// PostgreSQL 真跑（见 .github/workflows/ci.yml），CI 里缺 DATABASE_URL 反而直接报错，
+// 防止门禁静默退化回全 skip。
 // 本地/演练机跑法：先建 SSH 隧道到 RDS（见 docs/plans/phase-b-execution-plan.md 编排约定），
 // 设置 DATABASE_URL 指向 localhost 转发端口，再执行 `pnpm test`。
 
@@ -13,8 +15,15 @@ import assert from 'node:assert/strict';
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  test('db.integration.test.mjs skipped: DATABASE_URL not set (RDS 内网不可达，需 SSH 隧道)', (t) => {
-    t.skip('DATABASE_URL 未设置——本机需先建立到 RDS 的 SSH 隧道并导出 DATABASE_URL 才能跑此集成测试；CI 环境无法直连 RDS 内网，此为预期行为（见 WP-2.4）。');
+  if (process.env.CI) {
+    // CI 本应由 postgres service container 注入 DATABASE_URL（.github/workflows/ci.yml）；
+    // 走到这里说明门禁在静默退化回"全 skip 但绿灯"，必须炸而不是跳过。
+    throw new Error(
+      'CI 缺少 DATABASE_URL：集成测试静默全 skip 意味着门禁失效，检查 ci.yml 的 postgres service 与 env 注入。'
+    );
+  }
+  test('db.integration.test.mjs skipped: DATABASE_URL not set (本地需 SSH 隧道连 RDS)', (t) => {
+    t.skip('DATABASE_URL 未设置——本机需先建立到 RDS 的 SSH 隧道并导出 DATABASE_URL 才能跑此集成测试（CI 由一次性 PostgreSQL service container 提供，见 .github/workflows/ci.yml）。');
   });
 } else {
   const { createPrismaClient } = await import('../src/infra/db/index.ts');
