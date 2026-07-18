@@ -8,7 +8,7 @@ PetScape / TinyHabitat AI——把原创宠物空间物品推进到 3D 确认、
 
 黑客松批次 Spec、报告与历史探查已统一归档在 `archive/hackathon/docs/`，不得自动推导未来实现。根目录的 `DEVELOPMENT-PLAYBOOK.md` 仅供用户阅读和回顾。Agent 不应读取、引用或修改该文件。
 
-Phase C/D 新代码的工程实践约束（测试策略分级、zod 运行时校验、支付上线前 checklist 及约束落点分层规则）以 `docs/governance/engineering-conventions.md` 为正本；`packages/server` 的包级注意事项见 `packages/server/CLAUDE.md`。
+Phase B 基座后新代码的工程实践约束（测试策略分级、zod 运行时校验、支付上线前 checklist 及约束落点分层规则）以 `docs/governance/engineering-conventions.md` 为正本；`packages/server` 的包级注意事项见 `packages/server/CLAUDE.md`。
 
 改产品流程、3D 场景或制造链时，以 PRD 的核心闭环为准：生成或上传可制造物品模型，完成 3D 场景确认、材料和颜色选择、制作与宠物安全检查、自动报价、直接付款、真实订单以及生产物流跟踪。生成结果与 3D 预览都不自动代表适合制造或宠物使用。新增正式代码同时遵守 `ARCHITECTURE.md` 的模块化单体、多客户端 API、薄 Route Handler、独立应用层和 Web/Worker 进程边界。具体技术选型尚未拍板，不得从历史 batch spec 或旧实施计划自动推导新实现。
 
@@ -35,7 +35,7 @@ CI（`.github/workflows/ci.yml`）与部署链（`deploy.yml`：push main → GH
 
 **阿里云操作一律走 `tools/aliyun <命令> ...`，禁止裸调 `aliyun`**：本机全局 `~/.aliyun/config.json` 的默认凭证属于用户个人账号（<PERSONAL_CLOUD_ACCOUNT_ID>），裸调必打错账号。封装脚本自动注入项目 `.env` 的 `ALIBABA_CLOUD_*` 凭证并在执行前断言账号 = PETSCAPE（<PROJECT_CLOUD_ACCOUNT_ID>），不符即拒绝。SDK 代码同理：显式传 `.env` 凭证，不依赖环境默认链。
 
-全部密钥与资源配置放**项目根** `.env`（`web/` 的上一级）：生成类 key（`FAL_KEY`/`MESHY_API_KEY`/`TRIPO_API_KEY*`）、阿里云资源与凭证（`ALIBABA_CLOUD_*`，含 RDS/OSS/ACR）、身份（`BETTER_AUTH_SECRET`）等。**正式代码一律经 `packages/server/src/infra/config` 的统一配置入口（common/web/worker 三 schema）消费**，lint 禁止在 config 外读 `process.env`；“手读 `../.env`”的原型机制仅存于 4 个豁免文件（随 Phase C 迁移收敛）。
+全部密钥与资源配置放**项目根** `.env`（`web/` 的上一级）：生成类 key（`FAL_KEY`/`MESHY_API_KEY`/`TRIPO_API_KEY*`）、阿里云资源与凭证（`ALIBABA_CLOUD_*`，含 RDS/OSS/ACR）、身份（`BETTER_AUTH_SECRET`）等。**正式代码一律经 `packages/server/src/infra/config` 的统一配置入口（common/web/worker 三 schema）消费**，lint 禁止在 config 外读 `process.env`；“手读 `../.env`”的原型机制仅存于 4 个豁免文件（随对应模块吸收原型时收敛）。
 
 ## 当前基线实现（不是目标架构）
 
@@ -43,7 +43,7 @@ CI（`.github/workflows/ci.yml`）与部署链（`deploy.yml`：push main → GH
 
 **2026-07-18 起，Phase B 正式基座与黑客松原型在同一仓库并存**：pnpm workspace（`web` + `worker` + `packages/server`）；正式链 = RDS PostgreSQL（Prisma 7 + adapter-pg）+ OSS 私有桶 + PG 任务表 SKIP LOCKED Worker + Better Auth 手机号登录 + 结构化日志 + CI/CD 部署与回滚。工作包与行为验收证据见 `docs/plans/phase-b-execution-plan.md` 与 `docs/operations/`；工程约束见 `docs/governance/engineering-conventions.md`。
 
-本节以下记录的是**尚未迁移的原型链**（`web/app` 旧代码）的实现事实——Phase C 按链路迁移后逐段消亡；不能作为新增代码继续沿用内存状态、公开运行资产或进程内后台任务的理由。
+本节以下记录的是**尚未迁移的原型链**（`web/app` 旧代码）的实现事实——随对应产品模块（`PRODUCT-MODULES.md`）吸收后逐段消亡；不能作为新增代码继续沿用内存状态、公开运行资产或进程内后台任务的理由。
 
 **当前 active Web 与历史原型已经分离**：
 

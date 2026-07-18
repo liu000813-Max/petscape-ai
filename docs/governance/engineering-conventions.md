@@ -1,7 +1,7 @@
 # 工程约束正本（Engineering Conventions）
 
 - 状态：Active（2026-07-18 与用户定案）
-- 适用范围：Phase C/D 起的新代码。黑客松原型代码（`web/app` 未迁移部分）豁免，沿用 `lint:baseline` 只降不升机制。
+- 适用范围：Phase B 基座后的新代码（按 `PRODUCT-MODULES.md` 模块化推进阶段）。黑客松原型代码（`web/app` 未迁移部分）豁免，沿用 `lint:baseline` 只降不升机制。
 - 上游正本：产品范围见 `PetScape-PRD.md`；架构与依赖方向见 `ARCHITECTURE.md`；具体技术决策见 `docs/decisions/`。本文件只收工程实践约束，不复述上述内容。
 
 ## 本文件的准入与分层规则
