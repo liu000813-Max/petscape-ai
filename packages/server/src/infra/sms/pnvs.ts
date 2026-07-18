@@ -13,10 +13,20 @@ import type { SendOtpResult } from './types.ts';
 // 路径（Next.js production build）下 esModuleInterop 会直接给出类；但裸 Node ESM
 // 直跑（无打包步骤，例如本地一次性探针脚本）会把 default import 落到 CJS 命名空间
 // 对象，真正的类在 `.default` 一层。两种运行形态都需要兼容，故做防御式解包。
-const Dypnsapi =
-  (typeof DypnsapiPkg === 'function'
-    ? DypnsapiPkg
-    : (DypnsapiPkg as unknown as { default: typeof DypnsapiPkg }).default) ?? DypnsapiPkg;
+//
+// 类型层坑（2026-07-18 merge 后在 tsconfig.build.json 的 nodenext 解析模式下暴露，
+// bundler 模式下不触发）：nodenext 对该 CJS 包的 typeof 推断落在 module namespace
+// 而非可构造的类类型，`InstanceType<typeof DypnsapiPkg>` / `new Dypnsapi(...)` 均会
+// 被判定为 not constructable。运行时解包逻辑本身正确，此处只声明一个最小客户端接口
+// （仅覆盖本文件用到的 sendSmsVerifyCode 方法）绕开该推断坑，不改变任何运行时行为。
+interface DypnsapiClient {
+  sendSmsVerifyCode(req: SendSmsVerifyCodeRequest): Promise<{ body?: Record<string, unknown> }>;
+}
+type DypnsapiCtor = new (config: unknown) => DypnsapiClient;
+const Dypnsapi = ((typeof DypnsapiPkg === 'function'
+  ? DypnsapiPkg
+  : (DypnsapiPkg as unknown as { default: typeof DypnsapiPkg }).default) ??
+  DypnsapiPkg) as unknown as DypnsapiCtor;
 const Config =
   ConfigNamed ??
   ((OpenApiPkg as unknown as { Config: typeof ConfigNamed }).Config ??
@@ -33,7 +43,7 @@ export interface PnvsTemplateConfig {
   schemeName?: string;
 }
 
-function makeClient(credentials: PnvsCredentials): InstanceType<typeof Dypnsapi> {
+function makeClient(credentials: PnvsCredentials): DypnsapiClient {
   const config = new Config({
     accessKeyId: credentials.accessKeyId,
     accessKeySecret: credentials.accessKeySecret,

@@ -66,9 +66,9 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
             "cd /opt/petscape-compose && \
-             echo 'ACR_REGISTRY=${{ secrets.ACR_REGISTRY }}' > .deploy.env && \
+             echo 'ACR_REGISTRY=${{ secrets.ACR_REGISTRY_VPC }}' > .deploy.env && \
              echo 'IMAGE_TAG=${IMAGE_TAG}' >> .deploy.env && \
-             docker --config /root/.docker-acr login ${{ secrets.ACR_REGISTRY }} -u '${{ secrets.ALIBABA_CLOUD_ACR_USERNAME }}' -p '${{ secrets.ALIBABA_CLOUD_ACR_PASSWORD }}' && \
+             docker --config /root/.docker-acr login ${{ secrets.ACR_REGISTRY_VPC }} -u '${{ secrets.ALIBABA_CLOUD_ACR_USERNAME }}' -p '${{ secrets.ALIBABA_CLOUD_ACR_PASSWORD }}' && \
              docker --config /root/.docker-acr compose --env-file .deploy.env pull && \
              docker --config /root/.docker-acr compose --env-file .deploy.env up -d && \
              rm -f .deploy.env"

@@ -4,6 +4,10 @@
 # 构建链：public/、.next/static、sharp、启动均正常），改为 pnpm workspace
 # 感知的构建上下文（web/ 已是 workspace 成员，pnpm-workspace.yaml 在仓库根）。
 #
+# 2026-07-18 merge origin/main 后追加：web 新增对 @petscape/server 的运行时
+# 依赖（WP-3.1/3.2/3.3 auth/projects/assets application 层），Next build 需要
+# 该包的源码与已生成的 Prisma client 才能解析 `@petscape/server/*` 导入。
+#
 # 构建上下文必须是仓库根目录：
 #   docker build --platform linux/amd64 -f web/Dockerfile -t <tag> .
 
@@ -22,7 +26,9 @@ RUN pnpm install --frozen-lockfile
 # ---- build ----
 FROM deps AS build
 WORKDIR /workspace
+COPY packages/server packages/server
 COPY web web
+RUN pnpm --filter @petscape/server run db:generate
 RUN pnpm --filter web run build
 
 # ---- run ----
