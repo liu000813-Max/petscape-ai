@@ -104,6 +104,77 @@ model Verification {
   @@map("verification")
 }
 
+// ---- WP-3.3 任务系统（ADR-0003：持久任务表 + SKIP LOCKED Worker） ----
+// spec: docs/plans/phase-b-execution-plan.md WP-3.3 + docs/decisions/0003-persistent-jobs.md。
+// 本阶段（测试先行）只落地表结构与接口签名占位，认领/续租/完成/失败等 SQL
+// 实现留给后续两个并行 builder。
+
+model Job {
+  id String @id @default(cuid())
+
+  type   String
+  status String @default("pending") // pending|running|succeeded|failed|canceled|needs_attention
+
+  ownerUserId String
+
+  input Json
+
+  // 业务幂等键：同一 (ownerUserId, type, idempotencyKey) 只允许一行，见下方唯一索引。
+  idempotencyKey String
+
+  // 防迟到覆盖令牌（ADR-0003 机制 3）：完成写入时必须匹配该版本，旧任务迟到完成不得覆盖新版本。
+  targetVersion Int @default(1)
+
+  attemptCount Int @default(0)
+  maxAttempts  Int @default(3)
+
+  // 租约（ADR-0003 机制 1）：认领时写入持有者与过期时间，周期心跳续租。
+  leaseOwner     String?
+  leaseExpiresAt DateTime?
+
+  progress Json?
+
+  // 错误分类（ADR-0003 机制 5）：retryable|permanent|canceled|manual。
+  errorClass  String?
+  errorDetail Json?
+
+  // 供应商任务引用（ADR-0003 机制 2：孤儿恢复前必须先查供应商状态）。
+  vendorTaskId String?
+
+  resultRef Json?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  startedAt  DateTime?
+  finishedAt DateTime?
+  archivedAt DateTime?
+
+  attempts JobAttempt[]
+
+  @@unique([ownerUserId, type, idempotencyKey], name: "job_owner_type_idempotency_key")
+  @@index([status, leaseExpiresAt])
+  @@map("job")
+}
+
+model JobAttempt {
+  id String @id @default(cuid())
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  attemptNo Int
+  workerId  String
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  outcome String? // succeeded|failed|lost_lease|canceled 等，实现阶段收敛取值集合。
+  error   Json?
+
+  @@unique([jobId, attemptNo])
+  @@map("job_attempt")
+}
+
 // ---- WP-3.2：持久项目 + 私有资产（OSS 小文件链） ----
 // spec: docs/plans/phase-b-execution-plan.md WP-3.2；ADR-0005（对象存储）。
 //
