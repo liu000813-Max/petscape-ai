@@ -1,0 +1,14 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Probe {
+  id        Int      @id @default(autoincrement())
+  label     String
+  createdAt DateTime @default(now())
+}
