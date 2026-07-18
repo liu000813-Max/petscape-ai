@@ -55,4 +55,4 @@ node ../tools/demo-prep.mjs [--real]  # demo 预热：生成第二轨项目并�
 
 ## 老仓库
 
-`../../legacy/3D宠物打印` 是本仓库的骨架来源（只读参考）；本 checkout 的黑客松历史材料统一位于 `archive/hackathon/`。`assets-3d/` 里的 9 个 GLB（5 商品模块+4 装扮）是 Meshy 离线生成的成品资产，场景消费的归一化版本在 `web/public/scene-assets/`（烘焙脚本 `tools/bake-assets/`）。
+`../../archive/legacy/3D宠物打印` 是本仓库的骨架来源（只读参考；外层史料 2026-07-18 归拢至 `../../archive/`）；本 checkout 的黑客松历史材料统一位于 `archive/hackathon/`。`assets-3d/` 里的 9 个 GLB（5 商品模块+4 装扮）是 Meshy 离线生成的成品资产，场景消费的归一化版本在 `web/public/scene-assets/`（烘焙脚本 `tools/bake-assets/`）。
