@@ -40,7 +40,10 @@ test('缺少必需键（NODE_ENV）时 loadWorkerConfig 抛错且错误信息含
 });
 
 test('全部必需键提供时 loadWebConfig 校验通过', () => {
-  const config = loadWebConfig({ NODE_ENV: 'development' });
+  const config = loadWebConfig({
+    NODE_ENV: 'development',
+    BETTER_AUTH_SECRET: 'test-secret-not-for-prod',
+  });
   assert.equal(config.NODE_ENV, 'development');
 });
 
@@ -91,6 +94,10 @@ test('worker schema 包含专属键，且 web/worker 都含 common 键', () => {
 test('web 专属供应商/生成键在提供给 loadWebConfig 时被忽略而非报错（strip 而非拒绝未知键）', () => {
   // zod object 默认 strip 未知键；worker 专属键若意外出现在环境变量中，
   // 不应导致 Web 进程校验失败（环境变量是全进程共享的 .env，Web 进程只挑自己 schema 里的键）。
-  const config = loadWebConfig({ NODE_ENV: 'development', FAL_KEY: 'should-be-ignored' });
+  const config = loadWebConfig({
+    NODE_ENV: 'development',
+    BETTER_AUTH_SECRET: 'test-secret-not-for-prod',
+    FAL_KEY: 'should-be-ignored',
+  });
   assert.equal('FAL_KEY' in config, false);
 });

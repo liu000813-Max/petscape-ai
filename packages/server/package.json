@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./infra/config": "./src/infra/config/index.ts",
-    "./infra/db": "./src/infra/db/index.ts"
+    "./infra/db": "./src/infra/db/index.ts",
+    "./application": "./src/application/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -18,6 +19,9 @@
     "db:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
+    "@alicloud/dypnsapi20170525": "2.0.0",
+    "@alicloud/openapi-client": "0.4.15",
+    "@alicloud/tea-util": "1.4.11",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@prisma/client-runtime-utils": "^7.8.0",
