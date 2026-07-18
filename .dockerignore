@@ -30,4 +30,10 @@ assets-3d
 tracer
 docs/operations/*.log
 
+# 生产镜像只携带运行时静态资产。以下目录分别是历史验收证据、旧原型运行产物
+# 和运行时上传落点；它们保留在 Git/本机或迁往 OSS，但不能随每次 Web 镜像发布。
+web/public/demo-baselines
+web/public/generated
+web/public/uploads
+
 **/*.log

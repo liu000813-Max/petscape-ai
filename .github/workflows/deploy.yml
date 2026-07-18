@@ -60,12 +60,22 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout deployment scripts
+        uses: actions/checkout@v4
+
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.DEPLOY_SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Preflight disk and preserve rollback image IDs
+        run: |
+          scp -i ~/.ssh/deploy_key deploy/ecs-image-retention.sh \
+            "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}:/tmp/petscape-image-retention.sh"
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
+            "chmod 700 /tmp/petscape-image-retention.sh && /tmp/petscape-image-retention.sh pre"
 
       - name: Pull & restart on ECS
         env:
@@ -81,6 +91,8 @@ jobs:
              rm -f .deploy.env"
 
       - name: Verify containers healthy
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
         run: |
           ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
-            "cd /opt/petscape-compose && sleep 20 && docker compose ps"
+            "/tmp/petscape-image-retention.sh post '${IMAGE_TAG}'"

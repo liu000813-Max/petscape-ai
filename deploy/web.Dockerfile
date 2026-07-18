@@ -35,6 +35,15 @@ COPY --from=deps /workspace/web/node_modules ./web/node_modules
 COPY --from=deps /workspace/packages/server/node_modules ./packages/server/node_modules
 COPY . .
 
+# 构建上下文契约：历史验收证据和运行产物不得进入生产镜像；landing/场景/mock
+# 的运行时资产必须仍在。把断言放在 build 内，避免 .dockerignore 日后回退而不自知。
+RUN test ! -e web/public/demo-baselines \
+  && test ! -e web/public/generated \
+  && test ! -e web/public/uploads \
+  && test -d web/public/assets \
+  && test -d web/public/scene-assets \
+  && test -d web/public/mockup-assets
+
 # 生成 Prisma client（web 侧 getServerContext 需要 @prisma/client 生成产物）。
 # 生成只需要 schema，不需要真实数据库连接。
 RUN pnpm --filter @petscape/server exec prisma generate
@@ -48,9 +57,6 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-ARG GIT_SHA=""
-ENV GIT_SHA=${GIT_SHA}
-
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
@@ -59,6 +65,11 @@ RUN addgroup --system --gid 1001 nodejs \
 COPY --from=build /workspace/web/public ./public
 COPY --from=build --chown=nextjs:nodejs /workspace/web/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /workspace/web/.next/static ./web/.next/static
+
+# 每次提交都会变化的版本元数据必须放在大静态层之后，否则 GIT_SHA 会让稳定的
+# public/standalone 层在每个发布版本中失去复用，快速吃满 ECS 系统盘。
+ARG GIT_SHA=""
+ENV GIT_SHA=${GIT_SHA}
 
 USER nextjs
 EXPOSE 3000
