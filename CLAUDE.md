@@ -41,7 +41,7 @@ CI（`.github/workflows/ci.yml`）与部署链（`deploy.yml`：push main → GH
 
 目标架构以根目录 `ARCHITECTURE.md` 为准。
 
-**2026-07-18 起，Phase B 正式基座与黑客松原型在同一仓库并存**：pnpm workspace（`web` + `worker` + `packages/server`）；正式链 = RDS PostgreSQL（Prisma 7 + adapter-pg）+ OSS 私有桶 + PG 任务表 SKIP LOCKED Worker + Better Auth 手机号登录 + 结构化日志 + CI/CD 部署与回滚。工作包与行为验收证据见 `docs/plans/phase-b-execution-plan.md` 与 `docs/operations/`；工程约束见 `docs/governance/engineering-conventions.md`。
+**2026-07-18 起，Phase B 正式基座与黑客松原型在同一仓库并存**：pnpm workspace（`web` + `worker` + `packages/server`）；正式链 = RDS PostgreSQL（Prisma 7 + adapter-pg）+ OSS 私有桶 + PG 任务表 SKIP LOCKED Worker + Better Auth 双凭证登录（手机号/邮箱验证码、双向绑定、OTP 发送节流；短信 PNVS、邮件 DirectMail，通道由 `SMS_CHANNEL`/`MAIL_CHANNEL` 配置，默认 log）+ 结构化日志 + CI/CD 部署与回滚。正式站 UI（App 壳 + `/login` + `/account`）以 WP-A1 用户认可版为视觉基准。工作包与行为验收证据见 `docs/plans/phase-b-execution-plan.md` 与 `docs/operations/`；工程约束见 `docs/governance/engineering-conventions.md`。
 
 本节以下记录的是**尚未迁移的原型链**（`web/app` 旧代码）的实现事实——随对应产品模块（`PRODUCT-MODULES.md`）吸收后逐段消亡；不能作为新增代码继续沿用内存状态、公开运行资产或进程内后台任务的理由。
 
