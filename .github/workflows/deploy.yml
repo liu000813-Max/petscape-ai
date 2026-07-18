@@ -38,6 +38,8 @@ jobs:
           file: deploy/web.Dockerfile
           platforms: linux/amd64
           push: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
           tags: ${{ secrets.ACR_REGISTRY }}/petscape/web:${{ steps.tag.outputs.value }}
 
       - name: Build & push worker image
