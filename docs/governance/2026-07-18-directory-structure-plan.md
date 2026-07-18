@@ -122,7 +122,7 @@ PetScape-final/
 4. **版本矩阵**（Step 2 执行文档拍板项）：固定 Node/pnpm/Next/TS/Prisma/Better Auth 版本，根目录 `packageManager` + `engines` + CI frozen-lockfile。
 5. **Worker 制品契约**（Step 2 执行文档拍板项）：`pnpm deploy` / esbuild bundle / external+精简 node_modules 三选一，连同 Prisma WASM、Python/PrusaSlicer 层、健康检查、SIGTERM 退租如何进镜像，由构建链 tracer 的实证结果定。
 6. **`tracer/` 保留为探针区**：完成使命后移 `archive/tracers/`，不删。
-7. **`tools/` 治理（拍板项 B2）**：`verify-batch0`（硬编码本机绝对路径）、`asset-gen`（含指向已不存在旧仓库的路径）移 `archive/hackathon/tools/`；`aliyun`、`demo-prep.mjs`、`bake-assets/` 保留。
+7. **`tools/` 治理（拍板项 B2，2026-07-18 用户追加两项）**：`verify-batch0`（硬编码本机绝对路径）、`asset-gen`（含指向已不存在旧仓库的路径）、`verify-pink-teapot`、根目录 `screenshots/` 移 `archive/hackathon/`；`aliyun`、`demo-prep.mjs`、`bake-assets/` 确认保留。
 8. **`docs/` 增 `plans/`**：Phase B 执行文档落点。
 9. **Step 2 明确不动**（防顺手扩大）：`app/generated`+`uploads` 双关命名混淆（OSS 接管后消亡）、内存 store、mock 链路、demo-prep。
 
