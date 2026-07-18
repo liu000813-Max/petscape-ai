@@ -16,7 +16,7 @@
 // 与 createJob 未显式传入 targetVersion 时的默认值一致）。脚本结束时清理本次
 // 写入的所有 job（按 ownerUserId 前缀），不在数据库留垃圾行。
 
-import { createJob, claimNextJob, completeJob } from '../src/infra/jobs/index.ts';
+import { createJob, claimNextJob, completeJob, shutdownJobs } from '../src/infra/jobs/index.ts';
 import { createPrismaClient } from '../src/infra/db/index.ts';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -104,6 +104,9 @@ async function cleanup() {
   });
   console.log(`[probe] cleaned up ${deleted.count} jobs (owner prefix: ${runId})`);
   await prisma.$disconnect();
+  // 断开 infra/jobs 的模块级单例连接（claimNextJob/completeJob 用的是它，
+  // 不是脚本本地的 prisma）；否则该连接会挂住事件循环，脚本无法自然退出。
+  await shutdownJobs();
 }
 
 main()

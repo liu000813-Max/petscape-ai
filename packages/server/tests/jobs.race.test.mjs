@@ -43,6 +43,7 @@ if (!databaseUrl) {
     failJob,
     cancelJob,
     recoverOrphans,
+    shutdownJobs,
   } = await import('../src/infra/jobs/index.ts');
 
   const prisma = createPrismaClient({ connectionString: databaseUrl, poolMax: 20 });
@@ -426,5 +427,54 @@ if (!databaseUrl) {
 
     const after = await prisma.job.findUniqueOrThrow({ where: { id: job.id } });
     assert.equal(after.status, 'canceled');
+  });
+
+  // ---------------------------------------------------------------------
+  // 追加用例（机制 2 护栏）：有 vendorTaskId 的过期 running job 不得被
+  // claimNextJob 直接抢占；只能经 recoverOrphans 落到 needs_attention。
+  // ---------------------------------------------------------------------
+  test('机制 2 护栏: 有 vendorTaskId 的过期 running job 不被 claimNextJob 抢占，仅 recoverOrphans 置 needs_vendor_check', async () => {
+    const type = 'race-vendor-guard';
+    const owner = ownerPrefix('vendor-guard');
+
+    const { job } = await createJob(prisma, {
+      type,
+      ownerUserId: owner,
+      input: {},
+      idempotencyKey: 'vendor-guard-1',
+    });
+
+    const claimed = await claimNextJob({ workerId: 'worker-dead', types: [type], leaseSeconds: 30 });
+    assert.equal(claimed.id, job.id);
+
+    // 用测试自己的 prisma client 直接 UPDATE：写回 vendorTaskId + 伪造租约过期
+    // （模拟 worker 已把供应商任务 ID 落库后被杀）。
+    await prisma.job.update({
+      where: { id: job.id },
+      data: {
+        vendorTaskId: 'vendor-task-guard-xyz',
+        leaseExpiresAt: new Date(Date.now() - 60_000),
+      },
+    });
+
+    // 同 type 再 claim：该过期 running job 因携带 vendorTaskId 被排除出候选集，
+    // 无其他可认领任务时应返回 null（不被抢占，避免重复提交供应商任务）。
+    const stolen = await claimNextJob({ workerId: 'worker-thief', types: [type], leaseSeconds: 30 });
+    assert.equal(stolen, null, '有 vendorTaskId 的过期 running job 不应被 claimNextJob 直接抢占');
+
+    // 只能经 recoverOrphans 落到 needs_attention / needs_vendor_check。
+    const recovered = await recoverOrphans({ now: new Date() });
+    const mine = recovered.find((r) => r.jobId === job.id);
+    assert.ok(mine, 'recoverOrphans 应处理该孤儿任务');
+    assert.equal(mine.action, 'needs_vendor_check', '有 vendorTaskId 的孤儿应置 needs_vendor_check');
+
+    const after = await prisma.job.findUniqueOrThrow({ where: { id: job.id } });
+    assert.equal(after.status, 'needs_attention', '应停在 needs_attention 等人工/后续核实供应商状态');
+  });
+
+  // 追加全局 teardown：断开 infra/jobs 模块级单例连接，让 node --test 跑完
+  // 事件循环无残留句柄、进程自然退出（不影响既有用例逻辑）。
+  test.after(async () => {
+    await shutdownJobs();
   });
 }
