@@ -26,22 +26,32 @@ export function getAuth({ config, prisma }: GetAuthOptions): Auth {
   const client =
     prisma ?? createPrismaClient({ connectionString: mustDatabaseUrl(config), poolMax: config.WEB_DB_POOL_MAX });
 
+  const aliyunCredentials =
+    config.ALIBABA_CLOUD_ACCESS_KEY_ID && config.ALIBABA_CLOUD_ACCESS_KEY_SECRET
+      ? {
+          accessKeyId: config.ALIBABA_CLOUD_ACCESS_KEY_ID,
+          accessKeySecret: config.ALIBABA_CLOUD_ACCESS_KEY_SECRET,
+        }
+      : undefined;
+
   const auth = createAuth({
     prisma: client,
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.BETTER_AUTH_URL,
     smsChannel: config.SMS_CHANNEL,
-    pnvsCredentials:
-      config.ALIBABA_CLOUD_ACCESS_KEY_ID && config.ALIBABA_CLOUD_ACCESS_KEY_SECRET
-        ? {
-            accessKeyId: config.ALIBABA_CLOUD_ACCESS_KEY_ID,
-            accessKeySecret: config.ALIBABA_CLOUD_ACCESS_KEY_SECRET,
-          }
-        : undefined,
+    pnvsCredentials: aliyunCredentials,
     pnvsTemplate: {
       signName: config.PNVS_SIGN_NAME,
       templateCode: config.PNVS_TEMPLATE_CODE,
       schemeName: config.PNVS_SCHEME_NAME,
+    },
+    // WP-A3-2：邮件通道（DirectMail 与 PNVS 共用同一套阿里云账号凭证）。
+    mailChannel: config.MAIL_CHANNEL,
+    directMailCredentials: aliyunCredentials,
+    directMailConfig: {
+      fromAddress: config.MAIL_FROM_ADDRESS,
+      fromAlias: config.MAIL_FROM_ALIAS,
+      endpoint: config.MAIL_DIRECTMAIL_ENDPOINT,
     },
   });
 

@@ -53,6 +53,48 @@ export function verifyPhoneOtp(phoneNumber: string, code: string): Promise<Verif
   return post('/phone-number/verify', { phoneNumber, code });
 }
 
+/**
+ * 已登录用户绑定手机号（WP-A3-2）：verifyPhoneNumber + updatePhoneNumber:true。
+ * 服务端事务内校验 OTP → 唯一冲突（手机号已被占用）→ 原地更新 phoneNumber，User.id 不变。
+ * 目标手机号已被其他账户占用时抛 AuthApiError(code=PHONE_NUMBER_EXIST)。
+ */
+export function bindPhone(phoneNumber: string, code: string): Promise<VerifyPhoneOtpResult> {
+  return post('/phone-number/verify', { phoneNumber, code, updatePhoneNumber: true });
+}
+
+// ---- 邮箱 OTP（WP-A3-2） ----
+
+/** 邮箱登录/注册发码（type=sign-in）。占位域邮箱与节流拒绝由服务端返回 4xx。 */
+export function sendEmailOtp(email: string): Promise<{ success: boolean }> {
+  return post('/email-otp/send-verification-otp', { email, type: 'sign-in' });
+}
+
+export interface SignInEmailOtpResult {
+  token: string;
+  user: { id: string; email?: string };
+}
+
+/** 邮箱验证码登录/注册（未注册邮箱首次验证即建号）。 */
+export function signInEmailOtp(email: string, otp: string): Promise<SignInEmailOtpResult> {
+  return post('/sign-in/email-otp', { email, otp });
+}
+
+/**
+ * 已登录用户绑定邮箱（WP-A3-2）：changeEmail 流程第一步，向新邮箱发码。
+ * 手机号占位邮箱用户借此迁移为真实邮箱（changeEmail.verifyCurrentEmail=false）。
+ */
+export function requestEmailChange(newEmail: string): Promise<{ success: boolean }> {
+  return post('/email-otp/request-email-change', { newEmail });
+}
+
+/**
+ * 已登录用户绑定邮箱第二步：校验新邮箱 OTP → 原地更新 User.email/emailVerified，User.id 不变。
+ * 新邮箱已被其他账户占用时抛 AuthApiError（"Email already in use"）。
+ */
+export function changeEmail(newEmail: string, otp: string): Promise<{ success: boolean }> {
+  return post('/email-otp/change-email', { newEmail, otp });
+}
+
 export async function signOut(): Promise<void> {
   await post('/sign-out', {});
 }
@@ -70,12 +112,39 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   TOO_MANY_ATTEMPTS: '尝试次数过多，请重新获取验证码。',
   INVALID_PHONE_NUMBER: '手机号格式不正确。',
   OTP_NOT_FOUND: '未找到验证码记录，请重新获取。',
+  // WP-A3-2：邮箱 OTP + 双向绑定 + 节流。
+  INVALID_EMAIL: '邮箱格式不正确，或该邮箱不可用于登录/绑定。',
+  PHONE_NUMBER_EXIST: '该手机号已绑定到其他账户，无法重复绑定。',
+  EMAIL_EXIST: '该邮箱已绑定到其他账户，无法重复绑定。',
+  OTP_COOLDOWN: '发送太频繁，请稍后再试。',
+  OTP_DAILY_CAP: '今日验证码发送次数已达上限，请明天再试。',
 };
+
+/** 统一节流拒绝文案：项目层（OTP_COOLDOWN/OTP_DAILY_CAP）与 Better Auth 内置 rate limiter
+ * （HTTP 429 + 英文 "Too many requests..."）两层拒绝都归一到这一句中文。 */
+const THROTTLE_MESSAGE = '发送太频繁，请稍后再试。';
+
+/**
+ * 冲突/占用类错误（绑定被拒）：目标凭证已被其他账户占用。
+ * 服务端唯一约束兜底（P2002）与前置冲突检查都映射为结构化响应，前端据此内联提示
+ * （不退出当前 session）。邮箱占用（EMAIL_EXIST，或 changeEmail 竞态路径的英文
+ * "Email already in use"）与手机号占用（PHONE_NUMBER_EXIST）都归此类。
+ */
+export function isCredentialConflict(err: unknown): boolean {
+  if (!(err instanceof AuthApiError)) return false;
+  if (err.code === 'PHONE_NUMBER_EXIST' || err.code === 'EMAIL_EXIST') return true;
+  return /already in use|已绑定|已被/.test(err.message);
+}
 
 /** 把 AuthApiError 转成表单内联可读文案；非本模块抛出的错误按未知网络错误兜底。 */
 export function describeAuthError(err: unknown): string {
   if (err instanceof AuthApiError) {
     if (err.code && ERROR_CODE_MESSAGES[err.code]) return ERROR_CODE_MESSAGES[err.code];
+    // 节流归一：Better Auth 内置 rate limiter 用 HTTP 429 + 英文文案（无项目 code），
+    // 与项目层节流（OTP_COOLDOWN/OTP_DAILY_CAP）统一到同一句中文，避免两层文案不一致。
+    if (err.status === 429 || /too many requests/i.test(err.message)) return THROTTLE_MESSAGE;
+    // changeEmail 冲突无独立 code，只有英文 message；映射为中文内联提示。
+    if (/already in use/i.test(err.message)) return '该邮箱已绑定到其他账户，无法重复绑定。';
     return err.message || '操作失败，请稍后重试。';
   }
   return '网络异常，请稍后重试。';

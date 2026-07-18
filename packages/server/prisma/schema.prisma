@@ -104,6 +104,29 @@ model Verification {
   @@map("verification")
 }
 
+// ---- WP-A3-2：OTP 发送节流记录（append-only） ----
+// spec: docs/plans/p0-batch-1-execution-plan.md WP-A3-2 § S2 codex 审查增补（增补 d）。
+//
+// 独立于 Better Auth 的 Verification 表：Verification 记录会被验证消费
+// （internalAdapter.consumeVerificationValue 删除该行），计数不可靠，无法承载
+// "滚动 24 小时 N 次上限" 语义。本表只追加、不更新、不被验证流程删除，是节流判定的
+// 唯一真相源。事务内原子判定「60s 冷却 + 滚动 24h 10 次上限」并插入一行；短信与邮件
+// 两通道共用本表（按 channel 区分，target 为规范化后的手机号 E.164 或小写邮箱）。
+// 记账时机：**发送成功后才最终保留**——通道抛错时删除刚插入的这一行（见
+// application/otp-throttle.ts），因此计入上限的都是真实发出的验证码。
+model OtpSendRecord {
+  id      String   @id @default(cuid())
+  // 规范化后的目标：邮箱=trim+lowercase，手机号=E.164（与 User.phoneNumber 同形）。
+  target  String
+  // 发送通道：'sms' | 'email'（两通道共用同一节流预算，按 target 聚合）。
+  channel String
+  sentAt  DateTime @default(now())
+
+  // 节流查询走 (target, sentAt) 复合索引：按目标定位 + 按时间窗过滤。
+  @@index([target, sentAt])
+  @@map("otp_send_record")
+}
+
 // ---- WP-3.3 任务系统（ADR-0003：持久任务表 + SKIP LOCKED Worker） ----
 // spec: docs/plans/phase-b-execution-plan.md WP-3.3 + docs/decisions/0003-persistent-jobs.md。
 // 本阶段（测试先行）只落地表结构与接口签名占位，认领/续租/完成/失败等 SQL

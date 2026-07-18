@@ -45,6 +45,7 @@ if (!databaseUrl) {
     secret: 'wp-3-1-integration-test-secret-not-for-prod',
     baseURL,
     smsChannel: 'log',
+    mailChannel: 'log',
   });
 
   test.after(async () => {

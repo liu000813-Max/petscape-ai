@@ -87,6 +87,18 @@ export const webSchema = z.object({
   PNVS_SIGN_NAME: z.string().min(1).optional(),
   PNVS_TEMPLATE_CODE: z.string().min(1).optional(),
   PNVS_SCHEME_NAME: z.string().min(1).optional(),
+
+  // WP-A3-2：OTP 邮件发送通道分发（"log" = 控制台打印，不发真邮件；"directmail" = 真实
+  // 阿里云邮件推送 DirectMail SingleSendMail）。默认 "log"，避免测试/本地环境意外真发。
+  MAIL_CHANNEL: z.enum(['log', 'directmail']).default('log'),
+
+  // DirectMail 发信配置（控制台既有资源，非账号凭证——账号凭证 ALIBABA_CLOUD_ACCESS_KEY_*
+  // 已在 common）。仅 MAIL_CHANNEL=directmail 时使用，故 from-address 给已验证发信地址默认值、
+  // 显示名默认 "PetScape"、端点默认华东1；真正调用 directmail 通道且发信地址缺失时由
+  // infra/mail 在运行时报错，不在此处提前拒绝启动（log 通道场景下不需要）。
+  MAIL_FROM_ADDRESS: z.string().min(1).default('no-reply@mail.petscape3d.com'),
+  MAIL_FROM_ALIAS: z.string().min(1).default('PetScape'),
+  MAIL_DIRECTMAIL_ENDPOINT: z.string().min(1).default('dm.aliyuncs.com'),
 });
 
 export type WebOnlyConfig = z.infer<typeof webSchema>;
