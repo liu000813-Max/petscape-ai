@@ -72,6 +72,10 @@ export const webSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.string().min(1).optional(),
 
+  // 部署版本标识（WP-4.2）：构建期由 deploy/web.Dockerfile 的 ARG GIT_SHA 注入
+  // 同名 ENV，healthz 返回它用于回滚演练的版本可观察性。本地/未注入时缺省。
+  GIT_SHA: z.string().min(1).optional(),
+
   // OTP 短信发送通道分发（"log" = 控制台打印，不发真短信；"pnvs" = 真实阿里云
   // 号码认证服务）。默认 "log"，避免测试/本地环境意外发出真实短信。
   SMS_CHANNEL: z.enum(['log', 'pnvs']).default('log'),
