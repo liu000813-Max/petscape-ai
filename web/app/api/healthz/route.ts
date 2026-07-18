@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getWebServerContext } from '../../lib/server-context';
 import { logError } from '@petscape/server/infra/logging';
+import { loadWebConfig } from '@petscape/server/infra/config';
 
 // WP-3.5：在 WP-2.5 的最小活跃度探针基础上加 DB 就绪检查（`SELECT 1`，2s
 // 超时）。DB 不可达返回 503 `{ ok: false, db: false }`——注意 Compose
@@ -21,11 +22,10 @@ async function checkDb(): Promise<boolean> {
 }
 
 // WP-4.2：回滚演练用可观察版本标识。构建期由 `deploy/web.Dockerfile` 的
-// `ARG GIT_SHA` 写入同名 ENV；本地/未注入时该 env 不存在，返回 null（不伪造
-// 版本号）。
+// `ARG GIT_SHA` 写入同名 ENV，经统一配置入口（webSchema.GIT_SHA）读取；
+// 本地/未注入时返回 null（不伪造版本号）。
 function getVersion(): string | null {
-  const sha = process.env.GIT_SHA;
-  return sha && sha.length > 0 ? sha : null;
+  return loadWebConfig().GIT_SHA ?? null;
 }
 
 export async function GET() {
