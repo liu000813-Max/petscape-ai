@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+
+      - name: Activate pnpm via packageManager
+        run: corepack prepare --activate
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # Prisma client is a generated artifact (gitignored) that packages/server's
+      # own type-check depends on; must run before tsc. See packages/server/src/generated/.
+      - name: Prisma generate (packages/server)
+        run: pnpm --filter @petscape/server run db:generate
+
+      - name: Typecheck (web)
+        run: pnpm --filter web exec tsc --noEmit
+
+      - name: Typecheck (packages/server)
+        run: pnpm --filter @petscape/server exec tsc --noEmit
+
+      - name: Typecheck (worker)
+        run: pnpm --filter @petscape/worker exec tsc --noEmit
+
+      - name: Lint (web, baseline gate)
+        run: pnpm --filter web run lint:baseline
+
+      - name: Lint (packages/server, boundary rules)
+        run: pnpm --filter @petscape/server run lint
+
+      - name: Lint (worker, boundary rules)
+        run: pnpm --filter @petscape/worker run lint
+
+      - name: Test (web)
+        run: pnpm --filter web run test
+
+      - name: Test (packages/server)
+        # No DATABASE_URL in CI: db.integration.test.mjs explicitly skips
+        # (RDS is on an internal-only network, see WP-2.3/WP-2.4). Do not
+        # inject RDS credentials here.
+        run: pnpm --filter @petscape/server run test
+
+      - name: Prisma validate (packages/server)
+        run: pnpm --filter @petscape/server exec prisma validate
