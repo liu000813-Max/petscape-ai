@@ -15,6 +15,20 @@
 // process.env 只准在 infra/config/ 中读取）——DATABASE_URL 经 infra/config 的
 // loadCommonConfig() 取得（该函数默认参数里才出现 process.env，位于
 // infra/config/ 目录内，符合边界规则豁免范围）。
+//
+// ── 租约时间基准契约（重要，多机部署前必读）──────────────────────────────
+// 本模块所有"当前时刻"比较（claimNextJob / heartbeat / recoverOrphans 里的
+// leaseExpiresAt 过期判定）以**应用进程时钟**（Node 的 Date.now()）为基准，
+// 把 `now` 作为参数下推到 SQL，而非使用 SQL 端 now()。这样规避了 RDS 会话
+// 时区非 UTC（实测 Asia/Shanghai）导致的 8 小时级偏差（详见 claimNextJob
+// 注释）。
+//   成立前提：所有 worker 进程与孤儿恢复进程共享同一时钟源。当前部署为
+//   ADR-0001 的单 ECS，此前提天然成立。
+//   多机部署红线：一旦扩展到多台机器/多进程且各自本地时钟可能漂移，本基准
+//   即失效（一台机器的 Date.now() 会与另一台的租约过期判定错位）。届时必须
+//   迁移到 DB 端统一时间源——例如在连接层 `SET timezone='UTC'` 后改用 SQL
+//   `now()` 做全部租约过期比较，让唯一时间基准落在数据库上，不再依赖各进程
+//   本地时钟。
 import type { PrismaClient } from '../db/index.ts';
 import { createPrismaClient } from '../db/index.ts';
 import { loadCommonConfig } from '../config/index.ts';
@@ -107,6 +121,19 @@ function getClient(): PrismaClient {
 }
 
 /**
+ * 断开模块级单例 Prisma client 并置空（幂等：未初始化或重复调用均安全）。
+ * 用途：进程/脚本收尾时释放连接池，让事件循环无残留句柄、进程能自然退出
+ * （否则单例连接会挂住 node --test / 一次性脚本，看似"卡住"实为等待连接关闭）。
+ * 置空后下次调用任一 job 函数会经 getClient() 重新建连，因此可安全重复调用。
+ */
+export async function shutdownJobs(): Promise<void> {
+  if (!sharedClient) return;
+  const client = sharedClient;
+  sharedClient = null;
+  await client.$disconnect();
+}
+
+/**
  * 幂等创建任务。可在调用方事务内执行（传入事务句柄作为 client）。
  * 唯一索引 (ownerUserId, type, idempotencyKey) 冲突时返回既有 job 且 created=false。
  */
@@ -183,10 +210,19 @@ export async function claimNextJob(params: ClaimNextJobParams): Promise<JobRecor
     // 比较会出现 8 小时级偏差，导致未过期的租约被误判为过期（曾实测复现：
     // 同一 job 被第二个 worker 立即重复认领）。所有"当前时刻"比较统一走应用层
     // 传参，规避服务器会话时区设置。
+    //
+    // 机制 2 护栏：过期 running 且已写回 vendorTaskId 的任务**排除**出候选集
+    // ——这类任务可能供应商侧已完成/在途，直接抢来重跑会重复提交供应商任务；
+    // 它们只能经 recoverOrphans 落到 needs_attention 等人工/后续核实，不得被
+    // claimNextJob 直接抢占。pending 任务不受影响；无 vendorTaskId 的过期
+    // running 仍可被直接抢（等价于普通孤儿，重跑无副作用）。
     const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
       `SELECT id FROM "job"
        WHERE type = ANY($1::text[])
-         AND (status = 'pending' OR (status = 'running' AND "leaseExpiresAt" < $2))
+         AND (
+           status = 'pending'
+           OR (status = 'running' AND "leaseExpiresAt" < $2 AND "vendorTaskId" IS NULL)
+         )
        ORDER BY "createdAt" ASC
        LIMIT 1
        FOR UPDATE SKIP LOCKED`,
@@ -302,9 +338,14 @@ export async function completeJob(params: CompleteJobParams): Promise<CompleteJo
   if (affected > 0) return 'completed';
 
   // 更新未命中：区分是版本过期（targetVersion 不匹配）还是租约已丢失
-  // （leaseOwner 不匹配或 status 已不是 running）。读取当前行做事后分类——
-  // 这里不影响正确性，因为写入路径已经是原子条件更新，本次分类只是给调用方
-  // 一个可解释的失败原因，不会覆盖任何数据。
+  // （leaseOwner 不匹配或 status 已不是 running）。读取当前行做事后分类。
+  //
+  // 已知近似：本次分类读取的是 UPDATE **之后**某一时刻的行状态，与 UPDATE
+  // 未命中的瞬时真实原因之间存在竞态窗口——期间该行可能被其他 worker 再次
+  // 修改，因此返回的 outcome（stale_version vs lost_lease）可能与"UPDATE 失败
+  // 当刻的原因"不完全一致。此分类**仅用于日志/断言的可解释性，不得驱动任何
+  // 控制流**（写入路径已经是原子条件更新，无论分类如何都不会覆盖数据；调用
+  // 方不应据此 outcome 做重试/回滚等分支决策）。
   const current = await client.job.findUnique({ where: { id: jobId } });
   if (current && current.status === 'running' && current.targetVersion !== targetVersion) {
     return 'stale_version';
@@ -312,7 +353,7 @@ export async function completeJob(params: CompleteJobParams): Promise<CompleteJo
   return 'lost_lease';
 }
 
-export type FailJobOutcome = 'retrying' | 'failed' | 'needs_attention';
+export type FailJobOutcome = 'retrying' | 'failed' | 'needs_attention' | 'lost_lease';
 
 export interface FailJobParams {
   jobId: string;
@@ -322,80 +363,69 @@ export interface FailJobParams {
 }
 
 /**
- * 错误分类驱动的失败处理（ADR-0003 机制 5）：
+ * 错误分类驱动的失败处理（ADR-0003 机制 5），单条条件更新 SQL 原子完成：
  * - retryable 且 attemptCount < maxAttempts → 回 pending（清租约），返回 'retrying'；
  * - retryable 且已达 maxAttempts，或 permanent → 'failed'；
  * - manual → 'needs_attention'；
  * - canceled 由 cancelJob 处理，不经过本函数。
+ *
+ * 落点由一条 CASE UPDATE 在 SQL 端计算（retryable 未超限=pending，否则终态），
+ * WHERE 携带 leaseOwner + status='running' 前置条件；affected 行数 0（含失去
+ * 租约、状态已非 running、job 不存在）→ 返回 'lost_lease'，不做读-改-写两步式。
+ * 实际落点用 RETURNING status 判定，不回读第二条查询。
  */
 export async function failJob(params: FailJobParams): Promise<FailJobOutcome> {
   const { jobId, workerId, errorClass, errorDetail } = params;
   const client = getClient();
-
-  const current = await client.job.findUnique({ where: { id: jobId } });
-  if (!current) {
-    throw new Error(`[infra/jobs] failJob: job ${jobId} 不存在`);
-  }
-
-  let outcome: FailJobOutcome;
-  let nextStatus: JobStatus;
-  if (errorClass === 'retryable') {
-    if (current.attemptCount < current.maxAttempts) {
-      outcome = 'retrying';
-      nextStatus = 'pending';
-    } else {
-      outcome = 'failed';
-      nextStatus = 'failed';
-    }
-  } else if (errorClass === 'permanent') {
-    outcome = 'failed';
-    nextStatus = 'failed';
-  } else {
-    // manual（canceled 走 cancelJob，不经过本函数）。
-    outcome = 'needs_attention';
-    nextStatus = 'needs_attention';
-  }
-
   const detailJson = JSON.stringify(errorDetail);
   const now = new Date();
 
-  if (nextStatus === 'pending') {
-    await client.$executeRawUnsafe(
-      `UPDATE "job"
-       SET status = 'pending',
-           "leaseOwner" = NULL,
-           "leaseExpiresAt" = NULL,
-           "errorClass" = $1,
-           "errorDetail" = $2::jsonb,
-           "updatedAt" = $5
-       WHERE id = $3
-         AND "leaseOwner" = $4`,
-      errorClass,
-      detailJson,
-      jobId,
-      workerId,
-      now,
-    );
-  } else {
-    await client.$executeRawUnsafe(
-      `UPDATE "job"
-       SET status = $1,
-           "errorClass" = $2,
-           "errorDetail" = $3::jsonb,
-           "finishedAt" = $6,
-           "updatedAt" = $6
-       WHERE id = $4
-         AND "leaseOwner" = $5`,
-      nextStatus,
-      errorClass,
-      detailJson,
-      jobId,
-      workerId,
-      now,
-    );
-  }
+  // 单条 CASE 条件更新：SQL 端根据 errorClass 与 attemptCount/maxAttempts 决定
+  // 新状态与租约字段，一次原子写入。仅 running 且 leaseOwner 匹配的行会被更新。
+  //   - retryable 且 attemptCount < maxAttempts → pending，清租约（可再认领）；
+  //   - retryable 已超限 / permanent → failed，写 finishedAt；
+  //   - manual → needs_attention，写 finishedAt。
+  const rows = await client.$queryRawUnsafe<Array<{ status: string }>>(
+    `UPDATE "job"
+     SET status = CASE
+           WHEN $1 = 'retryable' AND "attemptCount" < "maxAttempts" THEN 'pending'
+           WHEN $1 = 'manual' THEN 'needs_attention'
+           ELSE 'failed'
+         END,
+         "leaseOwner" = CASE
+           WHEN $1 = 'retryable' AND "attemptCount" < "maxAttempts" THEN NULL
+           ELSE "leaseOwner"
+         END,
+         "leaseExpiresAt" = CASE
+           WHEN $1 = 'retryable' AND "attemptCount" < "maxAttempts" THEN NULL
+           ELSE "leaseExpiresAt"
+         END,
+         "finishedAt" = CASE
+           WHEN $1 = 'retryable' AND "attemptCount" < "maxAttempts" THEN "finishedAt"
+           ELSE $5
+         END,
+         "errorClass" = $1,
+         "errorDetail" = $2::jsonb,
+         "updatedAt" = $5
+     WHERE id = $3
+       AND "leaseOwner" = $4
+       AND status = 'running'
+     RETURNING status`,
+    errorClass,
+    detailJson,
+    jobId,
+    workerId,
+    now,
+  );
 
-  return outcome;
+  const row = rows[0];
+  // affected 0 行：失去租约 / 状态已非 running / job 不存在——竞态落败。
+  if (!row) return 'lost_lease';
+
+  // 实际落点由 RETURNING status 判定（不回读第二条查询）。
+  if (row.status === 'pending') return 'retrying';
+  if (row.status === 'needs_attention') return 'needs_attention';
+  return 'failed';
 }
 
 export interface CancelJobParams {
