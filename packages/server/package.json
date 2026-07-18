@@ -10,12 +10,13 @@
     "./infra/db": "./src/infra/db/index.ts",
     "./infra/logging": "./src/infra/logging/index.ts",
     "./application": "./src/application/index.ts",
+    "./contracts/pets": "./src/contracts/pets.ts",
     "./worker-api": "./src/worker-api.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy"

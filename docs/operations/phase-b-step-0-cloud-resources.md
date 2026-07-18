@@ -91,6 +91,10 @@
 - ACL：`private`
 - 存储类型：Standard
 - 公网 Endpoint：`oss-cn-hangzhou.aliyuncs.com`
+- CORS（2026-07-19 为浏览器私有直传补齐）：
+  - Origins：`http://127.0.0.1:3421`、`http://localhost:3000`、`http://localhost:3010`、`https://petscape3d.com`、`https://www.petscape3d.com`
+  - Methods：`GET`、`PUT`、`HEAD`；Allowed headers：`*`；Expose headers：`ETag`、`x-oss-request-id`；Max age：600 秒
+  - CORS 只允许浏览器发起跨域请求，不改变 private ACL；对象读写仍必须通过服务端签发的短期 URL。
 - 内网 Endpoint：`oss-cn-hangzhou-internal.aliyuncs.com`
 - 匿名访问实测：HTTP 403 / `AccessDenied`
 - 已建立 4 个零字节前缀占位对象：

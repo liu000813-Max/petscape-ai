@@ -54,6 +54,7 @@ model User {
   // WP-3.2：Prisma 要求关系双向声明（Project.owner / Asset.owner 的反向字段）。
   projects Project[]
   assets   Asset[]
+  pets     Pet[]
 
   @@map("user")
 }
@@ -239,8 +240,10 @@ model Asset {
   id          String      @id @default(cuid())
   ownerUserId String
   owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  projectId   String
-  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Asset 的权限根永远是 ownerUserId。projectId 只是可选业务引用：Pet 封面等资产
+  // 在 Project 创建前即可存在，删除 Project 也不应删除用户仍拥有的二进制资源。
+  projectId   String?
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   // 资产种类（WP-3.2 只产生 upload_raw；生成/切片产物种类留给后续包）。
   kind String
@@ -259,7 +262,54 @@ model Asset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  petsWithCover Pet[] @relation("PetCoverAsset")
+
   @@index([ownerUserId])
   @@index([projectId])
   @@map("asset")
+}
+
+// ---- A4：宠物档案 ----
+// Pet 是长期业务档案；照片仍归 User，Pet 只保留单封面 Asset 引用。
+enum PetSpeciesCode {
+  rat
+  gecko
+  snake
+  parrot
+  spider
+  other
+}
+
+enum PetLifeStage {
+  juvenile
+  adult
+  senior
+  unknown
+}
+
+model Pet {
+  id          String @id @default(cuid())
+  ownerUserId String
+  owner       User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  name              String
+  speciesCode       PetSpeciesCode?
+  customSpeciesName String?
+  breed             String?
+  sizeLevel         Int?
+  lifeStage         PetLifeStage?
+  behaviorTraits    String[]       @default([])
+  environmentNotes  String?
+  specialNeeds      String?
+
+  coverAssetId String?
+  coverAsset   Asset?  @relation("PetCoverAsset", fields: [coverAssetId], references: [id], onDelete: SetNull)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([ownerUserId, deletedAt])
+  @@index([coverAssetId])
+  @@map("pet")
 }

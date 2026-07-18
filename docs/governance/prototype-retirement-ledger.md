@@ -37,6 +37,7 @@
 |---|---|---|---|
 | `app/page.jsx`（landing，唯一 active 页面；fetch 旧 `/api/project`） | A3（登录入口接入）+ B1（项目引导切 v1） | 冻结点计划内解冻：A 线加登录入口，B 线切数据源；landing 视觉零回归约束不随退役消失 | 在役 |
 | `app/components/landing/`（22 文件，设计师像素定稿） | 各 B 模块 UI | 不整体退役；正式站 UI 以其视觉语言为基准延展 | 在役 |
+| `app/components/landing/PetCreatorSection.jsx`（匿名页内存档案表单） | A4（档案语义）+ B1/B2（旧项目入口） | A4 正式 `/pets` 已吸收长期档案语义；待 B1/B2 将 landing 切到正式 Pet/Project 数据流后删除旧表单状态 | 吸收中（A4 语义已吸收，旧入口仍在役） |
 | `app/components/PetViewer.tsx` + `assetIndex.ts` | B5 尺寸与空间确认 | three.js 查看/调参能力被 B5 正式实现吸收 | 在役 |
 | `app/generated/[...path]` + `app/uploads/[...path]`（公开静态服务） | B2/B4 | 产物入 OSS 私有桶 + 签名 URL 后删除（公开运行资产是已知反模式） | 在役 |
 | `public/mockup-assets/` + `web/tests/mockFixtures.test.mjs` | 横切 | 不退役：按 Phase A 拍板升级为正式测试夹具机制 | 保留 |

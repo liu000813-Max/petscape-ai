@@ -22,6 +22,18 @@ export {
   getAssetDownloadUrl,
   AssetVerificationError,
 } from './assets.ts';
+
+// A4：宠物档案 CRUD、软删除与封面 Asset 约束。
+export {
+  createPet,
+  listPets,
+  getPet,
+  updatePet,
+  deletePet,
+  InvalidPetCoverError,
+  InvalidPetProfileError,
+} from './pets.ts';
+export type { PetSummary } from './pets.ts';
 export type {
   AssetSummary,
   RequestAssetUploadInput,

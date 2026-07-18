@@ -23,7 +23,7 @@ const GET_URL_TTL_SECONDS = 5 * 60;
 export interface AssetSummary {
   id: string;
   ownerUserId: string;
-  projectId: string;
+  projectId: string | null;
   kind: string;
   mime: string;
   size: number;
@@ -52,7 +52,8 @@ export interface RequestAssetUploadInput {
   prisma: PrismaClient;
   oss: OssStorage;
   ownerUserId: string;
-  projectId: string;
+  /** 可选业务引用；Asset 的权限根始终是 ownerUserId。 */
+  projectId?: string | null;
   filename: string;
   mime: string;
   size: number;
@@ -66,8 +67,8 @@ export interface RequestAssetUploadResult {
 }
 
 /**
- * 建 pending Asset + 签发短 TTL PUT 签名 URL。项目必须属于当前用户（否则 404），
- * 不允许向他人项目下挂资产。
+ * 建 pending Asset + 签发短 TTL PUT 签名 URL。若提供 projectId，项目必须属于当前
+ * 用户（否则 404）；不提供时生成 User-owned Asset，供 Pet 封面等前置业务使用。
  */
 export async function requestAssetUpload({
   prisma,
@@ -79,15 +80,17 @@ export async function requestAssetUpload({
   size,
   kind = 'upload_raw',
 }: RequestAssetUploadInput): Promise<RequestAssetUploadResult> {
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  assertOwner(project, ownerUserId, 'Project');
+  if (projectId) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    assertOwner(project, ownerUserId, 'Project');
+  }
 
   // 先建行拿到 cuid（assetId 是 OSS key 的不可猜测段），ossKey 随后一次 update 写入。
   // Prisma 的 @default(cuid()) 只能通过 create 后读回 id 获取，故分两步。
   const created = await prisma.asset.create({
     data: {
       ownerUserId,
-      projectId,
+      projectId: projectId ?? null,
       kind,
       mime,
       size,
@@ -199,7 +202,7 @@ export async function getAssetDownloadUrl({
 function toSummary(asset: {
   id: string;
   ownerUserId: string;
-  projectId: string;
+  projectId: string | null;
   kind: string;
   mime: string;
   size: number;
