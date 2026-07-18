@@ -2,7 +2,9 @@
 
 范围：`docs/plans/phase-b-execution-plan.md` WP-2.5。
 
-**INCOMPLETE：验收 1/2/4 无法端到端闭合——ACR（容器镜像服务）个人版实例在本账号下尚未开通，且开通动作没有对应的 OpenAPI，需要用户在阿里云控制台完成一次首次访问确认。** 详见「卡点：ACR 开通墙」节。除镜像推送/ECS 拉取这一段外，其余全部工作已完成并附证据（Dockerfile 真实构建+运行验证、SSH 部署密钥、GHA secrets、Compose、healthz、CI/CD workflow、安全组现状核验）。
+**INCOMPLETE：验收 1/2/4 无法端到端闭合——ACR（容器镜像服务）个人版实例在本账号下尚未开通，且开通动作没有对应的 OpenAPI，需要用户在阿里云控制台完成一次首次访问确认。** 详见「卡点：ACR 开通墙」节。
+
+> **状态补记（2026-07-18）**：ACR 卡点已解除（用户控制台开通个人版），部署链已端到端实证——`deploy.yml` 最近多次 run 全部 success（含 push main 自动触发的双镜像构建→ACR→ECS Compose），回滚演练见 `phase-b-step-4-rollback-drill.md`。本报告其余内容保留为写作时点的事实记录。除镜像推送/ECS 拉取这一段外，其余全部工作已完成并附证据（Dockerfile 真实构建+运行验证、SSH 部署密钥、GHA secrets、Compose、healthz、CI/CD workflow、安全组现状核验）。
 
 ## CONFLICT 清单（按优先级）
 
