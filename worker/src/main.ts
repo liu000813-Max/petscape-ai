@@ -11,3 +11,13 @@ const config = loadWorkerConfig();
 
 console.log('[worker] PetScape worker process starting (skeleton, WP-2.1/WP-2.2)');
 console.log(`[worker] NODE_ENV=${config.NODE_ENV}, config schema validated OK`);
+
+// WP-2.5：部署链（Docker/Compose healthcheck、重启策略）要求 worker 是
+// 常驻进程，而非跑完打印即退出的一次性脚本。真正的领取/执行/心跳循环在
+// WP-3.4 落地；本行只是让骨架符合"长驻服务"的容器契约，不引入业务逻辑。
+setInterval(() => {}, 1 << 30);
+
+process.on('SIGTERM', () => {
+  console.log('[worker] received SIGTERM, shutting down');
+  process.exit(0);
+});

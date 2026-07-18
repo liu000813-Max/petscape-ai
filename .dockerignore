@@ -1,0 +1,12 @@
+.git
+.env
+.env.local
+**/node_modules
+**/.next
+**/dist
+**/src/generated
+archive
+assets-3d
+docs
+tracer
+.claude
