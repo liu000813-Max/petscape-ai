@@ -1,0 +1,101 @@
+// packages/server/prisma/schema.prisma
+// spec: docs/plans/phase-b-execution-plan.md WP-2.3。
+//
+// 本包 schema 只含两类模型：
+// 1. BasecampProbe —— 探针表，够跑 CRUD/事务/唯一约束冲突集成测试即可；
+//    正式业务表从 WP-3.1 起逐包落地，不在本包提前建。
+// 2. Better Auth 核心四表（User/Session/Account/Verification）—— 手写而非
+//    `@better-auth/cli` 生成（该 CLI 版本落后于本仓库锁定的 better-auth 1.6.23，
+//    参考 tracer/auth-tracer/prisma/schema.prisma 的现成字段集，仅把 provider
+//    从 tracer 的 sqlite 换成本包的 postgresql）。本包验收范围仅是 adapter 初始化
+//    冒烟 + migration 建表成功；OTP 登录闭环、手机号换绑等行为在 WP-3.1 落地。
+//
+// Prisma 7 + @prisma/adapter-pg driver adapter 路径（ADR-0002）：datasource 不设
+// url（避免 Prisma CLI 默认查询引擎路径），运行时连接串通过 PrismaPg adapter 在
+// src/infra/db/client.ts 中显式构造；CLI 侧连接串由 prisma.config.ts 提供。
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model BasecampProbe {
+  id        Int      @id @default(autoincrement())
+  label     String   @unique
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@map("basecamp_probe")
+}
+
+// ---- Better Auth 核心表（手写，字段集参考 tracer/auth-tracer） ----
+
+model User {
+  id            String   @id
+  name          String?
+  email         String?  @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+
+  // phone-number plugin fields（WP-3.1 起启用手机号 OTP 登录时消费）。
+  phoneNumber         String?  @unique
+  phoneNumberVerified Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}

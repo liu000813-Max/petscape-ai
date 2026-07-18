@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint';
 // - 禁止在 infra/config/ 之外读取 process.env（配置只应有一个入口，Step 2 起对新代码生效）。
 export default defineConfig([
   ...tseslint.configs.recommended,
-  globalIgnores(['node_modules/**', 'prisma/generated/**']),
+  globalIgnores(['node_modules/**', 'prisma/generated/**', 'src/generated/**']),
   {
     files: ['src/application/**/*.ts', 'src/domain/**/*.ts'],
     rules: {

@@ -24,6 +24,12 @@ export const commonSchema = z.object({
   // WP-2.3 才接 RDS；本包只做骨架校验，先设为 optional，避免 dev 环境启动被卡死。
   DATABASE_URL: z.string().min(1).optional(),
 
+  // 连接预算（WP-2.3 验收 4）：web pool max + worker pool max + migration 预留
+  // 需小于实例 SHOW max_connections 实测值（420，见 docs/operations/wp-2-3-report.md）。
+  // 两个键都设默认值，任何一端未显式配置也能跑（数值来自该报告的算式，不是任意拍板）。
+  WEB_DB_POOL_MAX: z.coerce.number().int().positive().default(20),
+  WORKER_DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+
   // 阿里云通用账号与区域（OSS 与 RDS 共用同一账号凭证，Web 侧签发 OSS 签名 URL、
   // Worker 侧落地产物与查询 DB 都需要）。
   ALIBABA_CLOUD_REGION: z.string().min(1).optional(),
