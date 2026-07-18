@@ -4,7 +4,8 @@
 //     无 session 401；
 //   - migration 后 User 与 credential 表关系符合 ADR-0004（手机号换绑不改 User.id）。
 //
-// 无 DATABASE_URL 时显式 skip（CI 达不到 RDS 内网，见 db.integration.test.mjs 的先例）。
+// 无 DATABASE_URL 时本地显式 skip、CI 里直接报错（CI 由 service container 提供一次性
+// PostgreSQL 真跑，见 .github/workflows/ci.yml 与 db.integration.test.mjs 的先例）。
 // 本地/演练机跑法：先建 SSH 隧道到 RDS，导出 DATABASE_URL 指向 localhost 转发端口，
 // 再执行 `pnpm test`（同 db.integration.test.mjs 的编排约定）。
 //
@@ -23,8 +24,14 @@ import assert from 'node:assert/strict';
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  test('auth.integration.test.mjs skipped: DATABASE_URL not set (RDS 内网不可达，需 SSH 隧道)', (t) => {
-    t.skip('DATABASE_URL 未设置——本机需先建立到 RDS 的 SSH 隧道并导出 DATABASE_URL 才能跑此集成测试；CI 环境无法直连 RDS 内网，此为预期行为。');
+  if (process.env.CI) {
+    // 同 db.integration.test.mjs：CI 缺 DATABASE_URL = 门禁静默失效，炸而不是跳过。
+    throw new Error(
+      'CI 缺少 DATABASE_URL：集成测试静默全 skip 意味着门禁失效，检查 ci.yml 的 postgres service 与 env 注入。'
+    );
+  }
+  test('auth.integration.test.mjs skipped: DATABASE_URL not set (本地需 SSH 隧道连 RDS)', (t) => {
+    t.skip('DATABASE_URL 未设置——本机需先建立到 RDS 的 SSH 隧道并导出 DATABASE_URL 才能跑此集成测试（CI 由一次性 PostgreSQL service container 提供，见 .github/workflows/ci.yml）。');
   });
 } else {
   const { createPrismaClient } = await import('../src/infra/db/index.ts');

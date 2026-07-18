@@ -8,6 +8,24 @@ on:
 jobs:
   quality-gates:
     runs-on: ubuntu-latest
+    services:
+      # CI 本地一次性 PostgreSQL，供 packages/server 集成测试真跑。
+      # 与生产 RDS 同为 PostgreSQL 16（版本证据见 docs/operations/phase-b-step-0-cloud-resources.md），
+      # 表结构由下方 migrate deploy 用同一份 prisma/migrations 建出，跑完即销毁。
+      # 纪律不变：不在 CI 注入任何 RDS/OSS 云凭证（assets 测试的 OSS 部分保持 skip）。
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: petscape_ci
+          POSTGRES_PASSWORD: petscape_ci
+          POSTGRES_DB: petscape_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U petscape_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,11 +70,22 @@ jobs:
       - name: Test (web)
         run: pnpm --filter web run test
 
+      # 对一次性 PG 执行全部 migration：既为集成测试建表，
+      # 也让 migration 文件本身每次 CI 都被真实执行验证。
+      - name: Prisma migrate deploy (CI Postgres)
+        run: pnpm --filter @petscape/server run db:migrate:deploy
+        env:
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+
       - name: Test (packages/server)
-        # No DATABASE_URL in CI: db.integration.test.mjs explicitly skips
-        # (RDS is on an internal-only network, see WP-2.3/WP-2.4). Do not
-        # inject RDS credentials here.
+        # db/auth 集成测试对上方 CI 本地 PostgreSQL 真跑；assets 的 OSS 部分因
+        # 无云凭证保持 skip（纪律：云凭证不进 CI，RDS 仍在内网不可达）。
+        # 测试侧有守卫：CI 里缺 DATABASE_URL 会直接报错而非静默全 skip。
         run: pnpm --filter @petscape/server run test
+        env:
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+          # 统一配置入口（infra/config）要求 NODE_ENV 为合法枚举值；GHA 默认不设。
+          NODE_ENV: test
 
       - name: Prisma validate (packages/server)
         run: pnpm --filter @petscape/server exec prisma validate

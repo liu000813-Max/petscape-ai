@@ -6,7 +6,8 @@
 //   4. 数据库无二进制内容、OSS 无未登记对象（前缀 list 对账：测试写入的对象都有 Asset 记录）。
 //
 // 真实 RDS + 真实 OSS bucket（petscape-prod，公网 endpoint，本机可达）。无 DATABASE_URL
-// 或无 OSS 凭证时显式 skip（同 auth/db.integration.test.mjs 先例）。测试对象统一放
+// 时本地 skip、CI 报错（同 auth/db.integration.test.mjs 先例）；无 OSS 凭证时显式
+// skip——这在 CI 是预期行为（云凭证不进 CI），DB 相关断言仍会真跑。测试对象统一放
 // `uploads/raw/{ownerUserId}/...` 前缀下，owner 用户手机号以 itest- 标识（见测试内
 // phone 生成），测试结束删除自己创建的 User（级联删 Project/Asset 数据库行）与自己
 // 上传到 OSS 的对象（只删自己建的，其余一律不动）。
@@ -26,8 +27,15 @@ const hasOssCreds =
   process.env.ALIBABA_CLOUD_OSS_ENDPOINT;
 
 if (!databaseUrl) {
-  test('assets.integration.test.mjs skipped: DATABASE_URL not set (RDS 内网不可达，需 SSH 隧道)', (t) => {
-    t.skip('DATABASE_URL 未设置——本机需先建立到 RDS 的 SSH 隧道并导出 DATABASE_URL 才能跑此集成测试；CI 环境无法直连 RDS 内网，此为预期行为。');
+  if (process.env.CI) {
+    // 同 db.integration.test.mjs：CI 缺 DATABASE_URL = 门禁静默失效，炸而不是跳过。
+    // （OSS 凭证缺失的 skip 在 CI 是预期行为——云凭证不进 CI，见下一分支。）
+    throw new Error(
+      'CI 缺少 DATABASE_URL：集成测试静默全 skip 意味着门禁失效，检查 ci.yml 的 postgres service 与 env 注入。'
+    );
+  }
+  test('assets.integration.test.mjs skipped: DATABASE_URL not set (本地需 SSH 隧道连 RDS)', (t) => {
+    t.skip('DATABASE_URL 未设置——本机需先建立到 RDS 的 SSH 隧道并导出 DATABASE_URL 才能跑此集成测试（CI 由一次性 PostgreSQL service container 提供，见 .github/workflows/ci.yml）。');
   });
 } else if (!hasOssCreds) {
   test('assets.integration.test.mjs skipped: OSS credentials/bucket/endpoint not set', (t) => {
