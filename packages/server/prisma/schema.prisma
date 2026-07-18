@@ -51,6 +51,10 @@ model User {
   sessions Session[]
   accounts Account[]
 
+  // WP-3.2：Prisma 要求关系双向声明（Project.owner / Asset.owner 的反向字段）。
+  projects Project[]
+  assets   Asset[]
+
   @@map("user")
 }
 
@@ -98,4 +102,70 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@map("verification")
+}
+
+// ---- WP-3.2：持久项目 + 私有资产（OSS 小文件链） ----
+// spec: docs/plans/phase-b-execution-plan.md WP-3.2；ADR-0005（对象存储）。
+//
+// Project 与 Asset 只记录归属、类型、大小、校验与 OSS 引用；二进制内容不进数据库
+// （ADR-0005 背景："资产元数据、归属、版本和业务状态由关系型数据库拥有；对象存储
+// 只保存二进制内容和必要对象属性"）。User 模型上的 `projects`/`assets` 反向字段
+// 是 Prisma 强制要求（关系字段必须双向声明，否则 `prisma validate` 报错），并非
+// 业务查询路径需要——授权判断走 domain 层的 assertOwner（按 ownerUserId 值比对），
+// 不依赖 Prisma relation 反查。与并行改动 schema.prisma 加 Job 相关 model 的 agent
+// 都会各自在 User model block 追加反向字段，冲突面由主控 merge 时处理。
+
+enum ProjectStatus {
+  editable
+  archived
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  ownerUserId String
+  owner       User          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  title       String?
+  status      ProjectStatus @default(editable)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assets Asset[]
+
+  @@index([ownerUserId])
+  @@map("project")
+}
+
+enum AssetStatus {
+  pending
+  available
+}
+
+model Asset {
+  id          String      @id @default(cuid())
+  ownerUserId String
+  owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 资产种类（WP-3.2 只产生 upload_raw；生成/切片产物种类留给后续包）。
+  kind String
+
+  mime     String
+  size     Int
+  checksum String?
+
+  // ADR-0005：具体 key 必须包含不可猜测的资产标识；本包规则（ADR-0005 补充决定）：
+  // uploads/raw/{ownerUserId}/{assetId}/{safe-filename}——见 infra/oss 与
+  // application/assets.ts 的 key 构造。
+  ossKey String @unique
+
+  status AssetStatus @default(pending)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerUserId])
+  @@index([projectId])
+  @@map("asset")
 }
