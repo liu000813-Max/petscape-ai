@@ -366,6 +366,40 @@ if (!databaseUrl) {
     assert.equal(after.phoneNumber, phone, '手机号应保留');
   });
 
+  test('[绑定·d1] 绑定已被占用邮箱：request-email-change 返回结构化冲突 4xx，不发码、不记账', async () => {
+    // QA 阻塞项：已登录用户对已被其他账户占用的邮箱发起绑定，Better Auth 内置
+    // request-email-change 会返回 200 静默不发码（防枚举），UI 谎报"已发送"→ 用户死路。
+    // 修复要求：已登录的绑定路径必须返回结构化冲突（4xx + EMAIL_EXIST 语义），与手机号
+    // 侧 PHONE_NUMBER_EXIST 对齐（spec 账户语义"拒绝并内联提示"）。防枚举静默只保留在
+    // 未认证的 sign-in 发码入口。
+    const occupant = mkEmail('occupied-d1');
+    await emailSignIn(occupant); // 账户 A 占用该邮箱
+
+    const binder = mkPhone('d10');
+    const { cookieHeader } = await phoneSignIn(binder); // 账户 B（手机号）尝试绑定被占用邮箱
+
+    const cap = makeOtpCapture();
+    let sawSend = false;
+    let res;
+    try {
+      res = await req('/email-otp/request-email-change', { newEmail: occupant }, cookieHeader);
+      sawSend = !!cap.get(occupant);
+    } finally {
+      cap.restore();
+    }
+    assert.ok(
+      res.status >= 400 && res.status < 500,
+      `绑定已占用邮箱应返回 4xx 结构化冲突，实际 ${res.status}: ${await res.clone().text()}`,
+    );
+    const body = await res.json().catch(() => ({}));
+    assert.equal(body.code, 'EMAIL_EXIST', `冲突响应应带结构化 code=EMAIL_EXIST，实际 ${JSON.stringify(body)}`);
+    assert.equal(sawSend, false, '被占用邮箱不应发出验证码（避免 UI 谎报已发送）');
+    const recordCount = await prisma.otpSendRecord.count({ where: { target: occupant.toLowerCase() } });
+    // 占用者注册时可能已有 1 条记账；断言的是"本次冲突绑定未新增记账"——占用者用不同 target
+    // 前缀，实际这里 occupant 自己 sign-in 会记 1 条，故断言 <=1（本次绑定 0 新增）。
+    assert.ok(recordCount <= 1, `绑定冲突不应新增节流记账，occupant 记录数 ${recordCount}`);
+  });
+
   test('[绑定] 邮箱用户绑定手机号（updatePhoneNumber）：User.id 不变、phoneNumber 更新', async () => {
     const email = mkEmail('bindphone');
     const { cookieHeader, userId } = await emailSignIn(email);

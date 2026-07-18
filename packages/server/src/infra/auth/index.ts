@@ -99,6 +99,23 @@ export function createAuth({
               code: 'INVALID_EMAIL',
             });
           }
+          // 已登录绑定路径（request-email-change）的占用冲突前置：目标邮箱已被其他账户占用时
+          // 立即返回结构化冲突（4xx EMAIL_EXIST），与手机号侧 PHONE_NUMBER_EXIST 对齐
+          // （QA 阻塞项修复；spec 账户语义"拒绝并内联提示"）。放在节流预检之前——否则占用者
+          // 自身近期发码会先撞冷却，掩盖真正的冲突原因。防枚举静默只保留在未认证的
+          // sign-in 发码入口（send-verification-otp），不在此认证后绑定路径。
+          // 竞态兜底照旧：请求时未占用、提交前被抢占的情况由 change-email 的唯一约束 + Better
+          // Auth "Email already in use" 4xx 覆盖，本前置只消除"顺序路径用户死路"。
+          if (rawEmail && path === '/email-otp/request-email-change') {
+            const normalized = normalizeEmail(rawEmail);
+            const existing = await prisma.user.findUnique({ where: { email: normalized } });
+            if (existing) {
+              throw new APIError('CONFLICT', {
+                message: '该邮箱已绑定到其他账户，无法重复绑定。',
+                code: 'EMAIL_EXIST',
+              });
+            }
+          }
           // 邮件发码类端点做节流只读预检（sign-in / change-email 是消费验证码，不发码，不预检）。
           if (
             rawEmail &&

@@ -21,7 +21,10 @@ export default async function AccountPage() {
   const hasEmail = !!user.email;
   // 身份卡主标识：优先手机号（脱敏），否则邮箱（脱敏）。
   const primaryLabel = hasPhone ? phoneMasked : hasEmail ? emailMasked : user.id;
-  const primarySub = hasPhone ? '手机号登录 · 已验证' : '邮箱登录 · 已验证';
+  // session 未记录本次登录方式（也不为此加存储）——副文案用中性表述，不声称登录方式，
+  // 按已绑定凭证数呈现（QA 次要项 2）。
+  const boundCount = (hasPhone ? 1 : 0) + (hasEmail ? 1 : 0);
+  const primarySub = boundCount >= 2 ? '账户已验证 · 手机号与邮箱均可登录' : '账户已验证';
 
   return (
     <div className="psx-page psx-fade-up">

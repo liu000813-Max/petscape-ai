@@ -236,3 +236,36 @@ test('③ 邮箱注册→绑定手机号→即时展示→退出→手机号登�
     await page.close();
   }
 });
+
+test('d1 绑定已被占用邮箱→内联冲突提示可见（不谎报已发送）', async () => {
+  // 先用账户 A 占用一个邮箱，再用账户 B（手机号）尝试绑定同一邮箱：
+  // 应立即看到中文冲突内联提示，而不是"验证码已发送"的虚假声明。
+  const occupant = `${tag}-occ@e2e.local`;
+  const pageA = await browser.newPage();
+  try {
+    await emailLogin(pageA, occupant); // A 占用该邮箱
+  } finally {
+    await pageA.close();
+  }
+
+  const page = await browser.newPage();
+  try {
+    const phone = `137${tag.slice(-8)}`.slice(0, 11).padEnd(11, '0');
+    await phoneLogin(page, phone); // B 用手机号登录
+
+    await page.locator('[data-bind-kind="email"] >> text=绑定邮箱').click();
+    await page.getByLabel('绑定邮箱').fill(occupant);
+    await page.locator('[data-bind-kind="email"]').getByRole('button', { name: '获取验证码' }).click();
+
+    // 冲突内联提示应出现；不应进入"验证码已发送"的填码步骤。
+    await page.waitForSelector('text=/该邮箱已绑定到其他账户/', { timeout: 10_000 });
+    const body = await page.textContent('body');
+    assert.doesNotMatch(
+      body ?? '',
+      /验证码已发送至/,
+      '绑定已占用邮箱不应谎报"验证码已发送"',
+    );
+  } finally {
+    await page.close();
+  }
+});
