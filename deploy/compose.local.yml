@@ -1,0 +1,64 @@
+# deploy/compose.local.yml —— WP-3.4 本地验收 Compose（web + worker 两服务）。
+# spec: docs/plans/phase-b-execution-plan.md WP-3.4。
+#
+# 边界声明：本文件不是 WP-2.5 的部署链产物（那条链因 ACR 待用户控制台开通而挂起，
+# 未合并到 main；main 上当前没有 deploy/compose.yml，本文件是本包自建的最小
+# 本地验收版本，不是 cherry-pick 那条未合并分支）。验收环境 = 本地 Docker
+# Compose + 真实 RDS（经 SSH 隧道）+ 真实 OSS（公网直连，OSS 不需要隧道）。
+# 容器内访问宿主机隧道用 host.docker.internal（Docker Desktop for Mac 内建）。
+#
+# 用法：
+#   1. 先在宿主机建到 RDS 的 SSH 隧道：
+#      ssh -f -N -L 5432:<RDS_HOST>:5432 -i ~/.ssh/petscape-deploy root@<ECS_PUBLIC_IP>
+#   2. docker compose -f deploy/compose.local.yml --env-file .env up -d --build
+#   3. curl localhost:3000/api/v1/... 验收；docker kill/restart 做重启恢复验证。
+#   4. docker compose -f deploy/compose.local.yml down；隧道用完 kill 掉。
+#
+# DATABASE_URL 在本文件用 host.docker.internal 拼接（不能直接复用 .env 里面向
+# 宿主机 localhost 隧道端口的写法——容器网络视角 localhost 是容器自己）。
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    image: petscape-web-local:latest
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: 'postgresql://${ALIBABA_CLOUD_RDS_USERNAME}:${ALIBABA_CLOUD_RDS_PASSWORD}@host.docker.internal:5432/${ALIBABA_CLOUD_RDS_DATABASE}'
+      WEB_DB_POOL_MAX: '10'
+      BETTER_AUTH_SECRET: '${BETTER_AUTH_SECRET}'
+      BETTER_AUTH_URL: 'http://localhost:3000'
+      SMS_CHANNEL: 'log'
+      ALIBABA_CLOUD_REGION: '${ALIBABA_CLOUD_REGION}'
+      ALIBABA_CLOUD_ACCESS_KEY_ID: '${ALIBABA_CLOUD_ACCESS_KEY_ID}'
+      ALIBABA_CLOUD_ACCESS_KEY_SECRET: '${ALIBABA_CLOUD_ACCESS_KEY_SECRET}'
+      ALIBABA_CLOUD_OSS_BUCKET: '${ALIBABA_CLOUD_OSS_BUCKET}'
+      ALIBABA_CLOUD_OSS_ENDPOINT: '${ALIBABA_CLOUD_OSS_ENDPOINT}'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/worker.Dockerfile
+    image: petscape-worker-local:latest
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: 'postgresql://${ALIBABA_CLOUD_RDS_USERNAME}:${ALIBABA_CLOUD_RDS_PASSWORD}@host.docker.internal:5432/${ALIBABA_CLOUD_RDS_DATABASE}'
+      WORKER_DB_POOL_MAX: '5'
+      ALIBABA_CLOUD_REGION: '${ALIBABA_CLOUD_REGION}'
+      ALIBABA_CLOUD_ACCESS_KEY_ID: '${ALIBABA_CLOUD_ACCESS_KEY_ID}'
+      ALIBABA_CLOUD_ACCESS_KEY_SECRET: '${ALIBABA_CLOUD_ACCESS_KEY_SECRET}'
+      ALIBABA_CLOUD_OSS_BUCKET: '${ALIBABA_CLOUD_OSS_BUCKET}'
+      ALIBABA_CLOUD_OSS_ENDPOINT: '${ALIBABA_CLOUD_OSS_ENDPOINT}'
+      WORKER_JOB_TYPES: 'sample.echo'
+      WORKER_POLL_INTERVAL_MS: '1000'
+      WORKER_LEASE_SECONDS: '9'
+      WORKER_RECOVER_ORPHANS_INTERVAL_MS: '5000'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: unless-stopped

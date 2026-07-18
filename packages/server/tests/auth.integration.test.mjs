@@ -42,7 +42,9 @@ if (!databaseUrl) {
 
   test.after(async () => {
     // 清理本测试文件创建的 User（及级联的 Session/Account），避免真实 RDS 残留脏数据。
-    await prisma.user.deleteMany({ where: { phoneNumber: { startsWith: '+8613800' } } });
+    // 前缀专属本文件（+861380099），避免与其他并发测试/脚本使用的 +8613800 号段
+    // 撞前缀导致误删他人数据（WP-3.2 报告遗留问题，本次一并修复）。
+    await prisma.user.deleteMany({ where: { phoneNumber: { startsWith: '+861380099' } } });
     await prisma.$disconnect();
   });
 
@@ -71,7 +73,7 @@ if (!databaseUrl) {
   }
 
   test('OTP 登录闭环：send-otp(log) → verify → 受保护语义（有 session 200 / 无 session 401）', async () => {
-    const phone = `+8613800${Date.now().toString().slice(-6)}`;
+    const phone = `+861380099${Date.now().toString().slice(-6)}`;
 
     // 1. send-otp
     const { code } = await captureOtp(async () => {
@@ -113,8 +115,8 @@ if (!databaseUrl) {
   });
 
   test('ADR-0004：手机号换绑（更新 User.phoneNumber）不改变 User.id', async () => {
-    const originalPhone = `+8613800${Date.now().toString().slice(-6)}1`;
-    const newPhone = `+8613800${Date.now().toString().slice(-6)}2`;
+    const originalPhone = `+861380099${Date.now().toString().slice(-6)}1`;
+    const newPhone = `+861380099${Date.now().toString().slice(-6)}2`;
 
     const { code } = await captureOtp(async () => {
       const res = await auth.handler(
