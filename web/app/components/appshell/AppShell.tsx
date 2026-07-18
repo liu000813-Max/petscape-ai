@@ -6,7 +6,6 @@ import './app-ui.css';
 
 export interface ShellUser {
   phoneMasked: string;
-  isPreview: boolean;
 }
 
 export function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {

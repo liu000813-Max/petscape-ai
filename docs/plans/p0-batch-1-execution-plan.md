@@ -69,6 +69,8 @@ d. UI：宠物列表 + 新建/编辑表单 + 照片上传，挂在 App 壳内；
 3. `docker compose` 重启后档案与照片仍可访问（OSS 签名 URL）；
 4. 锚点闭环行为验收（批次完成定义那四步）由用户亲手走一遍。
 
+**WP-A2 运维事实（2026-07-18）**：Better Auth 的 CSRF Origin 校验要求 `BETTER_AUTH_URL` 与实际访问 origin 一致（缺省回落 `localhost:3000`，部署实例上已登录写操作会 403）。ECS `/opt/petscape-compose/web.env` 需含 `BETTER_AUTH_URL=http://localhost:3010`（隧道验证时本地转发端口须同为 3010）；**正式域名切换（A1 收口）时改为正式 origin**。该文件是"provision 脚本生成 + 手工追加"模式，重跑 `deploy/provision-env.sh` 会丢手工键，重跑后需复核。
+
 ## WP-A4 邮箱验证码登录（A3-2，不阻塞锚点）
 
 前置（外部依赖，需用户控制台动作，届时给最小动作清单）：开通阿里云邮件推送（DirectMail）、配置发信域名 DNS（可用 petscape3d.com，发信域名验证不依赖 ICP 备案——执行时核实）。

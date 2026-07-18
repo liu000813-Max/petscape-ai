@@ -1,5 +1,5 @@
-// web/app/(app)/account/page.tsx —— 账户页首版 UI（WP-A1）。
-// 当前用户（脱敏手机号）、已绑定凭证列表（手机号已绑 / 邮箱未绑占位）、退出登录（桩）。
+// web/app/(app)/account/page.tsx —— 账户页（WP-A2）。
+// 当前用户（脱敏手机号）、已绑定凭证列表（手机号已绑 / 邮箱未绑占位）、退出登录。
 import type { Metadata } from 'next';
 import { PawPrint } from 'lucide-react';
 import { getSessionUser, maskPhone } from '../../lib/auth/session';
@@ -29,9 +29,6 @@ export default async function AccountPage() {
           <div>
             <div className="psx-identity-name">{phoneMasked}</div>
             <div className="psx-identity-sub">手机号登录 · 已验证</div>
-          </div>
-          <div className="psx-identity-tags">
-            {user.isPreview && <span className="psx-tag psx-tag-soft">预览数据</span>}
           </div>
         </div>
       </section>

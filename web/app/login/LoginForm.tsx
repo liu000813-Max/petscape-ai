@@ -1,10 +1,12 @@
 'use client';
 
-// web/app/login/LoginForm.tsx —— 手机号 + 验证码两步登录的表单状态机（WP-A1）。
-// 表单结构与状态机完整；发送/校验 OTP 在本包为桩，接线点见下方两处 TODO(WP-A2)。
+// web/app/login/LoginForm.tsx —— 手机号 + 验证码两步登录的表单状态机（WP-A2）。
+// 发送/校验 OTP 直连 Better Auth phone-number 插件 REST 端点（见 lib/auth/client.ts）。
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import '../components/appshell/app-ui.css';
+import { sendPhoneOtp, verifyPhoneOtp, describeAuthError } from '../lib/auth/client';
 
 const PHONE_RE = /^1[3-9]\d{9}$/;
 const OTP_LENGTH = 6;
@@ -14,13 +16,20 @@ function formatPhone(phone: string): string {
   return `${phone.slice(0, 3)} ${phone.slice(3, 7)} ${phone.slice(7)}`;
 }
 
+function toE164(phone: string): string {
+  return `+86${phone}`;
+}
+
 export function LoginForm() {
+  const router = useRouter();
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [countdown, setCountdown] = useState(0);
   const [otpFocused, setOtpFocused] = useState(false);
-  const [stubNotice, setStubNotice] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const otpRef = useRef<HTMLInputElement>(null);
 
   const phoneValid = PHONE_RE.test(phone);
@@ -32,33 +41,59 @@ export function LoginForm() {
     return () => clearInterval(timer);
   }, [countdown]);
 
-  const sendCode = () => {
-    if (!phoneValid) return;
-    // TODO(WP-A2)：接 Better Auth phone-number 插件的发送端点（POST /api/auth/phone-number/send-otp）。
-    setStep('code');
-    setCode('');
-    setStubNotice(false);
-    setCountdown(RESEND_SECONDS);
-    requestAnimationFrame(() => otpRef.current?.focus());
+  const sendCode = async () => {
+    if (!phoneValid || sending) return;
+    setSending(true);
+    setErrorMessage(null);
+    try {
+      await sendPhoneOtp(toE164(phone));
+      setStep('code');
+      setCode('');
+      setCountdown(RESEND_SECONDS);
+      requestAnimationFrame(() => otpRef.current?.focus());
+    } catch (err) {
+      setErrorMessage(describeAuthError(err));
+    } finally {
+      setSending(false);
+    }
   };
 
-  const resendCode = () => {
-    if (countdown > 0) return;
-    // TODO(WP-A2)：同上，重发 OTP。
-    setCountdown(RESEND_SECONDS);
-    otpRef.current?.focus();
+  const resendCode = async () => {
+    if (countdown > 0 || sending) return;
+    setSending(true);
+    setErrorMessage(null);
+    try {
+      await sendPhoneOtp(toE164(phone));
+      setCountdown(RESEND_SECONDS);
+      otpRef.current?.focus();
+    } catch (err) {
+      setErrorMessage(describeAuthError(err));
+    } finally {
+      setSending(false);
+    }
   };
 
-  const submitCode = () => {
-    if (!codeComplete) return;
-    // TODO(WP-A2)：接 Better Auth 验证端点（POST /api/auth/phone-number/verify），成功后跳 /account。
-    setStubNotice(true);
+  const submitCode = async () => {
+    if (!codeComplete || verifying) return;
+    setVerifying(true);
+    setErrorMessage(null);
+    try {
+      await verifyPhoneOtp(toE164(phone), code);
+      router.push('/account');
+      router.refresh();
+    } catch (err) {
+      setErrorMessage(describeAuthError(err));
+      setCode('');
+      otpRef.current?.focus();
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const backToPhone = () => {
     setStep('phone');
     setCode('');
-    setStubNotice(false);
+    setErrorMessage(null);
   };
 
   if (step === 'phone') {
@@ -91,8 +126,8 @@ export function LoginForm() {
               autoFocus
             />
           </div>
-          <button type="submit" className="psx-btn-primary" disabled={!phoneValid}>
-            获取验证码
+          <button type="submit" className="psx-btn-primary" disabled={!phoneValid || sending}>
+            {sending ? '发送中…' : '获取验证码'}
           </button>
           <div className="psx-divider">或</div>
           <button
@@ -105,6 +140,7 @@ export function LoginForm() {
             <span>邮箱登录</span>
             <span className="psx-tag psx-tag-soft">即将开放</span>
           </button>
+          {errorMessage && <p className="psx-note psx-fade-up" role="alert">{errorMessage}</p>}
         </form>
         <p className="psx-terms">继续即代表你同意 PetScape 的《用户协议》与《隐私政策》。</p>
       </div>
@@ -154,15 +190,15 @@ export function LoginForm() {
         </div>
         <div className="psx-otp-meta">
           <span>没收到短信？</span>
-          <button type="button" className="psx-linklike" onClick={resendCode} disabled={countdown > 0}>
+          <button type="button" className="psx-linklike" onClick={resendCode} disabled={countdown > 0 || sending}>
             {countdown > 0 ? `重新发送 ${countdown}s` : '重新发送验证码'}
           </button>
         </div>
-        <button type="submit" className="psx-btn-primary" disabled={!codeComplete}>
-          登录
+        <button type="submit" className="psx-btn-primary" disabled={!codeComplete || verifying}>
+          {verifying ? '登录中…' : '登录'}
         </button>
-        {stubNotice && (
-          <p className="psx-note psx-fade-up">短信验证服务将在下一工作包接通，当前为界面基线预览。</p>
+        {errorMessage && (
+          <p className="psx-note psx-fade-up" role="alert">{errorMessage}</p>
         )}
       </form>
     </div>
