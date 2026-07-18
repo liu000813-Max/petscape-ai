@@ -31,4 +31,14 @@ export type {
   GetAssetDownloadUrlResult,
 } from './assets.ts';
 
+// WP-3.4：任务用例（createSampleJob/getJob），见 ./jobs.ts。
+export { createSampleJob, getJob, SAMPLE_ECHO_JOB_TYPE } from './jobs.ts';
+export type {
+  JobSummary,
+  SampleEchoInput,
+  CreateSampleJobInput,
+  CreateSampleJobResult,
+  GetJobInput,
+} from './jobs.ts';
+
 export { NotFoundError } from '../domain/index.ts';

@@ -99,6 +99,15 @@ export const workerSchema = z.object({
 
   UV_BIN: z.string().min(1).optional(),
   PRUSASLICER_BIN: z.string().min(1).optional(),
+
+  // WP-3.4：worker 正式循环参数。逗号分隔的 job type 列表（认领候选集合）、
+  // 轮询间隔（无可认领任务时的睡眠时长）、租约时长（claimNextJob 的 leaseSeconds，
+  // 心跳节奏按 leaseSeconds/3 触发，见 worker/src/main.ts）、孤儿恢复扫描周期。
+  // 全部给合理默认值，本地/演练无需显式配置也能跑。
+  WORKER_JOB_TYPES: z.string().min(1).default('sample.echo'),
+  WORKER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(2000),
+  WORKER_LEASE_SECONDS: z.coerce.number().int().positive().default(30),
+  WORKER_RECOVER_ORPHANS_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
 });
 
 export type WorkerOnlyConfig = z.infer<typeof workerSchema>;
