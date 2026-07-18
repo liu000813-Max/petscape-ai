@@ -128,7 +128,7 @@ test('phone OTP login closes the loop: send code -> verify -> /account -> sign o
 
     const code = await waitForOtp(PHONE);
 
-    await page.getByLabel('短信验证码').fill(code);
+    await page.getByLabel('验证码').fill(code);
     await page.getByRole('button', { name: '登录' }).click();
 
     await page.waitForURL(`${BASE_URL}/account`, { timeout: 10_000 });
@@ -156,11 +156,11 @@ test('wrong OTP shows inline error, not a browser alert', async () => {
     await page.goto(`${BASE_URL}/login`);
     await page.getByLabel('手机号').fill(otherPhone);
     await page.getByRole('button', { name: '获取验证码' }).click();
-    await page.getByLabel('短信验证码').waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByLabel('验证码').waitFor({ state: 'visible', timeout: 10_000 });
 
     // 等真实验证码落地日志后再确保输入的是错误码（避免偶发撞对）。
     await waitForOtp(otherPhone);
-    await page.getByLabel('短信验证码').fill('000000');
+    await page.getByLabel('验证码').fill('000000');
     await page.getByRole('button', { name: '登录' }).click();
 
     await page.waitForSelector('text=/验证码.*(错误|无效|不正确)/', { timeout: 10_000 });

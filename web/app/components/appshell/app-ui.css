@@ -624,6 +624,7 @@
 .psx-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 19px 24px;
 }
@@ -695,4 +696,51 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--psx-faint);
+}
+
+/* ---- WP-A3-2 双向凭证绑定 ---- */
+
+/* 「绑定邮箱 / 绑定手机号」触发按钮，靠右对齐同 tag 的位置。 */
+.psx-bind-trigger {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 13px;
+}
+
+/* 展开后的两步绑定表单：占整行下方，与 row 内容对齐。 */
+.psx-row .psx-bind-flow {
+  flex: 1 1 100%;
+  margin-top: 12px;
+}
+
+.psx-bind-flow .psx-field {
+  margin-top: 0;
+}
+
+.psx-bind-flow .psx-login-sub {
+  margin: 0 0 10px;
+}
+
+.psx-bind-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.psx-bind-actions .psx-btn-primary,
+.psx-bind-actions .psx-btn-ghost {
+  width: auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* 登录页双账户引导 + 账户页绑定说明：低强调辅助文案。 */
+.psx-login-hint {
+  margin-top: 14px;
+}
+
+.psx-bind-hint {
+  margin-top: 16px;
+  padding: 0 24px 18px;
 }
