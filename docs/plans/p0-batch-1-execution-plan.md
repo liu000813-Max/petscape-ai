@@ -71,13 +71,64 @@ d. UI：宠物列表 + 新建/编辑表单 + 照片上传，挂在 App 壳内；
 
 **WP-A2 运维事实（2026-07-18）**：Better Auth 的 CSRF Origin 校验要求 `BETTER_AUTH_URL` 与实际访问 origin 一致（缺省回落 `localhost:3000`，部署实例上已登录写操作会 403）。ECS `/opt/petscape-compose/web.env` 需含 `BETTER_AUTH_URL=http://localhost:3010`（隧道验证时本地转发端口须同为 3010）；**正式域名切换（A1 收口）时改为正式 origin**。该文件是"provision 脚本生成 + 手工追加"模式，重跑 `deploy/provision-env.sh` 会丢手工键，重跑后需复核。
 
-## WP-A4 邮箱验证码登录（A3-2，不阻塞锚点）
+## WP-A3-2 邮箱验证码登录与双向凭证绑定（模块 A3）
 
-前置（外部依赖，需用户控制台动作，届时给最小动作清单）：开通阿里云邮件推送（DirectMail）、配置发信域名 DNS（可用 petscape3d.com，发信域名验证不依赖 ICP 备案——执行时核实）。
+状态：2026-07-18 用户拍板开工。取代原"WP-A4"节（工作包命名自此改为**模块号-序号**式，消除 WP 编号与模块编号撞名）。外部前置已全部就绪：DirectMail 已开通（华东1）、发信域名 `mail.petscape3d.com` 已验证、发信地址 `no-reply@mail.petscape3d.com`（触发类）已建、DNS（DKIM/SPF/DMARC/MX）已配。
 
-范围：Better Auth email-otp 插件接入；`infra/mail/` 适配器（DirectMail，经统一 config 消费凭证）；`/login` 邮箱入口启用；账户页支持已登录用户**绑定**邮箱（换绑不改 User.id，语义同 ADR-0004）；邮箱与手机号为两个独立注册入口。
+**已拍板**：注册+登录+绑定都做；无密码（仅验证码）；双账户接受为独立账户+登录页文案引导（不做账户合并）；最小节流本包做；**凭证双向对称**——手机号用户可绑邮箱、邮箱用户可绑手机号，绑定后任一凭证登录为同一 User.id（ADR-0004"换绑不改 id"语义扩展到双向）。
 
-验收：邮箱收码注册登录闭环（真实收件截图）；手机号老用户绑定邮箱后两种方式登录同一 User.id（集成测试断言）；未验证邮箱不可登录。
+真发验收资源：手机号 <REAL_TEST_PHONE>（短信转发至编排机 Mac，经 Messages 数据库自动抓码）；GWS 邮箱 <REAL_TEST_ACCOUNT>（Mail skill 取码）。
+
+### 账户语义（实现前共识）
+
+- 登录查找：邮箱 → `User.email`；手机号 → `User.phoneNumber`。绑定 = 对目标凭证完成验证码校验后写入对应字段（邮箱绑定同时把合成占位 `@phone.petscape.local` 迁移为真实邮箱，`emailVerified` 置真；手机号绑定写 `phoneNumber` + `phoneNumberVerified`）。
+- 冲突（**codex 审查增补，优先于本条原文**）：冲突判定**不靠"先查后写"**——数据库唯一约束兜底，应用层捕获唯一冲突（Prisma `P2002`）映射为**结构化冲突响应**，覆盖三类竞态：邮箱占用、手机号占用、以及"新注册 vs 已有账户绑定"的交叉竞态（两账户并发抢同一凭证仅一个成功，失败方收到结构化冲突而非 500）。内联提示由前端据结构化响应渲染。
+- **邮箱规范化（codex 审查增补）**：一律 `trim` + `toLowerCase` 后再入库/查找，`Foo@X.com` 与 `foo@x.com` 命中同一账户（注册/登录/绑定三入口一致）。
+- `@phone.petscape.local` 占位域在**服务端全部入口**拦截（发码 / 注册 / 绑定 / changeEmail），含大小写与空白变体（先规范化再匹配后缀 `@phone.petscape.local`）；不仅前端拦截。
+- 同一人分别用两种凭证从零注册 = 两个独立账户（接受）；登录页文案引导"已有账户先登录再绑定"。
+
+### S1 DirectMail 权限探针（先于一切）
+
+现有 `ALIBABA_CLOUD_*` 凭证经 `tools/aliyun` 真发一封测试邮件到验收邮箱。通过 → 凭证可用直接开工；权限不足 → 输出 RAM 授权最小动作交用户，S2 用 log 通道先行不阻塞。
+
+### S2 实现（builder，TDD 红灯先行）
+
+范围：
+a. `infra/mail/` 适配器：log + directmail 双通道（照抄 `infra/sms/` 模式），config（webSchema）加 mail 键；
+b. Better Auth `emailOTP` 插件接入（仅 sign-in 用途，不开 forget-password；选项以 node_modules 1.6.23 类型定义为准）；占位域拦截；
+c. 绑定用例（双向）：邮箱绑定（占位迁移）与手机号绑定（phoneNumber 插件的已登录验证更新路径），唯一冲突拒绝，换绑不改 User.id；
+d. 最小节流：同一目标 60s 冷却 + 单目标每日 10 次上限，**同时覆盖短信与邮件两通道**（复用 Verification 表时间戳，不新增表）；
+e. UI：`/login` 邮箱入口启用（复用两步交互与视觉基准）+ 双账户引导文案；`/account` 双向绑定入口（邮箱行、手机号行按登录方式显示已绑/未绑）与冲突提示。
+
+#### S2 codex 审查增补（2026-07-18，优先于上文 a–e 原文冲突处）
+
+- **增补 b（原子绑定，取代"绑定用例"含糊表述）**：emailOTP 的普通 `sign-in`/`verify` **无法迁移已登录手机号用户的占位邮箱**（sign-in 会新建或切到另一个 User）。已登录用户的邮箱绑定必须走**原子迁移**：在「启用 emailOTP `changeEmail.enabled` 内置流程」与「自有应用层原子绑定用例（事务内：校验已验证 OTP → 捕获唯一冲突 → 更新 `User.email`/`emailVerified`）」中，按 1.6.23 实际能力**择一**，PR 记录选择依据。手机号绑定用 `verifyPhoneNumber({ updatePhoneNumber: true })`（1.6.23 已核实存在：`POST /phone-number/verify` body 带 `updatePhoneNumber:true`，无 session → 401，目标手机号被占 → `PHONE_NUMBER_EXIST`，原地更新不改 `User.id`）；唯一冲突同样由项目层映射为结构化响应。
+- **增补 d（节流改为独立 append-only 表，取代"复用 Verification 表"）**：新建 **append-only 发送记录表**（`target`、`channel`、`sentAt`；新 migration）。事务内原子判定 **60s 冷却 + 滚动 24 小时 10 次上限**；**发送成功后才记账**（通道抛错不记账）。**不复用 Verification 表**——其记录会被验证消费（`consumeVerificationValue`），计数不可靠。
+- **增补 f（OTP 存储）**：emailOTP 1.6.23 支持 `storeOTP: "hashed"`，启用之（DB 只存哈希，不影响发给用户的明文）。
+
+TDD 出题（权限/并发类，conventions §1 照单）：同邮箱并发注册只成一个；绑定他人已占用邮箱/手机号被拒；占位域被拦；60s 内第二次发码被拒；错码/过期码无效；双向绑定前后 User.id 不变。
+
+**TDD 追加（codex 审查增补）**：滚动 24h 内第 11 次发码被拒；并发同目标发码仅一次通过节流；正确 OTP 并发消费仅一次成功、二次重放被拒；未登录调用绑定接口 401；两账户并发绑定同一凭证仅一个成功、失败方收到结构化冲突而非 500；邮箱大小写变体（`Foo@X.com` vs `foo@x.com`）注册/登录/绑定命中同一账户。
+
+e2e（log 通道，playwright）：①邮箱注册→登录闭环；②手机号注册→绑定邮箱→退出→邮箱登录→断言同一 User.id；③邮箱注册→绑定手机号→退出→手机号登录→断言同一 User.id。
+
+**e2e 追加断言（codex 审查增补）**：绑定响应返回后**不退出**，当前 session 的账户页立即显示新凭证。
+
+机器验收：TDD 红→绿两段证据；lint:baseline；三包 tsc；web build；landing 零回归截图；`docs/plans` 本节即闭合 spec，PR 附全部证据（含绑定路径与 OTP 存储选择依据）。
+
+### S3 独立 QA（非实现者）
+
+log 通道录屏全流程（邮箱注册/登录/双向绑定/绑定后同账户/错误态与节流拒绝），视频进 qa-evidence release、判定评论进 PR（同 WP-A2 模式）。
+
+### S4 真发端到端（编排方执行）
+
+1. 短信真发（PNVS）：真发到 <REAL_TEST_PHONE> → Messages 数据库自动抓码 → 登录成功（顺带闭环 WP-A2 遗留的 PNVS 真机冒烟）；
+2. 邮件真发（DirectMail）：发到验收邮箱 → Mail skill 取码 → 登录成功；如实记录是否进垃圾箱（新域名+1024 位 DKIM，进垃圾箱属预期，记录不阻塞）；
+3. ECS 部署实例经隧道（本地端口 3010）复验登录一次。
+
+### S5 合并
+
+CI（`gh pr checks --json` 显式判定）+ QA 判定 + S4 真发双通道证据齐 → merge。
 
 ## R 线（后台并行，不占本批次开发容量）
 
