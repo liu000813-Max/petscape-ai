@@ -77,7 +77,7 @@ d. UI：宠物列表 + 新建/编辑表单 + 照片上传，挂在 App 壳内；
 
 状态：✅ 完成（PR #26，2026-07-18 合并）。S1-S5 全过：TDD 17 用例红→绿；codex 计划审查 6 critical 全落地；独立 QA 首轮抓出"绑定占用邮箱假发送死路"阻塞项、修复后复验翻案通过（录屏与关键帧在 PR）；S4 真发双通道（DirectMail→Gmail 收件箱自动取码登录、PNVS→真机短信经 Messages 数据库自动抓码登录）证据以评论落 PR #26。
 
-**运维事实（S4 沉淀）**：①PNVS 真发需 `PNVS_SIGN_NAME`/`PNVS_TEMPLATE_CODE`（现用系统赠送签名「<SMS_SIGN_NAME>」+ 模板 100001，见 `docs/operations/phase-b-step-0-cloud-resources.md`；根 `.env` 与 ECS `web.env` 均未配置——**真实通道上线前需补，品牌签名申请是既定用户确认项**）；②ECS 部署实例当前 SMS/MAIL 均为默认 `log` 通道，切真实通道只需补 env；③本地无 SSL 的 PG 需在 `DATABASE_URL` 显式 `sslmode=disable`（P1017 教训）。
+**运维事实（S4 沉淀）**：⓪**部署链不执行 migration**——`deploy.yml` 只做镜像替换，带 schema 变更的 PR 合并后现网即 P2021（本包节流表实测踩中：ECS 发码 500，已按 ADR-0002 经 SSH 隧道 `pnpm db:migrate:deploy` 补齐并复验通过）。**在部署链补上 migration 步骤之前，每个带 migration 的 PR 合并后由编排方立即手动 migrate deploy**；"migrate deploy 执行者进部署链"是目录结构方案的遗留拍板项，挂批次 2 处理。①PNVS 真发需 `PNVS_SIGN_NAME`/`PNVS_TEMPLATE_CODE`（现用系统赠送签名「<SMS_SIGN_NAME>」+ 模板 100001，见 `docs/operations/phase-b-step-0-cloud-resources.md`；根 `.env` 与 ECS `web.env` 均未配置——**真实通道上线前需补，品牌签名申请是既定用户确认项**）；②ECS 部署实例当前 SMS/MAIL 均为默认 `log` 通道，切真实通道只需补 env；③本地无 SSL 的 PG 需在 `DATABASE_URL` 显式 `sslmode=disable`（P1017 教训）。
 
 本节原为开工 spec。取代原"WP-A4"节（工作包命名自此改为**模块号-序号**式，消除 WP 编号与模块编号撞名）。外部前置已全部就绪：DirectMail 已开通（华东1）、发信域名 `mail.petscape3d.com` 已验证、发信地址 `no-reply@mail.petscape3d.com`（触发类）已建、DNS（DKIM/SPF/DMARC/MX）已配。
 
