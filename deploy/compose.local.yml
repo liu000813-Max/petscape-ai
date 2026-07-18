@@ -1,5 +1,5 @@
 # deploy/compose.local.yml —— WP-3.4 本地验收 Compose（web + worker 两服务）。
-# spec: docs/plans/phase-b-execution-plan.md WP-3.4。
+# spec: docs/plans/phase-b-execution-plan.md WP-3.4，healthcheck 段落属 WP-3.5。
 #
 # 边界声明：本文件不是 WP-2.5 的部署链产物（那条链因 ACR 待用户控制台开通而挂起，
 # 未合并到 main；main 上当前没有 deploy/compose.yml，本文件是本包自建的最小
@@ -16,6 +16,14 @@
 #
 # DATABASE_URL 在本文件用 host.docker.internal 拼接（不能直接复用 .env 里面向
 # 宿主机 localhost 隧道端口的写法——容器网络视角 localhost 是容器自己）。
+#
+# WP-3.5：web healthcheck 复用 deploy/compose.yml（ECS 部署版）已确立的 Node
+# 内置 http 模块探测模式（bookworm-slim 镜像无 curl/wget，已实测确认，见
+# docs/operations/wp-2-5-report.md）——本地隧道断开时 /api/healthz 返回 503，
+# healthcheck 判定非 200 即失败，容器状态转 unhealthy，符合 spec 明确指示的
+# "DB 断则容器转 unhealthy 属预期语义"。worker 暂不加 healthcheck——worker 无
+# HTTP 端口，进程存活判定不属本包验收范围（WP-2.5 的 /proc/1/cmdline 方案是
+# 未合并部署链的产物，本文件不追加相同机制以免制造未经验证的重复实现）。
 
 services:
   web:
@@ -25,6 +33,18 @@ services:
     image: petscape-web-local:latest
     ports:
       - '3000:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3000/api/healthz', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     environment:
       NODE_ENV: production
       DATABASE_URL: 'postgresql://${ALIBABA_CLOUD_RDS_USERNAME}:${ALIBABA_CLOUD_RDS_PASSWORD}@host.docker.internal:5432/${ALIBABA_CLOUD_RDS_DATABASE}'

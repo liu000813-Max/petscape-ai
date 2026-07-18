@@ -48,6 +48,10 @@ export {
   recoverOrphans,
   shutdownJobs,
 } from './infra/jobs/index.ts';
+
+// WP-3.5：结构化日志（零依赖 JSON 行式），worker 侧任务生命周期事件消费。
+export { log, logInfo, logWarn, logError } from './infra/logging/index.ts';
+export type { LogLevel, LogFields } from './infra/logging/index.ts';
 export type {
   JobRecord,
   JobStatus,

@@ -23,6 +23,14 @@ export interface SampleEchoInput {
   text: string;
   /** 模拟长任务耗时（毫秒）——用于覆盖多次心跳周期，验证 leaseSeconds/3 心跳节奏。 */
   sleepMs?: number;
+  /**
+   * WP-3.5：创建该任务的 API 请求的 requestId（web 侧 crypto.randomUUID()
+   * 生成，见 web/app/lib/server-context.ts 的 withApiLogging）。不改 Job
+   * schema——借用 input 字段透传，worker 侧 job 生命周期日志据此把 API 入口
+   * 日志与任务执行日志用同一关联 ID 串起。可选：非本模块直接创建的任务
+   * （如未来其他任务类型）不强制携带。
+   */
+  _requestId?: string;
 }
 
 export interface JobSummary {
