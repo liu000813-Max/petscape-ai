@@ -15,15 +15,19 @@ Phase C/D 新代码的工程实践约束（测试策略分级、zod 运行时校
 ## 常用命令
 
 ```bash
-cd web && pnpm install        # 包管理统一 pnpm
-pnpm dev                      # 开发（默认 3000）
-pnpm build && pnpm exec next start  # demo/生产模式（无 dev overlay）
-npx tsc --noEmit              # 类型检查——本仓库最主要的硬校验，改动后必跑
-pnpm lint                     # 输出完整 ESLint 存量，当前会非零退出
-pnpm lint:baseline            # 迁移期门禁：既有错误只降不升，总上限 17
-pnpm test                     # 当前单测入口（Node test runner）
-node ../tools/demo-prep.mjs [--real]  # demo 预热：生成第二轨项目并打印恢复 URL
+pnpm install                  # 在仓库根跑：pnpm workspace（web + worker + packages/server）
+cd web && pnpm dev            # Web 开发（默认 3000，读根 .env）
+cd web && pnpm build          # 生产构建（Next standalone）
+(cd <包目录> && pnpm exec tsc --noEmit)   # 类型检查，web / packages/server / worker 三包都要过
+                              # 注意：根目录裸 `npx tsc` 会拉到一个假 tsc 包，必须进包目录用 pnpm exec
+cd web && pnpm lint:baseline  # 迁移期门禁：原型存量 lint 只降不升
+pnpm test                     # 在各包目录内跑（Node test runner）；packages/server 集成测试
+                              # 的两种跑法（本地 PG / 经隧道打真实 RDS）见 packages/server/CLAUDE.md
+docker compose -f deploy/compose.local.yml up   # 本地容器化验收（web+worker，真实 RDS 经 SSH 隧道）
+node tools/demo-prep.mjs [--real]  # 原型 demo 预热：生成第二轨项目并打印恢复 URL
 ```
+
+CI（`.github/workflows/ci.yml`）与部署链（`deploy.yml`：push main → GHA 双镜像 → ACR → SSH ECS Compose）是行为正本；回滚用 `deploy/rollback.sh <image-tag>`。
 
 `tests/timeouts.test.mjs` 只验证仍在使用的 `jobs/timeouts.ts`；已删除的 `codexQueue` 不再有 active 测试或依赖。
 
@@ -31,11 +35,15 @@ node ../tools/demo-prep.mjs [--real]  # demo 预热：生成第二轨项目并�
 
 **阿里云操作一律走 `tools/aliyun <命令> ...`，禁止裸调 `aliyun`**：本机全局 `~/.aliyun/config.json` 的默认凭证属于用户个人账号（<PERSONAL_CLOUD_ACCOUNT_ID>），裸调必打错账号。封装脚本自动注入项目 `.env` 的 `ALIBABA_CLOUD_*` 凭证并在执行前断言账号 = PETSCAPE（<PROJECT_CLOUD_ACCOUNT_ID>），不符即拒绝。SDK 代码同理：显式传 `.env` 凭证，不依赖环境默认链。
 
-当前 API key 放**项目根** `.env`（`web/` 的上一级）：`FAL_KEY`、`MESHY_API_KEY`、`TRIPO_API_KEY`、`TRIPO_API_KEY_2`。现有 client 使用“process.env 优先，兜底手读 `../.env`”的原型机制；新增正式代码不得继续复制该模式，应按 `ARCHITECTURE.md` 收敛到统一配置入口。
+全部密钥与资源配置放**项目根** `.env`（`web/` 的上一级）：生成类 key（`FAL_KEY`/`MESHY_API_KEY`/`TRIPO_API_KEY*`）、阿里云资源与凭证（`ALIBABA_CLOUD_*`，含 RDS/OSS/ACR）、身份（`BETTER_AUTH_SECRET`）等。**正式代码一律经 `packages/server/src/infra/config` 的统一配置入口（common/web/worker 三 schema）消费**，lint 禁止在 config 外读 `process.env`；“手读 `../.env`”的原型机制仅存于 4 个豁免文件（随 Phase C 迁移收敛）。
 
 ## 当前基线实现（不是目标架构）
 
-目标架构以根目录 `ARCHITECTURE.md` 为准。本节仅记录迁移前的现有实现事实，不能作为新增代码继续沿用内存状态、公开运行资产或进程内后台任务的理由。
+目标架构以根目录 `ARCHITECTURE.md` 为准。
+
+**2026-07-18 起，Phase B 正式基座与黑客松原型在同一仓库并存**：pnpm workspace（`web` + `worker` + `packages/server`）；正式链 = RDS PostgreSQL（Prisma 7 + adapter-pg）+ OSS 私有桶 + PG 任务表 SKIP LOCKED Worker + Better Auth 手机号登录 + 结构化日志 + CI/CD 部署与回滚。工作包与行为验收证据见 `docs/plans/phase-b-execution-plan.md` 与 `docs/operations/`；工程约束见 `docs/governance/engineering-conventions.md`。
+
+本节以下记录的是**尚未迁移的原型链**（`web/app` 旧代码）的实现事实——Phase C 按链路迁移后逐段消亡；不能作为新增代码继续沿用内存状态、公开运行资产或进程内后台任务的理由。
 
 **当前 active Web 与历史原型已经分离**：
 
@@ -43,7 +51,7 @@ node ../tools/demo-prep.mjs [--real]  # demo 预热：生成第二轨项目并�
 - 旧三栏 Workbench、Scene Lab、专用 API 和 Gate Job 已迁入 `archive/hackathon/`，不再参与 active build 或路由。
 - 两套样式共存的已知坑：Tailwind preflight 会污染 landing（曾发生 `html{line-height:1.5}` 全页漂移，靠 styles.css 末尾恢复）；landing 里 `.render-photo-card img { width:100% }` 这类通用规则会以特异性压过单类名（曾把品牌 logo 拉成全幅）。
 
-**数据层没有数据库**：`app/lib/store/projects.ts` 用 `globalThis` 挂内存 Map（HMR 保活，**server 重启即全丢**——所以 demo 前要重跑 demo-prep）。产物文件落 `web/public/generated/{projectId}/`。
+**原型链数据层没有数据库**（正式链已用 RDS）：`app/lib/store/projects.ts` 用 `globalThis` 挂内存 Map（HMR 保活，**server 重启即全丢**——所以 demo 前要重跑 demo-prep）。产物文件落 `web/public/generated/{projectId}/`。
 
 **Job 模式**（所有生成类功能同构）：API route 立即 202 + 置 `project.xxx.status='running'` → 后台 async 函数干重活并回写 project → 前端 2s 轮询 `GET /api/project/[id]`。`avatar.stage` 字段（styling/triview/modeling）驱动前端管线进度可视化。超时统一走 `jobs/timeouts.ts` 的 `withTimeout`。
 
