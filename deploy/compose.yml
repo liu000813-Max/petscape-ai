@@ -51,13 +51,15 @@ services:
     env_file:
       - ./worker.env
     healthcheck:
-      # bookworm-slim 不含 procps（无 pgrep/ps）；PID 1 即容器主进程
-      # （CMD ["node", "dist/main.js"]），检查 /proc/1/cmdline 等价于
-      # "进程存活" 判定，且零额外依赖。
+      # bookworm-slim 不含 procps（无 pgrep/ps）；PID 1 即容器主进程。
+      # WP-2.5 合并：deploy/worker.Dockerfile（main WP-3.4 权威版）的 CMD 为
+      # ["node", "--experimental-strip-types", "src/main.ts"]（TS 直跑，无 dist
+      # 构建产物），故 cmdline 匹配串改为 'src/main.ts'，检查 /proc/1/cmdline
+      # 等价于 "进程存活" 判定，且零额外依赖。
       test:
         [
           "CMD-SHELL",
-          "grep -qz 'dist/main.js' /proc/1/cmdline || exit 1",
+          "grep -qz 'src/main.ts' /proc/1/cmdline || exit 1",
         ]
       interval: 15s
       timeout: 5s

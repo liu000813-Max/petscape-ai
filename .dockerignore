@@ -1,12 +1,33 @@
-.git
+# .dockerignore —— 排除敏感文件与不必要目录进入 Docker 构建上下文（WP-3.4）。
+# spec: docs/plans/phase-b-execution-plan.md WP-3.4。
+#
+# 起因：deploy/web.Dockerfile 构建时发现 `.env` 被 Next.js standalone 输出的
+# 文件追踪器（file tracer）打包进最终镜像——`web/app/lib/images/falClient.ts`
+# 与 `web/app/lib/tripo/client.ts` 这两个现有原型文件在运行时手读 `../.env`
+# （CLAUDE.md 记录的既有机制），Next 构建期静态分析到这个 fs 读取路径，
+# 误判为构建期依赖一并复制。不修这两个原型文件（不在本包范围——那是迁移期
+# 遗留问题，见 CLAUDE.md 对统一配置入口迁移路径的说明），而是从根源阻断：
+# `.env` 从不进入 Docker 构建上下文，Next 的文件追踪器也就无从复制。
 .env
 .env.local
+.env.*.local
+
+# WP-2.5 合并：保留分支侧的构建上下文瘦身项（web.Dockerfile 用 `COPY . .`，
+# 这些排除项减小上下文体积、避免大素材目录进镜像；对 worker.Dockerfile 的
+# 显式 COPY 无害）。
+node_modules
 **/node_modules
+.next
 **/.next
 **/dist
 **/src/generated
+.git
+.github
+.claude
+
 archive
 assets-3d
-docs
 tracer
-.claude
+docs/operations/*.log
+
+**/*.log

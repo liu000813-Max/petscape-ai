@@ -68,6 +68,16 @@ export class OssStorage {
   }
 
   /**
+   * 服务端直传对象（WP-3.4：worker 侧产物上传，不经过签名 URL——worker 持有
+   * OSS 凭证本身，直接调用 SDK put 即可，不需要像客户端浏览器那样绕道签名 URL）。
+   * @param key OSS 对象 key（调用方按各自的 key 规则构造）。
+   * @param content 对象内容（Buffer 或字符串）。
+   */
+  async put(key: string, content: Buffer | string): Promise<void> {
+    await this.client.put(key, Buffer.isBuffer(content) ? content : Buffer.from(content));
+  }
+
+  /**
    * HEAD 校验对象是否存在及其大小（confirmAssetUpload 用例据此核对客户端声明的大小）。
    * 对象不存在时返回 `{ exists: false }`，不抛错（调用方按业务语义处理，不是异常路径）。
    */
