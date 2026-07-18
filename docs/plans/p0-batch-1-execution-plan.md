@@ -17,6 +17,9 @@
 - phase-b 执行文档的编排约定全部沿用（证据先行、★ 包主控终审、失败两次升档、RDS 经 SSH 隧道、`tools/aliyun`）。
 - merge 前用 `gh pr checks <PR> --json state,conclusion` 显式判定结论，不信 `--watch` 的 exit code。
 - 执行者在独立 git worktree 工作；worktree 不含根 `.env`，需从主 checkout 复制（不提交）。
+- **builder 一律 TDD**（2026-07-18 用户增补）：凡 spec 含可测行为面，builder 先提交失败测试并附**红灯输出证据**，再实现至绿灯；PR 验收材料必须含红→绿两段证据，缺红灯证据视为未按 TDD 执行。纯文档/纯视觉部分由下条 QA 证据兜底。载体：builder agent 定义已内置该契约，spec 内的验收测试清单是出题依据。
+- **LLM 模拟用户 QA 验收**（2026-07-18 用户增补）：含用户可见面的包，merge 前由**非实现者**的 QA agent 以真实浏览器模拟用户完整走一遍目标流程——纯页面出全页截图，含交互的录屏视频；证据贴进 PR。视频体积：ffmpeg 压缩（720p/H.264）后 ≤10MB 直接贴 PR 评论；仍过大则 `gh release upload qa-evidence <file>` 传到仓库的 rolling release，PR 里贴资产链接（release 附件无 10MB 限制且可 CLI 自动化）。
+- **spec 派发前的用户确认**（2026-07-18 用户增补）：每个 WP 闭合 spec 前，先把用户大概率想调整的决策亮给用户确认——**数据模型变更、新类型/接口、一切用户可见行为**置顶；纯机械改动（接线、重构、配置）不问，直接执行。
 - **migration 串行**：本批次只有 WP-A3 动 `schema.prisma`；任何其他包不得新增 migration。
 - **landing 零回归**：所有触及 `web/` 构建面的包，验收含 production build 后首页真实浏览器截图对照。新页面新增路由实现，不改 `app/page.jsx` 之外的 landing 文件；page.jsx 只做计划内最小改动（登录入口）。
 - **样式边界**：新 UI 不得引入影响全局的样式重置（Tailwind preflight 污染 landing 是已知事故）；新页面样式作用域自包含。
