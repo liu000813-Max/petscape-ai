@@ -40,7 +40,9 @@ fi
 
   const result = await new Promise((resolve) => {
     const child = spawn('bash', [releaseScript, exactSha, 'registry.internal'], {
-      cwd: repoRoot,
+      // Production uploads this script to /tmp, so the release primitive must
+      // not depend on being launched from the Compose project directory.
+      cwd: fixtureRoot,
       env: {
         ...process.env,
         REMOTE_DIR: remoteDir,
@@ -84,15 +86,19 @@ test('migration failure stops before application pull or restart', async () => {
   assert.doesNotMatch(result.calls, /compose .*up -d web worker/);
 });
 
-test('successful no-op migration precedes exact-SHA application switch', async () => {
+test('successful no-op migration switches via REMOTE_DIR from an arbitrary cwd', async () => {
   const result = await runRelease();
   assert.equal(result.code, 0, result.stderr);
   assert.match(result.stdout, /No pending migrations to apply/);
 
   const migrateAt = result.calls.indexOf('run --rm');
-  const pullAt = result.calls.indexOf('compose --env-file', migrateAt);
+  const pullAt = result.calls.indexOf('compose --project-directory', migrateAt);
   const restartAt = result.calls.indexOf('up -d web worker');
   assert.ok(migrateAt >= 0, result.calls);
   assert.ok(pullAt > migrateAt, result.calls);
   assert.ok(restartAt > pullAt, result.calls);
+  assert.match(
+    result.calls,
+    /compose --project-directory (\/.*\/remote) --file \1\/compose\.yml --env-file \1\/\.deploy\.env pull web worker/,
+  );
 });

@@ -40,6 +40,10 @@ echo "deploy.migrate start target=$IMAGE_TAG image=$WORKER_IMAGE"
 echo "deploy.migrate complete target=$IMAGE_TAG"
 
 echo "deploy.switch start target=$IMAGE_TAG"
-"$DOCKER_BIN" --config "$DOCKER_CONFIG_DIR" compose --env-file "$DEPLOY_ENV" pull web worker
-"$DOCKER_BIN" --config "$DOCKER_CONFIG_DIR" compose --env-file "$DEPLOY_ENV" up -d web worker
+"$DOCKER_BIN" --config "$DOCKER_CONFIG_DIR" compose \
+  --project-directory "$REMOTE_DIR" --file "$REMOTE_DIR/compose.yml" \
+  --env-file "$DEPLOY_ENV" pull web worker
+"$DOCKER_BIN" --config "$DOCKER_CONFIG_DIR" compose \
+  --project-directory "$REMOTE_DIR" --file "$REMOTE_DIR/compose.yml" \
+  --env-file "$DEPLOY_ENV" up -d web worker
 echo "deploy.switch complete target=$IMAGE_TAG"
