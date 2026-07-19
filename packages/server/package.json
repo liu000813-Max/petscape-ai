@@ -13,6 +13,7 @@
     "./contracts/pets": "./src/contracts/pets.ts",
     "./contracts/scene-confirmation-commerce": "./src/contracts/scene-confirmation-commerce.ts",
     "./contracts/scene-confirmation-commerce.fixture": "./src/contracts/scene-confirmation-commerce.fixture.ts",
+    "./contracts/scenes": "./src/contracts/scenes.ts",
     "./worker-api": "./src/worker-api.ts"
   },
   "scripts": {
