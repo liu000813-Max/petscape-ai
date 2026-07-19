@@ -1,142 +1,198 @@
-# C 线执行文档:自动报价与交易骨架(B7 + C1 + C2 + C3 + C4 首版)
+# C 线执行文档：报价、支付与订单骨架（B7 输入 + C1-C5 首版）
 
-状态:v1(2026-07-19,用户拍板后编写;**方案已确认、尚未开工**)。上游:`docs/plans/p0-batch-1-execution-plan.md`(编排约定与 A 线现状)、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`(嘉立创流程拆解,参考流程逻辑与状态机、不参考 UI)、`PRODUCT-MODULES.md`(模块正本)、`ARCHITECTURE.md` §5.7/§7.4(高风险模块全额分层纪律、不可变快照)、`docs/governance/engineering-conventions.md`(测试分级/zod/支付前 checklist)。
+状态：v2（2026-07-19，已按 PR #33 审查与用户确认修订；**仅执行方案，尚未开工**）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
 
-目标:做出"已确认设计 → 自动报价 → 提交申请 → 支付 → 真实订单"的最小竖切,报价自动、订单落 RDS——P0 主链 7 月验收(第一笔真实订单)的交易段。C 组全新、无原型对应(DoD(b) 豁免)。
+目标：先做出可验证的**沙箱交易骨架**，再在真实材料、定价、审核和支付渠道全部就绪后开放真实成交：
 
-## 本批次已拍板(2026-07-19,用户确认)
-
-1. **几何来源 = 服务端解析 job**:新增 `mesh_analysis` 任务类型(现成 SKIP LOCKED 任务系统承载),服务端从 GLB 计算体积/包围盒,报价引擎只读服务端分析结果。几何不经前端,防"前端传值篡改价格"(conventions §1 资金③)。
-2. **审核环节 = 支付前人工审核位**:状态机做全(已提交→审核中→通过/拒绝),v1 审核动作由人工经受保护 admin API 执行;`User` 加 `role` 列;审核界面后置给 D1;B6 自动检查将来接同一状态位。不做"自动通过打标记"——PRD"不确定的安全结论不得伪装成通过"。
-3. **定价规则 = 公式在代码 + 参数版本表**:公式写死代码、带版本号;材料单价/密度/基础制作费/售价倍数/起步价/实心率系数落版本化 DB 表,改价 = 追加新版本行。Quote 永远引用具体参数版本 + 公式版本,历史报价不漂移;D6 后台将来只管参数。
-   公式:`总价 = max(起步价, (基础制作费 + 材料单价 × 重量) × 售价倍数)`,`重量 = 体积 × 材料密度 × 实心率系数`(切片 ADR 未定前实心率取固定值)。表面附加费本批不做。交期 = 材料表配固定天数。
-4. **数据模型 = 8 张新表 + User.role**(见"数据模型"节);地址表不建(C5 下一批)、退款表不建(状态机留语义)、确认记录表归 Viewer 批次(C 线只存 string 引用 + 快照冗余,不建表、不加 FK)。
-5. **默认口径**(用户未驳,按此执行):面向宠物主只显示**单一含税价** + 构成明细(重量→价格透明推导,竞品启发已确认纳入),不做未税/含税双列;**全款**,不做定金;报价有效期 **7 天,审核通过时起算**(避免审核耗时吃掉有效期);初始定价参数放占位值(首发材料 PLA 白/黑),**真实渠道上线前必须真值化并过用户**;"第一笔真实订单"的合规口径(kickoff 开放问题③)挂账不阻塞开发。
-6. 支付两段切沿用 kickoff 已拍板结论(不重议):本批次把渠道语义建真(异步通知、重复通知幂等、金额服务端为准、对账字段),只有 provider 是 mock;微信/支付宝 adapter 等资质到后另开小包。
-
-## 边界(Boundaries)
-
-- 不碰 3D 场景/生成链(Viewer session 的地盘);
-- 不接真实支付渠道(资质未下),但架构按真实渠道语义建,不做成只能接桩;
-- 不做购物车/退款/多材料扩张;不改 landing;
-- 「确认方案→报价输入」contract 由本线定义、落 `packages/server/src/contracts/`,Viewer 侧消费;其未就绪前用 mock 确认数据(fixture GLB)驱动。
-
-## 编排约定(沿用 + 增补)
-
-p0-batch-1 的编排约定全部沿用:证据先行、builder 一律 TDD(红→绿两段证据)、独立 QA(非实现者)真实浏览器录屏、spec 派发前用户确认(数据模型/新接口/用户可见行为置顶——本批已在方案讨论中完成)、migration 串行(同一时间只允许一个在途工作包动 `schema.prisma`)、landing 零回归截图、样式作用域自包含、worktree 不含根 `.env` 需从主 checkout 复制、`gh pr checks --json` 显式判定。
-
-- **带 migration 的 PR 合并后由编排方立即手动 `pnpm db:migrate:deploy`**(部署链不执行 migration,P2021 教训,WP-A3-2 运维事实⓪)。
-- **C 线新代码是 conventions §2 的首批全量践行者**:出入参一律 zod,schema 与 DTO 落 `contracts/`;存量 `api/v1/jobs` 等路由的手工 `typeof` 校验回补记挂账,不扩本批 scope。
-- **新 job 类型双注册**:worker handler map(`worker/src/main.ts`)+ `WORKER_JOB_TYPES` 环境变量(config `workerSchema`)缺一不可,漏配 env 时代码注册了也不会被认领——写进 WP-B7-1 验收。
-- 归属字段模式:交易表涉及资金审计,采用带 FK 的 Project/Asset 式(`owner User @relation(...)`),不用 Job 式无约束字符串。
-
-## 端到端状态机
-
-```
-[mock/Viewer 确认方案] → 材料选择 + 实时估价(纯函数,读服务端分析结果+当前参数版本,不落库)
-  → 提交申请: CustomizationRequest(submitted) + Quote(pending,输入快照+参数版本锁定)
-  → in_review ──admin 审核──→ approved: Quote 激活,validUntil = 审核通过 + 7d
-  →→→→→→→→→→→→→→→→→→→→→→→ rejected(附原因,终态)
-  → 用户确认报价 → PaymentIntent(幂等,金额只取服务端 Quote)
-  → provider(mock,走真实异步通知路径) → 验签入账(PaymentEvent, append-only)
-  → 事务生成 Order(全量购买快照) + OrderStatusHistory,Request 闭环
+```text
+已确认单物品 → C1 定制申请 → B6 可信审核 → B7 成本与交期输入
+→ C2 正式报价 → C5 付款前确认地址 → C3 支付 → C4 订单与地址快照
 ```
 
-用户可见页面(挂 App 壳,循 WP-A1 视觉基准):
+沙箱链路可以验证领域语义、幂等、快照和失败恢复，但不得作为“真实支付”“真实订单”或“第一笔真实订单完成”的证据。C6-C9 只记录下游依赖，不在本计划定义生产、物流和收货状态机。
 
-- 申请流程页:方案摘要 → 材料选择 → 实时价格+交期 → 联系方式+补充要求 → 单按钮提交(嘉立创式收口);
-- 申请列表/详情:状态可见(审核中/通过待支付/已拒绝+原因;C8 通知未建,先靠刷新);
-- 报价确认 + 支付页:价格构成明细(重量→价格透明推导)+ 支付按钮 → mock 渠道 → 结果页;
-- 订单列表/详情:快照、金额、支付时间、状态。
+## 一、已确认边界
 
-## Contract(「确认方案→报价输入」)
+1. **单物品成交**：每次申请、报价、支付和订单只针对一个可制造物品；不制造完整场景，不做购物车或合并支付。
+2. **服务端权威几何**：价格使用的体积、包围盒等结果由服务端 `mesh_analysis` job 从受控资产计算，客户端提交的几何值或金额一律不可信。
+3. **B6/B7 是上游输入**：C 线只定义正式报价需要什么可信语义，不替 Viewer、B6 或 B7 定义内部共享 Data Model。
+4. **人工审核是 v1 的 B6 执行方式，不是 Request 状态别名**：申请审核进度与制作/安全结论语义分离；未来自动检查不得复用一个含义模糊的 `approved` 字段。
+5. **定价规则版本化**：公式在代码并带版本号；材料密度、单价、基础制作费、售价倍数、起步价等参数采用 append-only 版本。Quote 引用明确的公式与参数版本。
+6. **C5 进入本计划**：用户在付款前填写并确认本次配送地址；C4 生成订单时冻结地址快照。多地址管理和默认地址可以后补。
+7. **沙箱与真实交易硬隔离**：mock provider 只能产生标记为 sandbox/test 的支付与订单，不进入生产履约、经营数据或真实成交验收；生产环境默认禁止启用 mock provider。
 
-落 `packages/server/src/contracts/`(本批新建目录),zod schema:
+## 二、尚未确认的产品口径
 
-```ts
-ConfirmedDesignInput = {
-  confirmationId: string,   // Viewer 侧确认记录 id(mock 阶段伪造)
-  projectId: string,
-  assetId: string,          // 单物品成交(ARCHITECTURE §7.3)
-  targetScale: number,      // 用户确认的实际尺寸
-  confirmedAt: string,      // ISO datetime
-}
-```
+以下内容不得继续写成“用户未驳即确认”，开对应工作包前必须显式确认：
 
-Viewer 的确认记录表只需能供出这五个字段;几何(体积/包围盒)由服务端 `mesh_analysis` 按 `assetId + targetScale` 计算,幂等键即 `assetId + targetScale`。估价入口发现无分析结果时自动创建 job。
+- 首版收全款还是定金；若为定金，订单生成、尾款和取消语义需重新设计；
+- 正式报价有效期是否为 7 天，以及设计、材料或价格变化后的失效与重新报价规则；
+- 首个可成交物品、真实可售材料、颜色与制作工艺；PLA 白/黑只能作为禁用测试 seed，不能默认成为可售材料；
+- 含税展示、币种、计价单位、舍入规则，以及基础费、材料价、倍数、起步价等真值；
+- 首个真实支付渠道的可用产品形态与资质完成时间。
 
-## 数据模型(本批次 schema 变更全集)
+## 三、跨线输入语义
 
-| 表 | 角色 | 关键点 |
+### 3.1 Viewer / 场景确认向 C 线提供的语义
+
+C 线只声明以下消费条件，不在本计划冻结字段名、表结构或五字段 contract：
+
+- 服务端可验证的确认记录引用；
+- 当前用户对项目、单物品资产和确认记录的访问权；
+- 不可变的资产版本或内容校验标识；
+- 用户确认的真实物理尺寸、明确单位和必要方向信息；
+- 确认动作的服务端来源、时间和版本。
+
+Viewer 正本确认记录成熟后，由独立接缝任务冻结双方 zod contract；C 线不得要求 Viewer 反向消费本线私自定义的数据形状。接缝未就绪时只允许使用带 `sandbox` 来源的 fixture，不得进入正式 Quote。
+
+### 3.2 B6 向 C2 提供的可信审核语义
+
+无论 v1 人工审核还是未来自动检查，正式报价至少需要：
+
+- 明确绑定的物品、资产版本、尺寸、材料和检查输入快照；
+- `通过 / 拒绝 / 不确定` 三类结论，不确定不得映射为通过；
+- 发现的问题、证据、调整建议和人工补充说明；
+- 审核人或规则版本、结论时间和可审计来源。
+
+人工审核通过受保护的 admin 用例执行，普通用户无权调用；角色授予与审核动作必须留痕。C 线只保存可信结果引用及报价所需的不可变摘要，不拥有 B6 的内部检查模型。
+
+### 3.3 B7 向 C2 提供的成本与交期语义
+
+- 服务端几何分析结果、单位、算法版本和适用限制；
+- 材料与计价参数版本；
+- 材料成本、基础制作费、其他已启用费用和预计交期；
+- 预估的置信边界与尚未覆盖的制造因素。
+
+体积×密度×固定实心率不能代表支撑、壁厚、填充、机器时间、失败率和表面处理，因此在真实参数与制造验证前只能叫**预估**，不能叫正式报价。
+
+## 四、价格与交易语义
+
+### 4.1 预估与正式报价
+
+- `Estimate`：实时计算、非支付承诺、可不落库；页面必须明确标注“预估”。
+- `Quote`：仅在 C1 已提交、B6 可信结论为通过、B7 输入完整后生成或激活；绑定输入快照、规则版本、金额明细、币种、税口径、交期和有效期。
+- 建议 Quote 生命周期：`pending_review → active → accepted → expired | superseded | canceled`。精确枚举在 WP-C2-1 spec 中确认。
+- 设计、尺寸、材料或关键规则变化不得原地改写旧 Quote；应使旧 Quote 失效并创建新版本。
+
+### 4.2 支付成功与订单生成
+
+- 浏览器跳转成功、前端回调或未验签通知均不代表支付成功。
+- 只有可信 provider 事件或主动查单结果可以推进 `PaymentIntent`。
+- 同一 provider 事件只能入账一次；同一支付只能生成一个订单。
+- 支付入账、订单生成和状态历史必须在可恢复的一致性边界内完成；崩溃后必须能自动补单或进入明确的 `needs_attention`，不能只靠人工查库。
+- C3 与 C4 未同时具备前不得对外开放支付入口。
+
+### 4.3 地址
+
+- 用户在创建支付意图前确认本次配送地址；地址不完整或校验失败时不得支付。
+- v1 只要求填写、修改和确认当前结算地址；多地址与默认地址后补。
+- Order 保存不可变配送地址快照。用户后来修改个人地址，不得覆盖历史订单。
+
+## 五、候选数据模型（开工前逐包闭 spec）
+
+当前候选为 **10 张新表 + `User.role`**；每张表的精确字段、索引和状态枚举仍需在对应 WP 的 spec 中确认：
+
+| 表 | 角色 | 关键约束 |
 |---|---|---|
-| `Material` | 材料目录(版本化) | 名称/密度/单价/交期天数;改价 = 新版本行,旧行失效不删 |
-| `PricingRule` | 计价参数(版本化) | 基础费/倍数/起步价/实心率;append-only |
-| `CustomizationRequest` | 定制申请(C1) | 归属(FK User)/设计快照 JSON/材料版本引用/联系方式/补充要求/状态机 |
-| `Quote` | 报价(C2) | 输入快照 + 规则版本引用 + 明细 JSON + 总额(分,Int)+ 有效期 + 状态 |
-| `PaymentIntent` | 支付意图 | 幂等键/金额/状态 |
-| `PaymentAttempt` | 支付尝试 | 渠道/渠道单号/状态 |
-| `PaymentEvent` | 渠道事件 | append-only:通知原文 + 验签结果,对账依据 |
-| `Order` + `OrderStatusHistory` | 订单 + 状态历史 | 购买全量快照;`paymentIntentId` 唯一约束;谁/何时/从何值到何值(审计) |
+| `Material` | 材料目录版本 | append-only；测试材料默认不可售 |
+| `PricingRule` | 计价参数版本 | 公式版本、币种、税口径和舍入规则可追溯 |
+| `CustomizationRequest` | C1 定制申请 | 归属、设计摘要、用途、联系方式、补充要求和申请状态 |
+| `Quote` | C2 正式报价 | 输入与审核摘要、规则版本、明细、金额、有效期和状态 |
+| `DeliveryAddress` | C5 当前结算地址 | 用户归属、PII 最小化和校验状态；多地址能力后补 |
+| `PaymentIntent` | 支付意图 | Quote、地址确认、金额、币种、交易模式和幂等键 |
+| `PaymentAttempt` | 支付尝试 | provider、渠道单号、状态和失败信息 |
+| `PaymentEvent` | 渠道事件 | provider 事件唯一键、验签/查单结论；原文最小化、脱敏和受控留存 |
+| `Order` | 订单 | `paymentIntentId` 唯一；购买、金额、审核与地址快照；sandbox/live 标识 |
+| `OrderStatusHistory` | 订单状态历史 | 谁、何时、从何状态到何状态及原因 |
 
-另:`User.role`(默认 `user`,审核用 `admin`)。金额一律分为单位的 Int。明细用 JSON(单物品、结构经 zod 校验),不建 QuoteLine 子表。
+金额不使用浮点数。金额存储单位、上限、Decimal 计算和舍入规则在 WP-B7-1/WP-C2-1 中明确；结构化 JSON 必须经过 zod 校验。
 
-## 工作包(migration 串行,依次派 builder,全部 TDD 红→绿)
+## 六、运行时主链
 
-### WP-B7-1 材料目录 + 计价引擎 + 服务端几何分析
-
-范围:
-a. `contracts/` 目录落盘(`ConfirmedDesignInput` 等 zod schema);
-b. `Material` / `PricingRule` 表 + migration + seed(PLA 白/黑占位参数);
-c. `mesh_analysis` worker handler(GLB→体积/包围盒,纯网格几何,不依赖切片 ADR;handler map + `WORKER_JOB_TYPES` 双注册);
-d. 估价用例(application 层纯函数)+ 估价 API(实时,不落库)+ mock 确认数据 fixture(预置 GLB 走真实分析,竖切保真)。
-
-TDD 出题:估价随参数版本正确切换;客户端传几何值无效(篡改防线);分析结果归属校验(A 用户读不到 B 的分析);同一 `assetId+targetScale` 重复请求不重复建 job(幂等)。
-
-### WP-C1-1 定制申请 + 状态机 + 人工审核位
-
-范围:
-a. `CustomizationRequest` / `Quote` 表 + migration;提交用例(事务内:锁定输入快照 + 参数版本 → 建 Request(submitted) + Quote(pending));
-b. `User.role` 列 + admin 审核用例/API(approve:激活 Quote、起算 7 天有效期;reject:附原因);审核动作 v1 用 curl/脚本调 API,不做界面;
-c. UI:申请流程页(材料选择+实时估价+联系方式+单按钮提交)、申请列表/详情。
-
-TDD 出题(权限照单 conventions §1):A 用户持 B 的 requestId 读/改 404;未登录 401;普通用户调 admin 审核 API 被拒;重复提交幂等;快照锁定后改材料参数不影响已生成 Quote;非 approved 状态发起支付被拒。
-
-### WP-C3-1 支付抽象 + mock 渠道 + 支付页
-
-范围:
-a. `PaymentIntent` / `PaymentAttempt` / `PaymentEvent` 表 + migration;
-b. `PaymentProvider` port(发起→用户完成→异步通知→验签;按微信/支付宝真实语义设计,不预设具体产品形态)+ mock provider(config 门控,走真实 notify 路径以演练幂等);
-c. 支付用例:从 approved + 有效期内的 Quote 创建 intent(金额只取服务端 Quote,按 quote 幂等)→ 可信事件入账 → 状态推进;
-d. UI:报价确认 + 支付页(价格构成明细)+ 结果页。
-
-TDD 出题(资金照单 conventions §1):渠道成功通知重复送达只入账一次;金额以服务端报价为准、前端传值无效;并发创建 intent 幂等;过期 Quote 拒付;金额 0/负数/超大值被拒;他人 Quote 发起支付 404。
-
-### WP-C4-1 订单生成 + 快照 + 订单页
-
-范围:
-a. `Order` / `OrderStatusHistory` 表 + migration;支付成功→事务生成订单(全量购买快照:方案、材料版本、金额、用户、联系方式)+ 状态历史 + Request 闭环;
-b. UI:订单列表/详情。
-
-TDD 出题:同一支付不重复生成订单(`paymentIntentId` 唯一约束兜底,并发只成一个);订单快照不随项目/参数后续修改漂移;越权读订单 404;状态变更留痕(谁/何时/从何值到何值)。
-
-### 各包统一验收
-
-`pnpm lint:baseline`、三包 `tsc --noEmit`、`pnpm build` 全过;TDD 红→绿两段证据;独立 QA(非实现者)真实浏览器录屏进 qa-evidence release;landing 零回归截图;CI `gh pr checks --json` 显式判定;带 migration 的 PR 合并后编排方立即手动 migrate deploy 并复验。
-
-## 挂账清单(不阻塞本批,记录在案)
-
-1. **定价参数真值化 + 首发材料清单**——真实渠道上线前必须过用户(PRD 待确认问题 5);
-2. **C5 收货地址**——第一单真实发货的硬前置,下一批排;
-3. **真实渠道接入包**(微信/支付宝 adapter)——资质到后开;开工前先清支付 checklist(conventions §3:限流/监控告警/对账入口/审计)+ PITR 恢复演练(`docs/operations/phase-b-step-4-pitr-drill.md`);
-4. **存量 `api/v1/*` 路由 zod 回补**——conventions §2 与现状的缝,不扩本批 scope;
-5. **竞品拆解文档合并**——`reference-competitor-3d-flow-2026-07-19.md` 仍在 worktree 分支 `worktree-reference-competitor-3d-flow`,开工前先合(本文引用其为正本);
-6. **"第一笔真实订单"合规口径**(kickoff 开放问题③)——本批建到"mock 渠道全链绿",月底资质未下时口径由用户拍板。
-
-## 顺序与依赖
-
-```
-WP-B7-1(contract+目录+计价+分析)→ WP-C1-1(申请+审核)→ WP-C3-1(支付)→ WP-C4-1(订单)
-Viewer 接缝:contract 就绪即交 Viewer 侧消费;C 线全程可用 mock 确认数据独立推进
+```text
+Viewer 确认引用
+  → C1 CustomizationRequest(submitted)
+  → B6 可信审核：in_review → approved | rejected | uncertain
+  → B7 成本与交期输入
+  → C2 Quote(active)
+  → 用户接受 Quote
+  → C5 确认本次 DeliveryAddress
+  → C3 PaymentIntent（仅从服务端 Quote 取金额）
+  → provider 可信事件 / 主动查单
+  → C4 事务性生成 Order + OrderStatusHistory + 地址快照
+  → C6-C9（本计划只记录依赖）
 ```
 
-当前状态(2026-07-19):方案经用户逐项拍板,执行文档落盘;**未开工**,待用户确认开工后从 WP-B7-1 起闭 spec 派工。
+被拒绝或不确定不是无路可走的死终态：用户应能修改设计、尺寸、材料或说明后创建新的申请/审核/报价版本，历史记录保留。
+
+## 七、工作包与顺序
+
+### WP-B7-1：服务端几何分析、材料目录与预估引擎
+
+范围：`mesh_analysis` job、分析算法/单位版本、Material/PricingRule、沙箱 Estimate API、测试 fixture。不得定义 Viewer 的共享 contract，不得生成可支付 Quote。
+
+关键验收：客户端几何和金额无效；非封闭网格、单位缺失和异常尺度失败可解释；算法版本进入结果；幂等键使用规范化尺寸与资产版本，不直接拼接浮点字符串；测试材料不可售。
+
+### WP-C1-1：定制申请与申请状态
+
+范围：CustomizationRequest、用途/联系方式/补充要求、提交/列表/详情、重复提交幂等。只消费 Viewer 语义接缝；没有可信确认引用时仅能创建 sandbox 请求。
+
+关键验收：越权 404、未登录 401、输入快照不漂移、拒绝/不确定后可修改并重新提交。
+
+### 跨线前置：B6 v1 人工可信审核
+
+本计划不定义 B6 内部 Data Model。进入 WP-C2-1 前，上游必须提供满足 §3.2 的人工审核用例及可信结果；只改 Request 状态或直接改 DB 不算完成。
+
+### WP-C2-1：正式报价生命周期
+
+范围：Quote、审核与 B7 输入门禁、版本化金额明细、接受/过期/替代/取消语义和报价页面。
+
+关键验收：未通过或不确定不得激活；旧规则/材料变化不改历史 Quote；过期或被替代 Quote 不可支付；Estimate 不得冒充 Quote。
+
+### WP-C5-1：付款前地址确认
+
+范围：当前结算地址的填写、修改、校验与确认；多地址和默认地址后补。
+
+关键验收：未确认地址不得创建支付意图；他人地址不可读写；订单使用地址快照，后续修改不影响历史订单。
+
+### WP-C3-1：支付抽象与沙箱 provider
+
+范围：PaymentIntent/Attempt/Event、provider port、异步通知、主动查单、去重、沙箱支付页与结果页。
+
+关键验收：重复和乱序通知、金额篡改、并发创建、支付失败重试、未验签事件、他人 Quote、过期 Quote；mock 在生产 fail-closed，所有沙箱记录可识别且不进入真实履约。
+
+### WP-C4-1：订单、快照与异常恢复
+
+范围：Order/OrderStatusHistory、支付成功后生成唯一订单、购买与地址快照、补单/needs_attention、订单列表/详情。
+
+关键验收：同一支付并发只成一个订单；支付已入账但订单事务中断后可恢复；状态变化留痕；沙箱订单不进入生产/物流。
+
+### 实现顺序
+
+```text
+构建顺序：WP-B7-1 → WP-C1-1 → B6 人工可信审核前置 → WP-C2-1 → WP-C5-1 → WP-C3-1 → WP-C4-1
+运行顺序：C1 → B6 → B7 → C2 → C5 → C3 → C4
+```
+
+## 八、统一验证与发布门禁
+
+- builder 对资金、权限、并发和失败恢复执行 TDD 红→绿；进程边界统一用 zod。
+- 用户可见流程由非实现者在真实浏览器验收；沙箱 UI 必须常显测试标识。
+- `pnpm lint:baseline`、三包 `tsc --noEmit`、`pnpm build` 和 CI 必须明确通过。
+- schema migration 串行，但“代码部署后立即手动 migrate”不足以作为支付模块的长期发布方案。C3/C4 开工前必须落实安全的 migration/部署顺序并实际演练，避免 P2021 窗口。
+- C1-C5、订单恢复和地址快照未全部完成前，交易 feature flag 保持关闭。
+- 真实支付开放前清零 engineering conventions §3 checklist：PITR 恢复、回滚、限流、监控告警、对账、异常处理和审计。
+- webhook 原文不得无边界持久化；明确脱敏、加密/访问控制和保留期限。
+
+## 九、真实成交开放条件
+
+只有以下条件全部有行为证据时，才可称为真实成交链：
+
+1. Viewer/场景确认、B6 和 B7 的跨线接缝已冻结并由真实上游数据驱动；
+2. 首发物品、材料、工艺、价格、税口径、币种和报价有效期已确认；
+3. C1-C5 全部完成，订单冻结地址与购买快照；
+4. 至少一个真实支付渠道验签、主动查单、对账和异常恢复通过；
+5. PITR、回滚、监控、限流和人工异常入口通过；
+6. 真实浏览器完成一笔真实付款，系统生成 live 订单；后续 C6-C9 另按正本验收履约。
+
+当前状态：**文档已修订，未开工**。用户明确发出开工指令前，不创建实现任务、不改 Schema、不部署、不执行 migration。
