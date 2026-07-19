@@ -17,6 +17,7 @@ import {
   setInspectionUniformScale,
   type InspectionLoadStatus,
 } from '../../lib/viewer/model-inspection';
+import { SceneEditorClient } from './SceneEditorClient';
 import './viewer.css';
 
 function disposeScene(scene: THREE.Object3D) {
@@ -278,26 +279,13 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
   if (state.stage === 'scene_editing') {
     const latest = state.confirmations.at(-1)!;
     return (
-      <section className="viewer-placeholder" aria-labelledby="scene-placeholder-title">
-        <div className="viewer-placeholder-card">
-          <span className="viewer-eyebrow">阶段 2 · 场景确认</span>
-          <h1 id="scene-placeholder-title">模型版本已冻结，准备进入场景</h1>
-          <p>
-            已生成第 {state.confirmations.length} 份内存 ModelConfirmation。场景摆放将在下一工作包接入；当前确认历史不会被新选择覆盖。
-          </p>
-          <dl>
-            <div><dt>项目</dt><dd>{projectName(selectedProject)}</dd></div>
-            <div><dt>资产</dt><dd>{latest.modelRef.assetKey}</dd></div>
-            <div><dt>最终尺寸</dt><dd>{formatBounds(latest.finalBoundsMm)}</dd></div>
-            <div><dt>校验</dt><dd>{latest.modelRef.checksum.slice(0, 14)}…</dd></div>
-            <div><dt>确认时间</dt><dd>{new Date(latest.confirmedAt).toLocaleString('zh-CN')}</dd></div>
-          </dl>
-          <button type="button" onClick={() => setState((current) => selectInspectionAsset(current, current.assetKey))}>
-            返回并新建另一份确认
-          </button>
-          <p className="viewer-boundary">内存占位 · 尚未写入数据库 · 不代表可制造、宠物安全或可报价</p>
-        </div>
-      </section>
+      <SceneEditorClient
+        projectId={selectedProject.id}
+        projectName={selectedProject.title?.trim() || '未命名项目'}
+        confirmation={latest}
+        confirmationIndex={state.confirmations.length}
+        onBack={() => setState((current) => selectInspectionAsset(current, current.assetKey))}
+      />
     );
   }
 

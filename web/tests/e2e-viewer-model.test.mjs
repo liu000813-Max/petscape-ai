@@ -87,7 +87,7 @@ test.after(async () => {
   }
 });
 
-test('登录后明确创建项目，检视缩放模型并生成不可变内存确认', async () => {
+test('登录后确认模型并完成不可变内存场景确认', async () => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const page = await context.newPage();
   try {
@@ -95,7 +95,7 @@ test('登录后明确创建项目，检视缩放模型并生成不可变内存�
     await page.goto(`${BASE_URL}/viewer`);
     await page.getByRole('heading', { name: '先选择一个明确项目' }).waitFor();
 
-    const title = `Viewer B4 QA ${Date.now()}`;
+    const title = `Viewer B5 QA ${Date.now()}`;
     await page.getByLabel('创建新项目').fill(title);
     await page.getByRole('button', { name: '创建并进入' }).click();
     await page.getByRole('heading', { name: '选择一个目标物品' }).waitFor();
@@ -117,14 +117,71 @@ test('登录后明确创建项目，检视缩放模型并生成不可变内存�
     await page.getByText('最终 292.6 × 125.0 × 118.4 mm').waitFor();
 
     await confirm.click();
-    await page.getByRole('heading', { name: '模型版本已冻结，准备进入场景' }).waitFor();
-    await page.getByText(title).waitFor();
-    await page.getByText('banana-bed').waitFor();
-    await page.getByText('292.6 × 125.0 × 118.4 mm').waitFor();
-    await page.getByText(/尚未写入数据库 · 不代表可制造/).waitFor();
+    await page.getByRole('heading', { name: '布置笼舍' }).waitFor();
+    await page.getByText(`项目 · ${title}`).waitFor();
+    assert.equal(await page.locator('.viewer-role.is-target').count(), 1);
+    await page.getByText('香蕉小床').waitFor();
+    await page.getByText(/最终尺寸 X 292\.6 · Y 125\.0 · Z 118\.4 mm/).waitFor();
+
+    await page.getByRole('button', { name: /加入 云朵苔藓台/ }).click();
+    await page.getByRole('button', { name: /环境.*云朵苔藓台/ }).click();
+    const sceneScale = page.getByRole('slider', { name: '等比缩放' });
+    await sceneScale.fill('1.1');
+    await page.getByText(/最终尺寸 X 217\.8 · Y 63\.0 · Z 73\.7 mm/).waitFor();
+
+    await page.getByLabel('位置 X (mm)').fill('0');
+    await page.getByLabel('位置 Z (mm)').fill('0');
+    await page.getByText('本次操作会与其他物品碰撞').waitFor();
+    assert.equal(await page.getByLabel('位置 Z (mm)').inputValue(), '130');
+    await mkdir('test-results', { recursive: true });
+    await page.screenshot({ path: 'test-results/viewer-scene-collision-blocked.png', fullPage: true });
+    await page.getByRole('button', { name: '重置当前物品' }).click();
+
+    const ratToggle = page.getByRole('checkbox', { name: '显示通用花枝鼠比例参照' });
+    await ratToggle.uncheck();
+    await ratToggle.check();
+    await page.getByRole('button', { name: /比例参照.*通用成年花枝鼠/ }).click();
+    await page.getByText(/尺寸固定为 220 × 110 × 80 mm/).waitFor();
+
+    await page.getByLabel('长度 X').fill('200');
+    await page.getByText(/超出笼舍边界/).waitFor();
+    assert.equal(await page.getByRole('button', { name: '确认场景（仅内存）' }).isDisabled(), true);
+    await page.getByLabel('长度 X').fill('800');
+
+    await page.getByRole('button', { name: /环境.*云朵苔藓台/ }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    assert.equal(await page.evaluate(() => navigator.maxTouchPoints), 5);
+    const rotation = page.getByRole('slider', { name: 'Y 轴旋转' });
+    await rotation.scrollIntoViewIfNeeded();
+    const rotationBox = await rotation.boundingBox();
+    assert.ok(rotationBox);
+    const touchY = rotationBox.y + rotationBox.height / 2;
+    const touchStartX = rotationBox.x + rotationBox.width * 0.25;
+    const touchEndX = rotationBox.x + rotationBox.width * 0.75;
+    const beforeTouchRotation = await rotation.inputValue();
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: touchStartX, y: touchY }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: touchEndX, y: touchY }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    assert.notEqual(await rotation.inputValue(), beforeTouchRotation);
+    await mkdir('test-results', { recursive: true });
+    await page.screenshot({ path: 'test-results/viewer-scene-touch.png', fullPage: true });
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await page.getByRole('button', { name: '重置当前物品' }).click();
+
+    const sceneConfirm = page.getByRole('button', { name: '确认场景（仅内存）' });
+    await page.waitForFunction(() => {
+      const button = [...document.querySelectorAll('button')].find((candidate) => candidate.textContent?.includes('确认场景（仅内存）'));
+      return button instanceof HTMLButtonElement && !button.disabled;
+    });
+    await sceneConfirm.click();
+    await page.getByText(/已在当前浏览器内存冻结场景预览/).waitFor();
+    await page.getByRole('button', { name: '回到原点' }).click();
+    await page.getByText(/未保存 · 未写入数据库 · 不代表可制造/).waitFor();
 
     await mkdir('test-results', { recursive: true });
-    await page.screenshot({ path: 'test-results/viewer-model-confirmation.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/viewer-scene-confirmation.png', fullPage: true });
   } finally {
     await context.close();
   }
