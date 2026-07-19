@@ -6,9 +6,9 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { getViewerAsset } from '../../lib/viewer/catalog';
+import type { ViewerStateResponse } from '@petscape/server/contracts/scenes';
 import {
   TARGET_INSPECTION_ASSETS,
-  confirmInspectionModel,
   createModelInspectionState,
   markInspectionLoadError,
   markInspectionLoadReady,
@@ -17,6 +17,13 @@ import {
   setInspectionUniformScale,
   type InspectionLoadStatus,
 } from '../../lib/viewer/model-inspection';
+import {
+  confirmViewerModel,
+  createViewerDesignItem,
+  loadViewerState,
+  saveViewerScene,
+} from '../../lib/viewer/viewer-api';
+import { createPersistedSceneDraft } from '../../lib/viewer/viewer-workspace';
 import { SceneEditorClient } from './SceneEditorClient';
 import './viewer.css';
 
@@ -168,6 +175,11 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
   const [projectReloadToken, setProjectReloadToken] = useState(0);
   const [newProjectTitle, setNewProjectTitle] = useState('我的 3D 场景');
   const [creatingProject, setCreatingProject] = useState(false);
+  const [viewerState, setViewerState] = useState<ViewerStateResponse | null>(null);
+  const [workspaceStatus, setWorkspaceStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [workspaceError, setWorkspaceError] = useState('');
+  const [confirmingModel, setConfirmingModel] = useState(false);
+  const [reviewAgain, setReviewAgain] = useState(false);
   const asset = useMemo(() => getViewerAsset(state.assetKey), [state.assetKey]);
 
   useEffect(() => {
@@ -184,6 +196,7 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
         if (initialProjectId) {
           const explicitProject = nextProjects.find((project) => project.id === initialProjectId);
           if (!explicitProject) throw new Error('链接中的项目不存在或无权访问');
+          setWorkspaceStatus('loading');
           setSelectedProject(explicitProject);
         }
         setProjectStatus('ready');
@@ -198,10 +211,61 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
   }, [initialProjectId, projectReloadToken]);
 
   const chooseProject = useCallback((project: ViewerProject) => {
+    setWorkspaceStatus('loading');
+    setWorkspaceError('');
     setSelectedProject(project);
     setState(createModelInspectionState('cheese-lounge-bed'));
+    setViewerState(null);
+    setReviewAgain(false);
     window.history.replaceState(null, '', `/viewer?projectId=${encodeURIComponent(project.id)}`);
   }, []);
+
+  useEffect(() => {
+    if (!selectedProject) return;
+    const controller = new AbortController();
+    void loadViewerState(selectedProject.id).then((loaded) => {
+      if (controller.signal.aborted) return;
+      setViewerState(loaded);
+      setWorkspaceStatus('ready');
+    }).catch((error) => {
+      if (controller.signal.aborted) return;
+      setWorkspaceStatus('error');
+      setWorkspaceError(error instanceof Error ? error.message : '工作台恢复失败');
+    });
+    return () => controller.abort();
+  }, [selectedProject]);
+
+  const persistModelConfirmation = useCallback(async () => {
+    if (!selectedProject || confirmingModel || state.loadStatus !== 'ready') return;
+    setConfirmingModel(true);
+    setWorkspaceError('');
+    try {
+      const designItem = viewerState?.designItem ?? await createViewerDesignItem(selectedProject.id, asset.label);
+      const confirmation = await confirmViewerModel(designItem.id, {
+        modelRef: { ...asset.modelRef },
+        sourceBoundsMm: { ...asset.sourceBoundsMm },
+        uniformScale: state.uniformScale,
+        finalBoundsMm: { ...state.finalBoundsMm },
+      });
+      const draft = createPersistedSceneDraft(selectedProject.id, designItem.id, confirmation);
+      const scene = await saveViewerScene(selectedProject.id, {
+        expectedRevision: viewerState?.scene?.revision ?? 0,
+        draft,
+      });
+      setViewerState({
+        designItem: { ...designItem, currentModelConfirmationId: confirmation.id },
+        modelConfirmation: confirmation,
+        scene,
+        latestSceneConfirmation: viewerState?.latestSceneConfirmation ?? null,
+      });
+      setReviewAgain(false);
+      setWorkspaceStatus('ready');
+    } catch (error) {
+      setWorkspaceError(error instanceof Error ? error.message : '模型确认失败');
+    } finally {
+      setConfirmingModel(false);
+    }
+  }, [asset, confirmingModel, selectedProject, state.finalBoundsMm, state.loadStatus, state.uniformScale, viewerState]);
 
   const createProject = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -276,15 +340,22 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
     );
   }
 
-  if (state.stage === 'scene_editing') {
-    const latest = state.confirmations.at(-1)!;
+  if (selectedProject && workspaceStatus === 'loading') {
+    return <section className="viewer-project-gate"><div className="viewer-project-card" role="status">正在从服务器恢复 3D 工作…</div></section>;
+  }
+
+  if (selectedProject && workspaceStatus === 'error' && !viewerState) {
+    return <section className="viewer-project-gate"><div className="viewer-project-card"><div className="viewer-project-status is-error" role="alert">{workspaceError}</div><button type="button" onClick={() => { setWorkspaceStatus('loading'); setWorkspaceError(''); setSelectedProject({ ...selectedProject }); }}>重试恢复</button></div></section>;
+  }
+
+  if (!reviewAgain && selectedProject && viewerState?.scene && viewerState.modelConfirmation) {
     return (
       <SceneEditorClient
         projectId={selectedProject.id}
         projectName={selectedProject.title?.trim() || '未命名项目'}
-        confirmation={latest}
-        confirmationIndex={state.confirmations.length}
-        onBack={() => setState((current) => selectInspectionAsset(current, current.assetKey))}
+        initialScene={viewerState.scene}
+        latestConfirmation={viewerState.latestSceneConfirmation}
+        onBack={() => { setReviewAgain(true); setState((current) => selectInspectionAsset(current, current.assetKey)); }}
       />
     );
   }
@@ -388,11 +459,12 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
             <p>确认只表示愿意用此模型继续摆放，不表示可制造、适合宠物使用或已经报价。</p>
             <button
               type="button"
-              disabled={state.loadStatus !== 'ready'}
-              onClick={() => setState((current) => confirmInspectionModel(current, new Date().toISOString()))}
+              onClick={() => { void persistModelConfirmation(); }}
+              disabled={state.loadStatus !== 'ready' || confirmingModel}
             >
-              确认此模型，进入场景 <span aria-hidden="true">→</span>
+              {confirmingModel ? '正在写入不可变确认…' : '确认此模型，进入场景'} <span aria-hidden="true">→</span>
             </button>
+            {workspaceError ? <small role="alert">{workspaceError}</small> : null}
             <small>temporary catalog · sandbox only · checksum 已冻结</small>
           </div>
         </aside>

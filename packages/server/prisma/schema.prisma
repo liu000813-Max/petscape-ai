@@ -60,6 +60,8 @@ model User {
   roleChangesAsTarget   RoleChangeAudit[]      @relation("RoleChangeTarget")
   roleChangesAsActor    RoleChangeAudit[]      @relation("RoleChangeActor")
   reviewedCheckRuns     CheckRun[]
+  modelConfirmations    ModelConfirmation[]
+  sceneConfirmations    SceneConfirmation[]
 
   @@map("user")
 }
@@ -231,6 +233,8 @@ model Project {
   updatedAt DateTime @updatedAt
 
   assets Asset[]
+  designItems DesignItem[]
+  scene Scene?
 
   @@index([ownerUserId])
   @@map("project")
@@ -272,6 +276,99 @@ model Asset {
   @@index([ownerUserId])
   @@index([projectId])
   @@map("asset")
+}
+
+// ---- WP-B45-2：两阶段 Viewer 持久化与不可变确认 ----
+// Scene 是每项目唯一的可编辑草稿；两类 Confirmation 只追加不更新。
+model DesignItem {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  name      String
+
+  currentModelConfirmationId String?             @unique
+  currentModelConfirmation   ModelConfirmation?  @relation("CurrentModelConfirmation", fields: [currentModelConfirmationId], references: [id], onDelete: SetNull)
+  modelConfirmations         ModelConfirmation[] @relation("DesignItemConfirmations")
+  scenes                     Scene[]              @relation("SceneTargetDesignItem")
+  sceneConfirmations         SceneConfirmation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("design_item")
+}
+
+model ModelConfirmation {
+  id           String     @id @default(cuid())
+  designItemId String
+  designItem   DesignItem @relation("DesignItemConfirmations", fields: [designItemId], references: [id], onDelete: Restrict)
+
+  modelRef      Json
+  sourceBoundsMm Json
+  uniformScale  Float
+  finalBoundsMm Json
+
+  confirmedByUserId String
+  confirmedBy       User   @relation(fields: [confirmedByUserId], references: [id], onDelete: Restrict)
+  confirmedAt       DateTime @default(now())
+
+  currentForDesignItem DesignItem?         @relation("CurrentModelConfirmation")
+  targetOfScenes       Scene[]              @relation("SceneTargetModelConfirmation")
+  sceneConfirmations   SceneConfirmation[]
+
+  @@index([designItemId, confirmedAt])
+  @@index([confirmedByUserId])
+  @@map("model_confirmation")
+}
+
+model Scene {
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  targetDesignItemId       String
+  targetDesignItem         DesignItem        @relation("SceneTargetDesignItem", fields: [targetDesignItemId], references: [id], onDelete: Restrict)
+  targetModelConfirmationId String
+  targetModelConfirmation   ModelConfirmation @relation("SceneTargetModelConfirmation", fields: [targetModelConfirmationId], references: [id], onDelete: Restrict)
+  targetInstanceId          String
+
+  cageMm   Json
+  items    Json
+  revision Int  @default(0)
+
+  confirmations SceneConfirmation[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([targetDesignItemId])
+  @@index([targetModelConfirmationId])
+  @@map("scene")
+}
+
+model SceneConfirmation {
+  id            String @id @default(cuid())
+  sceneId       String
+  scene         Scene  @relation(fields: [sceneId], references: [id], onDelete: Restrict)
+  sceneRevision Int
+
+  targetDesignItemId        String
+  targetDesignItem          DesignItem        @relation(fields: [targetDesignItemId], references: [id], onDelete: Restrict)
+  targetModelConfirmationId String
+  targetModelConfirmation   ModelConfirmation @relation(fields: [targetModelConfirmationId], references: [id], onDelete: Restrict)
+  targetInstanceId          String
+
+  snapshotSchemaVersion String
+  snapshot              Json
+  confirmedByUserId     String
+  confirmedBy           User     @relation(fields: [confirmedByUserId], references: [id], onDelete: Restrict)
+  confirmedAt           DateTime @default(now())
+
+  @@unique([sceneId, sceneRevision])
+  @@index([confirmedByUserId])
+  @@index([targetDesignItemId])
+  @@index([targetModelConfirmationId])
+  @@map("scene_confirmation")
 }
 
 // ---- A4：宠物档案 ----

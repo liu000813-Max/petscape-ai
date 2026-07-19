@@ -5,13 +5,14 @@ import { GizmoHelper, GizmoViewport, OrbitControls } from '@react-three/drei';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import type { SceneDraft, SceneItem } from '@petscape/server/contracts/scenes';
+import type { SceneConfirmationResponse, SceneItem, SceneRecord } from '@petscape/server/contracts/scenes';
 import { VIEWER_ASSET_CATALOG, getViewerAsset } from '../../lib/viewer/catalog';
-import type { ModelConfirmationSnapshot } from '../../lib/viewer/model-inspection';
+import { confirmViewerScene, saveViewerScene, ViewerApiError } from '../../lib/viewer/viewer-api';
 import {
   addContextItem,
   addPetReference,
   createSceneEditorState,
+  draftDiffersFromLastConfirmation,
   getSceneConfirmationEligibility,
   removeSceneItem,
   resetAllSceneItems,
@@ -269,31 +270,6 @@ function reasonLabel(reason: SceneBlockingReason) {
   } as Partial<Record<SceneBlockingReason, string>>)[reason] ?? reason;
 }
 
-function createInitialDraft(projectId: string, confirmation: ModelConfirmationSnapshot, index: number): SceneDraft {
-  const modelConfirmationId = `memory-model-confirmation-${index}`;
-  const targetInstanceId = 'target-primary';
-  return {
-    schemaVersion: 'scene-draft.v1',
-    stage: 'scene_editing',
-    projectId,
-    targetDesignItemId: confirmation.modelRef.assetKey,
-    targetModelConfirmationId: modelConfirmationId,
-    targetInstanceId,
-    cageMm: { width: 800, height: 500, depth: 500 },
-    items: [{
-      instanceId: targetInstanceId,
-      role: 'target',
-      modelConfirmationId,
-      modelRef: { ...confirmation.modelRef },
-      positionMm: { x: 0, y: 0, z: 0 },
-      rotationYRad: 0,
-      uniformScale: confirmation.uniformScale,
-      sourceBoundsMm: { ...confirmation.sourceBoundsMm },
-      finalBoundsMm: { ...confirmation.finalBoundsMm },
-    }],
-  };
-}
-
 function contextItem(assetKey: string, slot: number): SceneItem {
   const asset = getViewerAsset(assetKey);
   return {
@@ -312,41 +288,104 @@ function contextItem(assetKey: string, slot: number): SceneItem {
 export function SceneEditorClient({
   projectId,
   projectName,
-  confirmation,
-  confirmationIndex,
+  initialScene,
+  latestConfirmation,
   onBack,
 }: {
   projectId: string;
   projectName: string;
-  confirmation: ModelConfirmationSnapshot;
-  confirmationIndex: number;
+  initialScene: SceneRecord;
+  latestConfirmation: SceneConfirmationResponse | null;
   onBack: () => void;
 }) {
-  const [state, setState] = useState(() => {
-    const initial = createSceneEditorState(createInitialDraft(projectId, confirmation, confirmationIndex));
-    return addPetReference(initial, 'pet-reference-rat', { x: 250, y: 0, z: -120 }).state;
-  });
-  const [selectedId, setSelectedId] = useState('target-primary');
-  const [loadState, setLoadState] = useState<LoadState>({ 'target-primary': 'loading' });
+  const [state, setState] = useState(() => createSceneEditorState(initialScene.draft, latestConfirmation?.snapshot ?? null));
+  const [selectedId, setSelectedId] = useState(initialScene.draft.targetInstanceId);
+  const [loadState, setLoadState] = useState<LoadState>({ [initialScene.draft.targetInstanceId]: 'loading' });
   const [blockingReasons, setBlockingReasons] = useState<SceneBlockingReason[]>([]);
-  const [locallyConfirmed, setLocallyConfirmed] = useState(false);
   const [cameraResetToken, setCameraResetToken] = useState(0);
+  const [serverRevision, setServerRevision] = useState(initialScene.revision);
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [savedVersion, setSavedVersion] = useState(0);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'dirty' | 'saving' | 'error' | 'conflict'>('saved');
+  const [saveError, setSaveError] = useState('');
+  const [retryToken, setRetryToken] = useState(0);
+  const [sceneConfirmation, setSceneConfirmation] = useState<SceneConfirmationResponse | null>(latestConfirmation);
+  const [confirmingScene, setConfirmingScene] = useState(false);
+  const [confirmationError, setConfirmationError] = useState('');
+  const draftVersionRef = useRef(0);
+  const serverRevisionRef = useRef(initialScene.revision);
+  const saveInFlightRef = useRef(false);
   const selected = state.draft.items.find((item) => item.instanceId === selectedId) ?? state.draft.items[0]!;
   const targetStatus = loadState[state.draft.targetInstanceId];
   const eligibility = getSceneConfirmationEligibility(state, {
     targetAssetReadable: targetStatus === 'ready',
-    savedRevisionMatches: true,
+    savedRevisionMatches: saveStatus === 'saved' && draftVersion === savedVersion,
   });
+
+  useEffect(() => { draftVersionRef.current = draftVersion; }, [draftVersion]);
+  useEffect(() => { serverRevisionRef.current = serverRevision; }, [serverRevision]);
+
+  const commitEditorState = useCallback((next: SceneEditorState) => {
+    setState(next);
+    setDraftVersion((version) => version + 1);
+    setSaveStatus((status) => status === 'conflict' ? status : 'dirty');
+    setSaveError('');
+    setConfirmationError('');
+  }, []);
 
   const applyResult = useCallback((result: ReturnType<typeof updateSceneItemTransform>) => {
     if (result.accepted) {
-      setState(result.state);
+      commitEditorState(result.state);
       setBlockingReasons([]);
-      setLocallyConfirmed(false);
     } else {
       setBlockingReasons(result.blockingReasons);
     }
-  }, []);
+  }, [commitEditorState]);
+
+  useEffect(() => {
+    if (draftVersion === savedVersion || saveStatus !== 'dirty' || saveInFlightRef.current) return;
+    const timer = window.setTimeout(() => {
+      const requestVersion = draftVersion;
+      const requestDraft = structuredClone(state.draft);
+      const expectedRevision = serverRevisionRef.current;
+      saveInFlightRef.current = true;
+      setSaveStatus('saving');
+      setSaveError('');
+      void saveViewerScene(projectId, { expectedRevision, draft: requestDraft }).then((saved) => {
+        setServerRevision(saved.revision);
+        serverRevisionRef.current = saved.revision;
+        setSavedVersion(requestVersion);
+        setSaveStatus(draftVersionRef.current === requestVersion ? 'saved' : 'dirty');
+      }).catch((error) => {
+        if (error instanceof ViewerApiError && error.code === 'revision_conflict') {
+          setSaveStatus('conflict');
+          setSaveError(`其他标签页已保存 revision ${error.currentRevision ?? '未知'}；当前草稿未覆盖服务器版本。`);
+          return;
+        }
+        setSaveStatus('error');
+        setSaveError(error instanceof Error ? error.message : '自动保存失败');
+      }).finally(() => {
+        saveInFlightRef.current = false;
+        if (draftVersionRef.current !== requestVersion) setRetryToken((token) => token + 1);
+      });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [draftVersion, projectId, retryToken, saveStatus, savedVersion, state.draft]);
+
+  const confirmCurrentScene = useCallback(async () => {
+    if (!eligibility.eligible || confirmingScene) return;
+    setConfirmingScene(true);
+    setConfirmationError('');
+    try {
+      const confirmed = await confirmViewerScene(initialScene.id, serverRevision);
+      setSceneConfirmation(confirmed);
+      setState((current) => ({ ...current, lastConfirmation: structuredClone(confirmed.snapshot) }));
+    } catch (error) {
+      setConfirmationError(error instanceof Error ? error.message : '场景确认失败');
+    } finally {
+      setConfirmingScene(false);
+    }
+  }, [confirmingScene, eligibility.eligible, initialScene.id, serverRevision]);
 
   const changeTransform = (patch: Partial<Pick<SceneItem, 'positionMm' | 'rotationYRad' | 'uniformScale'>>) => {
     applyResult(updateSceneItemTransform(state, selected.instanceId, patch));
@@ -413,7 +452,7 @@ export function SceneEditorClient({
           <div className="viewer-card">
             <h2>笼舍内尺寸 · mm</h2>
             <div className="viewer-cage-inputs">
-              {([['width', '长度 X'], ['height', '高度 Y'], ['depth', '宽度 Z']] as const).map(([axis, label]) => <label key={axis}><span>{label}</span><input type="number" min="1" step="10" value={state.draft.cageMm[axis]} onChange={(event) => { setState(updateCageDimensions(state, { ...state.draft.cageMm, [axis]: Number(event.target.value) })); setLocallyConfirmed(false); }} /></label>)}
+              {([['width', '长度 X'], ['height', '高度 Y'], ['depth', '宽度 Z']] as const).map(([axis, label]) => <label key={axis}><span>{label}</span><input type="number" min="1" step="10" value={state.draft.cageMm[axis]} onChange={(event) => { commitEditorState(updateCageDimensions(state, { ...state.draft.cageMm, [axis]: Number(event.target.value) })); }} /></label>)}
             </div>
           </div>
           <div className="viewer-card">
@@ -429,14 +468,19 @@ export function SceneEditorClient({
               <p>最终尺寸 X {selected.finalBoundsMm.x.toFixed(1)} · Y {selected.finalBoundsMm.y.toFixed(1)} · Z {selected.finalBoundsMm.z.toFixed(1)} mm</p>
               <button type="button" onClick={() => applyResult(snapSceneItemToSupport(state, selected.instanceId))}>吸附到水平支撑面</button>
               <button type="button" onClick={() => applyResult(resetSceneItem(state, selected.instanceId))}>重置当前物品</button>
-              <button type="button" onClick={() => { setState(resetAllSceneItems(state)); setBlockingReasons([]); setLocallyConfirmed(false); }}>全部重置</button>
+              <button type="button" onClick={() => { commitEditorState(resetAllSceneItems(state)); setBlockingReasons([]); }}>全部重置</button>
             </div>}
           </div>
           <div className="viewer-confirm-block viewer-scene-confirm">
-            {locallyConfirmed ? <p className="is-success">已在当前浏览器内存冻结场景预览。尚未产生服务器 SceneConfirmation。</p> : <p>{eligibility.eligible ? '场景几何检查通过，可生成内存确认预览。' : eligibility.blockingReasons.map(reasonLabel).join('；')}</p>}
-            <button type="button" disabled={!eligibility.eligible} onClick={() => setLocallyConfirmed(true)}>确认场景（仅内存）</button>
+            <p role="status">{{ saved: `已保存 · revision ${serverRevision}`, dirty: '有未保存更改', saving: '保存中…', error: '保存失败，可重试', conflict: '检测到 revision 冲突，未覆盖服务器版本' }[saveStatus]}</p>
+            {saveError ? <p role="alert">{saveError}</p> : null}
+            {saveStatus === 'error' ? <button type="button" className="viewer-secondary-action" onClick={() => { setSaveStatus('dirty'); setRetryToken((token) => token + 1); }}>重试保存</button> : null}
+            {saveStatus === 'conflict' ? <button type="button" className="viewer-secondary-action" onClick={() => window.location.reload()}>重新载入服务器版本</button> : null}
+            {sceneConfirmation ? <p className="is-success">最近确认 · revision {sceneConfirmation.sceneRevision} · {sceneConfirmation.id}{draftDiffersFromLastConfirmation(state) ? '；当前草稿已变化' : ''}</p> : <p>{eligibility.eligible ? '场景已保存且几何检查通过，可以确认。' : eligibility.blockingReasons.map(reasonLabel).join('；')}</p>}
+            {confirmationError ? <p role="alert">{confirmationError}</p> : null}
+            <button type="button" disabled={!eligibility.eligible || confirmingScene} onClick={() => { void confirmCurrentScene(); }}>{confirmingScene ? '确认中…' : '确认已保存场景'}</button>
             <button type="button" className="viewer-secondary-action" onClick={onBack}>返回并新建模型确认</button>
-            <small>未保存 · 未写入数据库 · 不代表可制造、宠物安全、报价或成交</small>
+            <small>服务器持久化确认 · 不代表可制造、宠物安全、报价或成交</small>
           </div>
         </aside>
       </div>

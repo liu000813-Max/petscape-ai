@@ -2,14 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  CreateDesignItemRequestSchema,
+  CreateModelConfirmationRequestSchema,
   ConfirmSceneRequestSchema,
+  ModelConfirmationResponseSchema,
   ModelRefSchema,
   RevisionConflictResponseSchema,
+  SceneRecordSchema,
   SceneConfirmationSnapshotSchema,
   SceneDraftSchema,
   SceneItemSchema,
   ViewerStageSchema,
 } from '../src/contracts/scenes.ts';
+import { resolveViewerCatalogAsset } from '../src/contracts/viewer-catalog.ts';
 
 const checksum = 'a'.repeat(64);
 const bounds = { x: 274.148, y: 100, z: 194.543 };
@@ -162,4 +167,54 @@ test('revision contract：保存冲突结构化，确认请求绑定精确 revis
     sceneRevision: 3,
   });
   assert.equal(ConfirmSceneRequestSchema.safeParse({ sceneId: 'scene-1' }).success, false);
+});
+
+test('persistence contract：DesignItem 与 ModelConfirmation 输入严格且冻结缩放结果', () => {
+  assert.deepEqual(CreateDesignItemRequestSchema.parse({ name: '奶酪躺椅' }), { name: '奶酪躺椅' });
+  assert.equal(CreateDesignItemRequestSchema.safeParse({ name: '' }).success, false);
+
+  const input = {
+    modelRef: temporaryModel,
+    sourceBoundsMm: bounds,
+    uniformScale: 1.25,
+    finalBoundsMm: { x: bounds.x * 1.25, y: 125, z: bounds.z * 1.25 },
+  };
+  assert.equal(CreateModelConfirmationRequestSchema.safeParse(input).success, true);
+  assert.equal(
+    CreateModelConfirmationRequestSchema.safeParse({ ...input, finalBoundsMm: bounds }).success,
+    false,
+  );
+  assert.equal(
+    ModelConfirmationResponseSchema.safeParse({
+      id: 'model-confirmation-1',
+      designItemId: 'design-item-1',
+      ...input,
+      confirmedAt: '2026-07-19T09:00:00.000Z',
+    }).success,
+    true,
+  );
+});
+
+test('persistence contract：SceneRecord 带服务端 id/revision，draft 字段保持唯一正本', () => {
+  assert.equal(
+    SceneRecordSchema.safeParse({
+      id: 'scene-1',
+      revision: 3,
+      draft: draft(),
+      updatedAt: '2026-07-19T09:00:00.000Z',
+    }).success,
+    true,
+  );
+  assert.equal(
+    SceneRecordSchema.safeParse({ id: 'scene-1', revision: -1, draft: draft(), updatedAt: 'bad' }).success,
+    false,
+  );
+});
+
+test('temporary catalog registry：服务端冻结 key、role、checksum 与原始尺寸', () => {
+  const cheese = resolveViewerCatalogAsset('cheese-lounge-bed');
+  assert.equal(cheese.role, 'target');
+  assert.equal(cheese.checksum, 'bbc2517c6503485c086d3b9e2987de1c75906426b5318d00e59ef232149d0112');
+  assert.deepEqual(cheese.sourceBoundsMm, { x: 274.148, y: 100, z: 194.543 });
+  assert.throws(() => resolveViewerCatalogAsset('forged-catalog-item'), /未知临时目录资产/);
 });

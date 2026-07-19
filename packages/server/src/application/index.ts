@@ -86,3 +86,16 @@ export {
   listOwnerCheckRuns,
   startCheckRun,
 } from './check-runs.ts';
+
+// WP-B45-2：Viewer 持久化、乐观锁与不可变确认。
+export {
+  RevisionConflictError,
+  InvalidSceneError,
+  createDesignItem,
+  createModelConfirmation,
+  getSceneForProject,
+  getViewerState,
+  saveScene,
+  confirmScene,
+  getSceneConfirmation,
+} from './scenes.ts';

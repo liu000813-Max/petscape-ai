@@ -66,7 +66,8 @@ export const SceneItemSchema = z
     const axes = ['x', 'y', 'z'] as const;
     for (const axis of axes) {
       const expected = item.sourceBoundsMm[axis] * item.uniformScale;
-      const tolerance = Math.max(1e-6, Math.abs(expected) * 1e-6);
+      // Viewer displays and persists millimetres rounded to 0.001 mm.
+      const tolerance = Math.max(0.001, Math.abs(expected) * 1e-6);
       if (Math.abs(item.finalBoundsMm[axis] - expected) > tolerance) {
         ctx.addIssue({
           code: 'custom',
@@ -179,6 +180,83 @@ export const ConfirmSceneRequestSchema = z.strictObject({
   sceneRevision: z.number().int().nonnegative(),
 });
 
+export const CreateDesignItemRequestSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+});
+
+export const DesignItemResponseSchema = z.strictObject({
+  id: idSchema,
+  projectId: idSchema,
+  name: z.string().min(1).max(120),
+  currentModelConfirmationId: idSchema.nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const CreateModelConfirmationRequestSchema = z
+  .strictObject({
+    modelRef: ModelRefSchema,
+    sourceBoundsMm: BoundsMmSchema,
+    uniformScale: z.number().finite().positive().max(10),
+    finalBoundsMm: BoundsMmSchema,
+  })
+  .superRefine((confirmation, ctx) => {
+    for (const axis of ['x', 'y', 'z'] as const) {
+      const expected = confirmation.sourceBoundsMm[axis] * confirmation.uniformScale;
+      const tolerance = Math.max(0.001, Math.abs(expected) * 1e-6);
+      if (Math.abs(confirmation.finalBoundsMm[axis] - expected) > tolerance) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['finalBoundsMm', axis],
+          message: `finalBoundsMm.${axis} 必须等于 sourceBoundsMm.${axis} × uniformScale`,
+        });
+      }
+    }
+  });
+
+export const ModelConfirmationResponseSchema = z.strictObject({
+  id: idSchema,
+  designItemId: idSchema,
+  modelRef: ModelRefSchema,
+  sourceBoundsMm: BoundsMmSchema,
+  uniformScale: z.number().finite().positive().max(10),
+  finalBoundsMm: BoundsMmSchema,
+  confirmedAt: z.iso.datetime(),
+});
+
+export const SceneRecordSchema = z.strictObject({
+  id: idSchema,
+  revision: z.number().int().nonnegative(),
+  draft: SceneDraftSchema,
+  updatedAt: z.iso.datetime(),
+});
+
+export const SceneConfirmationResponseSchema = z.strictObject({
+  id: idSchema,
+  sceneId: idSchema,
+  sceneRevision: z.number().int().nonnegative(),
+  snapshot: SceneConfirmationSnapshotSchema,
+  confirmedAt: z.iso.datetime(),
+});
+
+export const ViewerStateResponseSchema = z.strictObject({
+  designItem: DesignItemResponseSchema.nullable(),
+  modelConfirmation: ModelConfirmationResponseSchema.nullable(),
+  scene: SceneRecordSchema.nullable(),
+  latestSceneConfirmation: SceneConfirmationResponseSchema.nullable(),
+});
+
+export const SceneApiErrorSchema = z.strictObject({
+  error: z.enum(['unauthorized', 'invalid_json', 'invalid_request', 'not_found', 'revision_conflict']),
+  detail: z.string().optional(),
+  expectedRevision: z.number().int().nonnegative().optional(),
+  currentRevision: z.number().int().nonnegative().optional(),
+  issues: z.array(z.strictObject({
+    path: z.array(z.union([z.string(), z.number()])),
+    message: z.string(),
+  })).optional(),
+});
+
 export type ViewerStage = z.infer<typeof ViewerStageSchema>;
 export type ModelRef = z.infer<typeof ModelRefSchema>;
 export type SceneItem = z.infer<typeof SceneItemSchema>;
@@ -187,3 +265,10 @@ export type SceneConfirmationSnapshot = z.infer<typeof SceneConfirmationSnapshot
 export type SaveSceneRequest = z.infer<typeof SaveSceneRequestSchema>;
 export type RevisionConflictResponse = z.infer<typeof RevisionConflictResponseSchema>;
 export type ConfirmSceneRequest = z.infer<typeof ConfirmSceneRequestSchema>;
+export type CreateDesignItemRequest = z.infer<typeof CreateDesignItemRequestSchema>;
+export type DesignItemResponse = z.infer<typeof DesignItemResponseSchema>;
+export type CreateModelConfirmationRequest = z.infer<typeof CreateModelConfirmationRequestSchema>;
+export type ModelConfirmationResponse = z.infer<typeof ModelConfirmationResponseSchema>;
+export type SceneRecord = z.infer<typeof SceneRecordSchema>;
+export type SceneConfirmationResponse = z.infer<typeof SceneConfirmationResponseSchema>;
+export type ViewerStateResponse = z.infer<typeof ViewerStateResponseSchema>;
