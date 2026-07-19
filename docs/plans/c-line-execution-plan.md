@@ -1,6 +1,6 @@
 # C 线执行文档：报价、支付与订单骨架（B7 输入 + C1-C5 首版）
 
-状态：v4（2026-07-19，批次 2 跨线收敛：§3.1 明确确认记录绑定层，migration 窗口进入跨线单队列；**仅执行方案，尚未开工**）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
+状态：v5（2026-07-19，批次 2 执行中；§3.1 明确确认记录绑定层，migration 单队列收窄为进入 main 与生产的临界区）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
 
 目标：先做出可验证的**沙箱交易骨架**，再在真实材料、定价、审核和支付渠道全部就绪后开放真实成交：
 
@@ -220,7 +220,7 @@ Viewer 确认引用
 - builder 对资金、权限、并发和失败恢复执行 TDD 红→绿；进程边界统一用 zod。
 - 用户可见流程由非实现者在真实浏览器验收；沙箱 UI 必须常显测试标识。
 - `pnpm lint:baseline`、三包 `tsc --noEmit`、`pnpm build` 和 CI 必须明确通过。
-- schema migration 串行：批次 2 两线共用一个跨线单队列，由编排方按各 WP 实际就绪顺序放行（见 `p0-batch-2-execution-plan.md`）；每个带 migration 的 PR 合并后由编排方立即手动 `migrate deploy`。“代码部署后立即手动 migrate”不足以作为支付模块的长期发布方案：**「migrate deploy 进部署链」立为批次 2 独立小 WP（WP-OPS-1），必须在 C3 开工前完成并实际演练**，避免 P2021 窗口。
+- schema migration 的生产临界区串行：两线可并行开发 schema、Draft migration 和隔离临时数据库 CI；同一时间仅一个 migration PR 可在 rebase 最新 `main`、重跑完整 migration CI、合并、生产 `migrate deploy` 与生产验证链路中。后一个 PR 不得复用旧 base 的 CI 结论（详见 `p0-batch-2-execution-plan.md`）。每个带 migration 的 PR 合并后由编排方立即手动 `migrate deploy`。“代码部署后立即手动 migrate”不足以作为支付模块的长期发布方案：**「migrate deploy 进部署链」立为批次 2 独立小 WP（WP-OPS-1），必须在 C3 开工前完成并实际演练**，避免 P2021 窗口。
 - C1-C5、订单恢复和地址快照未全部完成前，交易 feature flag 保持关闭。
 - 真实支付开放前清零 engineering conventions §3 checklist：PITR 恢复、回滚、限流、监控告警、对账、异常处理和审计。
 - webhook 原文不得无边界持久化；明确脱敏、加密/访问控制和保留期限。
@@ -236,4 +236,4 @@ Viewer 确认引用
 5. PITR、回滚、监控、限流和人工异常入口通过；
 6. 真实浏览器完成一笔真实付款，系统生成 live 订单；后续 C6-C9 另按正本验收履约。
 
-当前状态：**文档已修订，未开工**。用户明确发出开工指令前，不创建实现任务、不改 Schema、不部署、不执行 migration。
+当前状态：**已按批次 2 编排开工**。开发期允许在独立 worktree 与隔离临时数据库推进；进入 main、生产 migration 和真实交易启用仍分别受本节门禁约束。

@@ -19,7 +19,11 @@
 
 ## migration 跨线单队列
 
-- 同一时间只允许一个在途 WP 动 `schema.prisma`（沿用批次 1）；两线窗口进同一队列，由编排方按各 WP 实际就绪顺序放行，不预排死全序。
+> 2026-07-19 用户确认收窄：单队列保护的是进入 `main` 与生产的临界区，不是两线的开发期。
+
+- 两线可以在各自独立 worktree 中并行修改 `schema.prisma`、生成 Draft migration、实现与测试，并在彼此隔离的临时数据库运行 CI；一个 WP 仍只产出一个职责闭合的 migration，不借机吸收后续 WP schema。
+- 同一时间只允许一个 migration PR 进入生产临界区：**基于最新 `main` rebase → 重新运行完整 migration CI → 合并 → 生产 `migrate deploy` → 验证 `_prisma_migrations`、目标 schema 与应用冒烟**。该链路全部通过后才释放队列给下一个 PR。
+- 后一个 migration PR 不得复用前一个 migration 合并前、旧 base 上的 CI 结论；获得合并槽位后必须 rebase 最新 `main` 并重新验证。等待槽位不阻塞 Draft PR、实现或临时数据库 CI，但不得提前合并。
 - 每个带 migration 的 PR 合并后由编排方立即手动 `migrate deploy` 并验证（部署链缺口未修复前的强制人工步骤）。
 - **WP-OPS-1（本批新增）**：`migrate deploy` 进部署链（`deploy.yml`）并实际演练安全的 migration/部署顺序。必须在 C 线 WP-C3-1 开工前完成；不阻塞两线前段。批次 1 遗留拍板项就此吸收。
 
