@@ -297,6 +297,17 @@ if (!databaseUrl) {
     });
     assert.equal(second.id, first.id);
     assert.equal(second.revision, 2);
+    const noOp = await saveScene({
+      prisma,
+      ownerUserId,
+      projectId: project.id,
+      input: {
+        expectedRevision: second.revision,
+        draft: sceneDraft({ cageMm: { width: 900, height: 500, depth: 500 } }),
+      },
+    });
+    assert.equal(noOp.id, second.id);
+    assert.equal(noOp.revision, second.revision);
     await assert.rejects(
       () => saveScene({ prisma, ownerUserId, projectId: project.id, input: { expectedRevision: 1, draft: sceneDraft() } }),
       (error) => error instanceof RevisionConflictError && error.expectedRevision === 1 && error.currentRevision === 2,

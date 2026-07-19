@@ -423,6 +423,12 @@ export async function saveScene({
     if (existing.revision !== parsed.expectedRevision) {
       throw new RevisionConflictError(parsed.expectedRevision, existing.revision);
     }
+    // A client can become dirty while moving through an invalid local draft,
+    // then return to the exact persisted value. Treat that save as successful
+    // without manufacturing a revision that has no underlying draft change.
+    if (JSON.stringify(toSceneDraft(existing)) === JSON.stringify(parsed.draft)) {
+      return toSceneRecord(existing);
+    }
     const updated = await tx.scene.updateMany({
       where: { id: existing.id, revision: parsed.expectedRevision },
       data: {
