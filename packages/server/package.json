@@ -19,6 +19,7 @@
     "./contracts/customization-requests": "./src/contracts/customization-requests.ts",
     "./contracts/check-runs": "./src/contracts/check-runs.ts",
     "./contracts/quotes": "./src/contracts/quotes.ts",
+    "./contracts/delivery-addresses": "./src/contracts/delivery-addresses.ts",
     "./worker-api": "./src/worker-api.ts"
   },
   "scripts": {

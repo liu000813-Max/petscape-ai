@@ -63,6 +63,7 @@ model User {
   modelConfirmations    ModelConfirmation[]
   sceneConfirmations    SceneConfirmation[]
   quotes                Quote[]
+  deliveryAddresses     DeliveryAddress[]
 
   @@map("user")
 }
@@ -594,6 +595,7 @@ model Quote {
   supersedesQuoteId String? @unique
   supersedesQuote   Quote?  @relation("QuoteSupersession", fields: [supersedesQuoteId], references: [id], onDelete: Restrict)
   supersededByQuote Quote?  @relation("QuoteSupersession")
+  deliveryAddress   DeliveryAddress?
 
   validFrom    DateTime
   expiresAt    DateTime
@@ -609,4 +611,33 @@ model Quote {
   @@index([requestId, status])
   @@index([status, expiresAt])
   @@map("quote")
+}
+
+// ---- WP-C5-1：当前结算地址与付款前确认 ----
+// 每个 accepted Quote 至多一条地址。编辑使用 version CAS，并清除 confirmedAt；
+// C3 只能消费重新确认后的服务端快照。Order 地址快照由后续 C4 独立冻结。
+model DeliveryAddress {
+  id          String @id @default(cuid())
+  ownerUserId String
+  owner       User   @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  quoteId     String @unique
+  quote       Quote  @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+
+  recipientName String
+  mobile        String
+  province      String
+  city          String
+  district      String
+  detail        String
+  postalCode    String?
+
+  sandboxOnly Boolean
+  version     Int      @default(1)
+  confirmedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerUserId, updatedAt])
+  @@index([ownerUserId, confirmedAt])
+  @@map("delivery_address")
 }

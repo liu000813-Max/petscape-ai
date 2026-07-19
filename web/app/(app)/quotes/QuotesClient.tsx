@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { BadgeCheck, Ban, Calculator, Clock3 } from 'lucide-react';
+import Link from 'next/link';
 import type { CustomizationRequestResponse } from '@petscape/server/contracts/customization-requests';
 import type { CheckRunResponse } from '@petscape/server/contracts/check-runs';
 import type { QuoteResponse } from '@petscape/server/contracts/quotes';
@@ -128,6 +129,8 @@ export function QuotesClient() {
           {quote.status === 'active' ? <div className="psx-quote-actions">
             <button disabled={busyId !== null} onClick={() => transition(quote, 'accept')}><BadgeCheck size={15}/>接受测试报价</button>
             <button disabled={busyId !== null} onClick={() => transition(quote, 'cancel')}><Ban size={15}/>取消</button>
+          </div> : quote.status === 'accepted' ? <div className="psx-quote-actions">
+            <Link href="/checkout">填写并确认配送地址</Link>
           </div> : null}
         </article>)}</div>}
     </section>

@@ -156,6 +156,20 @@ jobs:
           path: web/test-results/c2-quotes/
           if-no-files-found: warn
 
+      - name: Test C5 delivery address flow (real Next + PostgreSQL + Chromium)
+        working-directory: web
+        run: node --test tests/e2e-delivery-addresses.test.mjs
+        env:
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+
+      - name: Upload C5 browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-c5-1-browser-evidence
+          path: web/test-results/c5-delivery-addresses/
+          if-no-files-found: warn
+
       - name: Prisma validate (packages/server)
         run: pnpm --filter @petscape/server exec prisma validate
 

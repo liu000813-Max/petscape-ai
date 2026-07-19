@@ -111,3 +111,11 @@ export {
   getQuote,
   listQuotes,
 } from './quotes.ts';
+export {
+  DeliveryAddressConflictError,
+  DeliveryAddressEligibilityError,
+  confirmDeliveryAddress,
+  getConfirmedDeliveryAddressInput,
+  listDeliveryAddresses,
+  saveDeliveryAddress,
+} from './delivery-addresses.ts';
