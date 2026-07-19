@@ -200,6 +200,14 @@ export async function createCustomizationRequest({
             if (updated.count !== 1) {
               throw new CustomizationRequestConflictError('旧申请已被替代，不能再次重提');
             }
+            await tx.quote.updateMany({
+              where: {
+                requestId: parsed.supersedesRequestId,
+                ownerUserId,
+                status: 'active',
+              },
+              data: { status: 'superseded', supersededAt: new Date() },
+            });
           }
           return request;
         },

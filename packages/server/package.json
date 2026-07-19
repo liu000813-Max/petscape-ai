@@ -18,6 +18,7 @@
     "./contracts/commerce-estimates": "./src/contracts/commerce-estimates.ts",
     "./contracts/customization-requests": "./src/contracts/customization-requests.ts",
     "./contracts/check-runs": "./src/contracts/check-runs.ts",
+    "./contracts/quotes": "./src/contracts/quotes.ts",
     "./worker-api": "./src/worker-api.ts"
   },
   "scripts": {

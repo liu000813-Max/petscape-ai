@@ -62,6 +62,7 @@ model User {
   reviewedCheckRuns     CheckRun[]
   modelConfirmations    ModelConfirmation[]
   sceneConfirmations    SceneConfirmation[]
+  quotes                Quote[]
 
   @@map("user")
 }
@@ -181,6 +182,7 @@ model Job {
   archivedAt DateTime?
 
   attempts JobAttempt[]
+  quotes   Quote[]
 
   @@unique([ownerUserId, type, idempotencyKey], name: "job_owner_type_idempotency_key")
   @@index([status, leaseExpiresAt])
@@ -433,6 +435,7 @@ model Material {
   createdAt              DateTime @default(now())
 
   pricingRules PricingRule[]
+  quotes       Quote[]
 
   @@map("material")
 }
@@ -452,6 +455,8 @@ model PricingRule {
   isSellable     Boolean  @default(false)
   sandboxOnly    Boolean  @default(true)
   createdAt      DateTime @default(now())
+
+  quotes Quote[]
 
   @@index([materialId])
   @@map("pricing_rule")
@@ -489,6 +494,7 @@ model CustomizationRequest {
   supersedesRequest   CustomizationRequest? @relation("CustomizationRequestSupersession", fields: [supersedesRequestId], references: [id], onDelete: Restrict)
   supersededByRequest CustomizationRequest? @relation("CustomizationRequestSupersession")
   checkRun            CheckRun?
+  quotes              Quote[]
 
   submittedAt DateTime
   canceledAt  DateTime?
@@ -539,7 +545,68 @@ model CheckRun {
   completedAt      DateTime?
   createdAt        DateTime  @default(now())
 
+  quotes Quote[]
+
   @@index([status, createdAt])
   @@index([reviewerUserId, status])
   @@map("check_run")
+}
+
+// ---- WP-C2-1：版本化 Quote 与单向生命周期 ----
+// 金额、输入、审核、分析、材料和规则全部由服务端冻结。唯一合法更新是从 active
+// 进入 accepted/expired/superseded/canceled；migration trigger 拒绝历史改写和删除。
+model Quote {
+  id          String @id @default(cuid())
+  ownerUserId String
+  owner       User   @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+
+  requestId     String
+  request       CustomizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  checkRunId    String
+  checkRun      CheckRun             @relation(fields: [checkRunId], references: [id], onDelete: Restrict)
+  estimateJobId String
+  estimateJob   Job                  @relation(fields: [estimateJobId], references: [id], onDelete: Restrict)
+  materialId    String
+  material      Material             @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  pricingRuleId String
+  pricingRule   PricingRule          @relation(fields: [pricingRuleId], references: [id], onDelete: Restrict)
+
+  quoteMode   String
+  sandboxOnly Boolean
+  status      String
+
+  productCode        String
+  materialName       String
+  materialVersion    String
+  pricingRuleVersion String
+  inputSnapshot      Json
+  priceBreakdown     Json
+  deliveryEstimate   Json
+
+  amountCent   Int
+  currency     String
+  taxMode      String
+  roundingMode String
+
+  idempotencyKey   String
+  inputFingerprint String
+
+  supersedesQuoteId String? @unique
+  supersedesQuote   Quote?  @relation("QuoteSupersession", fields: [supersedesQuoteId], references: [id], onDelete: Restrict)
+  supersededByQuote Quote?  @relation("QuoteSupersession")
+
+  validFrom    DateTime
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  expiredAt    DateTime?
+  supersededAt DateTime?
+  canceledAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([ownerUserId, idempotencyKey], map: "quote_owner_idempotency_key")
+  @@unique([ownerUserId, inputFingerprint], map: "quote_owner_input_fingerprint_key")
+  @@index([ownerUserId, createdAt])
+  @@index([requestId, status])
+  @@index([status, expiresAt])
+  @@map("quote")
 }

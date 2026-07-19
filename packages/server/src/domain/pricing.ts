@@ -2,6 +2,8 @@
 // 外部金额边界始终是整数分；中间材料成本使用 Decimal，禁止二进制浮点运算。
 import { Decimal } from '@prisma/client-runtime-utils';
 
+const POSTGRES_INTEGER_MAX = 2_147_483_647;
+
 export interface SandboxMaterialPricingInput {
   densityMilligramPerCm3: number;
   unitPriceCentPerGram: number;
@@ -91,6 +93,9 @@ export function calculateSandboxPrice({
 
   if (!Number.isSafeInteger(amountCent) || amountCent <= 0) {
     throw new Error('计算金额超出安全整数分范围');
+  }
+  if (amountCent > POSTGRES_INTEGER_MAX) {
+    throw new Error('计算金额超出 PostgreSQL INTEGER 持久化范围');
   }
 
   return {

@@ -61,6 +61,13 @@ test('zero, negative and unsafe-huge geometry cannot produce an amount', () => {
   );
 });
 
+test('amounts that fit JavaScript but exceed PostgreSQL INTEGER are rejected before persistence', () => {
+  assert.throws(
+    () => calculateSandboxPrice({ volumeMm3: '1000000000000', material, rule }),
+    /PostgreSQL INTEGER/,
+  );
+});
+
 test('material and pricing rule currencies must match', () => {
   assert.throws(
     () => calculateSandboxPrice({ volumeMm3: '1000', material: { ...material, currency: 'USD' }, rule }),
