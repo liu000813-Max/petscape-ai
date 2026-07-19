@@ -1,6 +1,6 @@
 # C 线执行文档：报价、支付与订单骨架（B7 输入 + C1-C5 首版）
 
-状态：v2（2026-07-19，已按 PR #33 审查与用户确认修订；**仅执行方案，尚未开工**）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
+状态：v3（2026-07-19，已按 PR #33 后续审查与用户确认修订；**仅执行方案，尚未开工**）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
 
 目标：先做出可验证的**沙箱交易骨架**，再在真实材料、定价、审核和支付渠道全部就绪后开放真实成交：
 
@@ -15,7 +15,7 @@
 
 1. **单物品成交**：每次申请、报价、支付和订单只针对一个可制造物品；不制造完整场景，不做购物车或合并支付。
 2. **服务端权威几何**：价格使用的体积、包围盒等结果由服务端 `mesh_analysis` job 从受控资产计算，客户端提交的几何值或金额一律不可信。
-3. **B6/B7 是上游输入**：C 线只定义正式报价需要什么可信语义，不替 Viewer、B6 或 B7 定义内部共享 Data Model。
+3. **B6/B7 是上游输入**：C 线定义正式报价需要什么可信语义及消费侧 contract，不替 Viewer、B6 或 B7 定义内部 Data Model。
 4. **人工审核是 v1 的 B6 执行方式，不是 Request 状态别名**：申请审核进度与制作/安全结论语义分离；未来自动检查不得复用一个含义模糊的 `approved` 字段。
 5. **定价规则版本化**：公式在代码并带版本号；材料密度、单价、基础制作费、售价倍数、起步价等参数采用 append-only 版本。Quote 引用明确的公式与参数版本。
 6. **C5 进入本计划**：用户在付款前填写并确认本次配送地址；C4 生成订单时冻结地址快照。多地址管理和默认地址可以后补。
@@ -35,15 +35,15 @@
 
 ### 3.1 Viewer / 场景确认向 C 线提供的语义
 
-C 线只声明以下消费条件，不在本计划冻结字段名、表结构或五字段 contract：
+C 线现在冻结消费侧最小 contract v0，不等待 Viewer 内部实现成熟。候选语义至少包括：
 
-- 服务端可验证的确认记录引用；
-- 当前用户对项目、单物品资产和确认记录的访问权；
-- 不可变的资产版本或内容校验标识；
-- 用户确认的真实物理尺寸、明确单位和必要方向信息；
-- 确认动作的服务端来源、时间和版本。
+- `schemaVersion`；
+- 服务端可验证的确认记录引用与 `projectId`；
+- 单物品资产 ID，以及不可变资产版本或内容校验标识；
+- 用户确认的真实物理尺寸 `x/y/z`、明确单位和必要方向/姿态信息；
+- 确认动作的服务端时间、来源和版本。
 
-Viewer 正本确认记录成熟后，由独立接缝任务冻结双方 zod contract；C 线不得要求 Viewer 反向消费本线私自定义的数据形状。接缝未就绪时只允许使用带 `sandbox` 来源的 fixture，不得进入正式 Quote。
+`WP-SEAM-0` 负责把上述语义闭合为版本化 zod contract，落在共享 `packages/server/src/contracts/`。C 线拥有消费需求；Viewer 拥有 producer adapter 与 provider conformance test；双方共同验证兼容性。该 contract 只约束跨线输出，不规定 Viewer 的数据库表、内部状态机或确认记录如何持久化。接缝未就绪时只允许使用带 `sandbox` 来源的 fixture，不得进入正式 Quote。
 
 ### 3.2 B6 向 C2 提供的可信审核语义
 
@@ -54,7 +54,7 @@ Viewer 正本确认记录成熟后，由独立接缝任务冻结双方 zod contr
 - 发现的问题、证据、调整建议和人工补充说明；
 - 审核人或规则版本、结论时间和可审计来源。
 
-人工审核通过受保护的 admin 用例执行，普通用户无权调用；角色授予与审核动作必须留痕。C 线只保存可信结果引用及报价所需的不可变摘要，不拥有 B6 的内部检查模型。
+人工审核通过受保护的 admin 用例执行，普通用户无权调用；角色授予与审核动作必须留痕。C 线只保存可信结果引用及报价所需的不可变摘要，不拥有 B6 的内部检查模型。B6 对象的精确 Schema 在 `WP-B6-0` 闭 spec，不计入第五节 C 线的 10 张交易表。
 
 ### 3.3 B7 向 C2 提供的成本与交期语义
 
@@ -127,21 +127,29 @@ Viewer 确认引用
 
 ## 七、工作包与顺序
 
+### WP-SEAM-0：确认方案→报价输入 contract v0
+
+范围：在共享 `packages/server/src/contracts/` 定义版本化 zod contract，闭合 §3.1 的消费语义、单位与不可变资产标识；为 C 线提供 consumer compatibility test，为 Viewer 明确 producer adapter 与 provider conformance test 要求。不得规定 Viewer 的数据库 Schema 或内部状态机。
+
+关键验收：contract 有明确 `schemaVersion`；确认引用可由服务端验证；项目、资产、不可变版本/校验标识、`x/y/z` 与单位、方向/姿态、服务端确认时间与来源均可校验；Viewer provider 与 C 线 consumer 使用同一共享 contract 并通过兼容性测试；fixture 只能进入 sandbox。
+
 ### WP-B7-1：服务端几何分析、材料目录与预估引擎
 
-范围：`mesh_analysis` job、分析算法/单位版本、Material/PricingRule、沙箱 Estimate API、测试 fixture。不得定义 Viewer 的共享 contract，不得生成可支付 Quote。
+范围：`mesh_analysis` job、分析算法/单位版本、Material/PricingRule、沙箱 Estimate API、测试 fixture。消费 `WP-SEAM-0` 的共享 contract，不得另建 Viewer contract，不得生成可支付 Quote。
 
 关键验收：客户端几何和金额无效；非封闭网格、单位缺失和异常尺度失败可解释；算法版本进入结果；幂等键使用规范化尺寸与资产版本，不直接拼接浮点字符串；测试材料不可售。
 
 ### WP-C1-1：定制申请与申请状态
 
-范围：CustomizationRequest、用途/联系方式/补充要求、提交/列表/详情、重复提交幂等。只消费 Viewer 语义接缝；没有可信确认引用时仅能创建 sandbox 请求。
+范围：CustomizationRequest、用途/联系方式/补充要求、提交/列表/详情、重复提交幂等。消费 `WP-SEAM-0` 的共享 contract；没有可信确认引用时仅能创建 sandbox 请求。
 
 关键验收：越权 404、未登录 401、输入快照不漂移、拒绝/不确定后可修改并重新提交。
 
-### 跨线前置：B6 v1 人工可信审核
+### WP-B6-0：v1 人工可信审核
 
-本计划不定义 B6 内部 Data Model。进入 WP-C2-1 前，上游必须提供满足 §3.2 的人工审核用例及可信结果；只改 Request 状态或直接改 DB 不算完成。
+范围：由本执行计划明确编排 B6 领域包；建立独立 `CheckRun` 或等价 B6 对象，不复用 `CustomizationRequest.status`。对象绑定物品、资产版本、尺寸、材料和检查输入快照，记录 `approved / rejected / uncertain`、问题、证据、调整建议、说明、审核人、审核时间及 checklist/规则版本。精确表结构与状态枚举在本包闭 spec，不纳入 C 线 10 张交易表。
+
+关键验收：通过 `User.role` 与受保护 admin API 执行；普通用户不能审核；角色授予和审核动作均留痕；只改 Request 状态或直接改 DB 不算完成；被拒绝或不确定的申请可修改后重新提交；C2 只能消费可信的 `approved` 结果。
 
 ### WP-C2-1：正式报价生命周期
 
@@ -170,7 +178,9 @@ Viewer 确认引用
 ### 实现顺序
 
 ```text
-构建顺序：WP-B7-1 → WP-C1-1 → B6 人工可信审核前置 → WP-C2-1 → WP-C5-1 → WP-C3-1 → WP-C4-1
+构建顺序：WP-SEAM-0
+          → Viewer producer adapter、WP-B7-1、WP-C1-1 可并行
+          → WP-B6-0 → WP-C2-1 → WP-C5-1 → WP-C3-1 → WP-C4-1
 运行顺序：C1 → B6 → B7 → C2 → C5 → C3 → C4
 ```
 
