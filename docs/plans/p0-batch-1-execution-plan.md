@@ -143,11 +143,12 @@ CI（`gh pr checks --json` 显式判定）+ QA 判定 + S4 真发双通道证据
 ## 顺序与依赖
 
 ```
-WP-A0 ✅ → WP-A1 ✅（视觉基准已立）→ WP-A2 ✅ → WP-A3-2 ✅（模块 A3 全部完成）
-WP-A4-1（宠物档案）：等 Pet 字段讨论收敛拍板 → 闭合 spec 派工 → 锚点闭环用户验收
+WP-A0 ✅ → WP-A1 ✅（视觉基准已立）→ WP-A2 ✅ → WP-A3-2 ✅（模块 A3 全部完成）→ WP-A4-1 ✅（锚点闭环用户验收 2026-07-19 通过）
 R 线调研 ✅（报告已入 docs/plans/，ADR 草案挂 B6/B7 前置）
 ```
 
 **当前批次状态（2026-07-19）**：模块 A3（注册登录，含邮箱与双向绑定）与 WP-A4-1 已完成实现和本地 production 行为验收。A4 的字段/关系决策正本见 `docs/plans/wp-a3-pet-schema-agreed.md`，行为证据见 `docs/operations/wp-a4-1-qa/`。
 
-**PR #30 收尾核验（2026-07-19 复核）**：①生产 migration 已确认执行——RDS `_prisma_migrations` 中 `20260719090000_a4_pets_and_user_owned_assets` finished_at=2026-07-19 02:51(+08)，`Pet` 表存在（psql 实查）；②ECS 冒烟通过——现网版本 `44be4e8`（healthz `db:true`），未登录 `/pets` 307→`/login`、`/api/v1/pets` 401 结构化响应，无 P2021。技术侧收尾完成；**锚点闭环最终宣告仍待用户亲手走批次完成定义四步**（注册登录→建档案含照片→重启后仍在→他人不可见）。随后再定批次 2（B 线吸收 + C 骨架）范围。
+**PR #30 收尾核验（2026-07-19 复核）**：①生产 migration 已确认执行——RDS `_prisma_migrations` 中 `20260719090000_a4_pets_and_user_owned_assets` finished_at=2026-07-19 02:51(+08)，`Pet` 表存在（psql 实查）；②ECS 冒烟通过——现网版本 `44be4e8`（healthz `db:true`），未登录 `/pets` 307→`/login`、`/api/v1/pets` 401 结构化响应，无 P2021。技术侧收尾完成。
+
+**锚点闭环用户验收（2026-07-19 通过，批次 1 关账）**：用户亲手在 ECS 现网（版本 `e6ad604`，经 SSH 隧道 localhost:3010）走完批次完成定义四步——①手机号 OTP 注册登录（log 通道取码）；②建宠物档案含照片；③`docker compose restart web` 重启后刷新，登录态（Session 在 RDS）与档案、照片均在；④第二账号（邮箱 OTP 注册）宠物列表为空，看不到第一账号数据。**批次 1（A 线锚点闭环）完成**；下一步为批次 2（B 线吸收 + C 骨架）范围拍板，跨线接缝与拍板正本另行落 `docs/plans/` 批次 2 执行文档。
