@@ -1,56 +1,173 @@
-# B 线执行文档：B4 + B5 首版（3D 工作台与场景确认）
+# B 线执行文档：B4 单品检视 + B5 场景确认首版
 
-状态：v1（2026-07-19，用户拍板后编写）。上游：`PRODUCT-MODULES.md`（B4/B5 模块定义）、`ARCHITECTURE.md` §6 场景确认模块与 §7.4 不可变快照、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`（竞品取舍，用户已逐项确认）、`docs/plans/p0-batch-1-execution-plan.md`（编排约定全部沿用）。
+状态：v2（2026-07-19，用户复核 PR #31 后修订）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`（B4/B5）、`ARCHITECTURE.md` §6、§7.3、§7.4、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/plans/p0-batch-1-execution-plan.md`。
 
-## 已拍板（2026-07-19，用户确认）
+本版取代 PR #31 中“单页完成 B4+B5、选中场景物品即预览”的范围切法。首版采用两个明确阶段：用户先检视并确认单个目标模型版本，再把该模型放入完整场景确认尺寸、摆放和空间关系。提议、预览、模型确认、场景确认、制作/安全检查、报价和订单是不同承诺，不得混写。
 
-1. **笼舍 1:1 来源 = 手输尺寸参数化笼箱**：用户输入笼舍内部长/宽/高（mm），生成参数化笼箱（线框 + 地面）。1:1 的本质是真实尺寸参照，不是视觉复刻笼子外观。预设笼型库后置（PRD 待确认问题 2 以此口径首次落地）。
-2. **3D 技术栈 = react-three-fiber v9 + drei（试用性质）**：理由——React 状态 ↔ 3D 场景的同步声明式化（工作台是重状态交互场景）；视角立方体（GizmoHelper）、尺寸标注（Html）、GLB 加载（useGLTF + Suspense）等已确认要的元素有现成件；React 应用做交互式 3D 的领域标准做法。**用户保留退路**：后续开发体验不佳可换回 three.js 直用；为此原型吸收的 AABB/叠放/尺寸换算逻辑一律写成与渲染层无关的纯函数，更换成本隔离在组件层。
-3. **入口 = 默认项目直进**：App 壳导航加「3D 工作台」，进入时取最近项目（没有则静默新建）直达场景。项目管理 UI 留给 B1，本批不做列表页。
-4. **数据模型 = Scene + SceneConfirmation 两表**，物品实例 JSONB 内嵌不单独建表（整场景读写、单人编辑，正规化无收益）。migration 排第二窗口——**时序更新：WP-A4-1 宠物表（PR #30）已合并且生产 migration 已 applied，本窗口已畅通**；动 `schema.prisma` 前知会编排方（migration 串行约定），合并后按纪律立即手动 migrate deploy（部署链缺 migration 步骤，P2021 教训）。
-5. **范围切法 = 单页最小竖切**：不做独立单品预览页；竞品单品 Viewer 中用户确认纳入的元素（包围盒尺寸常显、视角立方体 + 回到原点、拖动提示、单个/全部重置）全部融进场景页，选中物品即预览。B4 的「生成」部分本批不碰。
+## 已确认（2026-07-19）
 
-## 范围：一条链
+1. **两阶段用户流程**：`单品检视与模型确认 → 完整场景确认`。B4 与 B5 可以共享 3D 基础组件，但必须有独立任务状态和显式阶段转换。
+2. **临时模型来源**：第一批允许使用仓库现有、已归一化的 GLB 作为测试资产；页面明确标注“AI 生成链尚未接入”。本批验证 B4 输出进入 B5 的接口和用户行为，不能据此宣告 B4“模型生成”完成。
+3. **笼舍 1:1 来源**：用户输入笼舍内部长、宽、高（mm），生成参数化笼箱（线框 + 地面）。1:1 指真实尺寸参照，不是视觉复刻笼舍外观；预设笼型库后置。
+4. **尺寸调整 = 等比缩放**：不允许分别拉伸三个轴。用户调整一个统一比例或主尺寸，系统按资产原始包围盒计算并常显最终长、宽、高；三轴独立形变属于后续模型修改能力。
+5. **首版摆放类型**：只支持落地或放在水平支撑面上的物品。吊挂、贴壁、顶部安装和安装点建模后置；临时物品库不得展示当前无法正确摆放的品类。
+6. **场景角色**：每个场景恰有一个本次准备制造的 `target`；可以加入零到多个 `context` 参照物。笼舍、通用花枝鼠比例模型和 context 物品均不参与本次制造或报价，界面必须明确标识。
+7. **入口与恢复**：正常主链携带明确的项目、目标物品和已确认模型版本进入场景。App 壳“3D 工作台”只负责继续最近一次 3D 工作；没有可继续项目时进入选择/创建引导，不静默创建项目。工作台常显当前项目和目标物品。
+8. **花枝鼠比例参照**：使用标准成年花枝鼠的简化模型或轮廓，可显隐，并标注“通用比例参照，不代表你的宠物真实体型”。不把现有 Avatar 运行时归一后表述为真实尺寸。
+9. **3D 技术栈试用**：候选为 `react-three-fiber` v9 + drei。正式工作包前先做短技术尖峰；若关键交互或资源生命周期不可靠，保留 three.js 直用方案。AABB、越界、叠放、尺寸换算和快照构造必须是与渲染层无关的纯函数。
 
-选物品（9 个归一化 GLB 临时物品库）→ 摆进 1:1 笼舍 → 确认 → 确认快照落库（C 线报价的输入）。
+## 首版完整竖切
 
-### 用户可见行为首版清单
+```text
+选择现有测试模型
+  → 单品加载与检视
+  → 明确确认模型版本
+  → 输入真实笼舍内部尺寸
+  → 把目标物品放入 1:1 场景
+  → 可选加入参照物
+  → 自动保存并恢复草稿
+  → 明确确认场景版本
+  → 产生可供 B6/B7 与未来 C 线引用的稳定确认标识
+```
 
-- **笼舍**：手输内部长/宽/高（mm）→ 参数化笼箱；尺寸可改，改小后越界物品即时提醒。
-- **物品库**：侧栏列表（9 个 `web/public/scene-assets/*.norm.glb`，缩略图 + 名称）；加入场景、选中、删除。`*.meshy.glb` 未核实烘焙状态，不用。物品库是临时形态，生成链（B2-B4 生成部分）接入后替换为用户自己的模型。
-- **摆放**：地面拖动（「按住拖动」提示，竞品确认项）、绕竖轴旋转、叠放（自动找支撑物贴顶，吸收原型语义）、AABB 防碰撞与越界阻止。
-- **尺寸**：选中物品的包围盒长/宽/高常显（竞品确认项）；目标尺寸输入，默认值取资产 meta.json 推荐尺寸，允许 50–300mm 内调整（权宜范围，可制造边界由 B6/B7 界定）；UI 明示「预览与摆放不代表可制造或适合宠物使用」（PRD 承诺边界）。
-- **相机**：视角立方体 + 回到原点（drei GizmoHelper）；单个重置 / 全部重置。
-- **比例参照**：一只按真实花枝鼠体尺寸归一的静态鼠模型，可显隐（资产来源与真实尺寸数值在 spec 内核定；候选：现有 avatar GLB 运行时归一）。
-- **保存与恢复**：场景编辑自动保存（防抖写库）；刷新、重登、跨设备后恢复。
-- **确认**：确认动作生成不可变快照（ARCHITECTURE §7.4）；确认后场景仍可编辑，再次确认产生新快照，不覆盖历史。
+临时目录资产可以跑通上述行为，但 `temporary_catalog` 模型不具备正式报价资格。真正进入检查、报价和订单前，目标模型必须转为用户拥有的正式 `Asset` 版本，并携带不可变校验信息。
 
-### 明确后置（本批不做）
+## 用户可见行为
 
-测量工具（用户确认作进阶）、三轴旋转与镜像（首版只保留绕竖轴）、材料颜色（B7/B10）、截图分享（B11）、剖切（B6 后台）、GLB 压缩管线（`pink-teapot.norm.glb` 33.6MB，首版按需加载 + loading 态，压缩记为后续项）、预设笼型库、生成链接入、多场景/版本协作（B8）。
+### 阶段一：单品检视与模型确认（B4 预览部分）
 
-## 数据模型草案（spec 内以 zod schema 为字段正本）
+- **测试资产清单固定**：首批只使用明确适合落地/水平支撑的 `.norm.glb`，spec 必须列出精确 `assetKey`、文件、checksum、尺寸来源、占位状态和体积。不得再使用“9 个 GLB”这类无法复核的集合描述。
+- **加载状态**：包含加载进度或明确等待态、加载失败、重试和切换模型时取消旧请求；异常模型不能进入确认。
+- **查看**：旋转、缩放相机、视角立方体、回到原点；不提供专业工程工具箱。
+- **尺寸**：常显资产原始包围盒与等比缩放后的最终长/宽/高（mm）。meta 中的归一化尺寸是测试默认值，不表述为已验证的制造推荐尺寸。
+- **模型确认**：按钮文案明确为“确认此模型，进入场景”。确认冻结模型资产引用、checksum、原始包围盒和确认时间；它只表示用户愿意继续摆放，不表示可制造、适合宠物使用或已经报价。
+- **重新选择**：用户可以返回测试资产列表选择其他模型；新选择产生新的模型确认，不能原地覆盖历史确认。
 
-- `Scene`：`id`、`projectId`（首版一项目一场景，unique；B8 版本协作再扩）、`cageWidthMm/cageDepthMm/cageHeightMm`、`items JSONB`、`createdAt/updatedAt`。
-  - items 元素（`SceneItemSchema`）：`instanceId`、`assetKey`（首版指向 scene-assets 键，预留正式 `assetId` 引用位）、位置、`rotationY`、目标尺寸（mm）。
-- `SceneConfirmation`：`id`、`sceneId`、`snapshot JSONB`（冻结整场景：笼舍尺寸 + 全部物品实例及各自最终 mm 尺寸与资产引用）、`confirmedAt`。不可变：无 update 用例。
-- contract：`packages/server/src/contracts/scenes.ts`，照 `contracts/pets.ts` 已确立的模式（zod 运行时正本，DTO 从 schema 推导）。
+### 阶段二：完整场景确认（B5）
 
-## 接缝与依赖
+- **笼舍**：输入内部长/宽/高（mm）生成参数化笼箱；修改尺寸后立即重新检查越界状态。
+- **目标物品**：从阶段一携带唯一已确认模型进入场景，并始终标识“本次目标物品”。不能在场景内悄悄替换为另一个资产版本。
+- **参照物**：允许加入零到多个临时 context 物品；列表和画布均标识“仅供空间参照，不参与本次制造/报价”。
+- **摆放**：地面拖动、绕竖轴旋转、在水平支撑面叠放、单个重置、全部重置、删除 context。目标物品不能被删除，只能返回阶段一重新选择模型。
+- **尺寸调整**：只允许等比缩放。最终三轴尺寸实时更新；可编辑范围只是交互保护，不得伪装为可制造范围。
+- **边界与碰撞**：旋转后的 world-space AABB、笼舍越界和物品重叠即时提示并阻止确认。AABB 叠放只是首版近似，不得表述为安装、安全或真实接触面验证。
+- **比例参照**：标准成年花枝鼠模型默认可见、可关闭，始终显示“通用比例参照”说明。
+- **相机与视觉**：视角立方体、回到原点、米白背景、软阴影、胶囊工具栏、大留白、少工具；B11 的截图、360° 成片和高质量商品渲染不进入本批。
+- **承诺边界**：常显“模型检视与场景确认不代表可制造或适合宠物使用”。
 
-- **确认 → 报价输入**：报价输入 contract 由电商 session 定义（尚不存在）。本线不等它：确认快照归场景确认模块拥有（ARCHITECTURE §6），快照内包含报价最少需要的字段（物品资产引用 + 最终尺寸 mm）。**落库 spec 闭合前与电商 session 对齐一轮快照字段形状**（待办，编排方执行）。
-- **Pet 档案**：笼舍尺寸首版不与 `Pet.environmentNotes` 打通（该字段是自由文本，无结构化尺寸），后续再议。
-- **原型退役**：`SceneViewer.tsx` / `PetViewer.tsx` 语义吸收后进 `docs/governance/prototype-retirement-ledger.md` 记账（吸收语义不搬代码，A4 先例）。
+### 保存、恢复与确认
 
-## WP 拆分
+- 场景自动保存采用防抖写入，并展示“保存中 / 已保存 / 保存失败，重试”状态。
+- `Scene.revision` 单调递增；客户端保存必须携带读取到的 revision。服务端对陈旧 revision 返回结构化冲突，禁止跨标签页或跨设备无提示覆盖。
+- 刷新、重登、跨设备后恢复服务器草稿；恢复行为用真实数据库和服务器重启验证，不以浏览器内存或 mock 代替。
+- 场景确认前必须满足：目标模型确认存在、目标资产可读取、当前 revision 已保存、笼舍尺寸有效、目标物品未越界且不存在阻断碰撞。
+- 确认绑定精确 `sceneRevision`；同一 Scene + revision 重复提交只返回同一确认结果，不重复制造等价快照。
+- 确认后场景仍可编辑。任何编辑都会显示“当前草稿已不同于最近确认版本”；再次确认创建新快照，不覆盖历史。
 
-- **WP-B45-1 3D 工作台前端 + 场景纯逻辑**：R3F 场景、全部交互、笼箱参数化；AABB/叠放/越界/尺寸换算写成渲染层无关纯函数并 TDD 红绿；视觉沿 WP-A1 基准 + 竞品视觉要点（米白底、软阴影、胶囊工具栏、大留白少工具）。先以内存 state 跑通。
-- **WP-B45-2 场景持久化 + 确认 API**：两表 migration、`contracts/scenes.ts`、`application/scenes.ts`（所有权断言复用现有模式）、`/api/v1/…` 薄 route、前端接线（自动保存 + 恢复 + 确认）。权限类测试先行（A 用户持 B 的 sceneId 读/写/确认 404；未登录 401；确认快照不可变）。
-- 顺序：两包可并行开发，B45-1 落地后接 B45-2 的 API。
-- 编排约定全部沿用 batch-1：TDD 红→绿证据、非实现者 QA 真实浏览器录屏、`gh pr checks --json` 显式判定、执行者独立 worktree、landing 零回归截图、样式作用域自包含（Tailwind preflight 教训）。
+## 数据与 Contract 草案
 
-## 开放项
+字段正本在实施 spec 中由 zod schema 承载，DTO 从 schema 推导。下列对象表达业务边界，不授权 B 线提前定义报价、检查或订单 Contract。
 
-- 尺寸输入范围 50–300mm 是权宜值；正式可制造范围随 B6/B7 收敛。
-- 比例参照鼠模型的资产选择与真实尺寸数值，spec 时核定。
-- R3F 试用评估点：WP-B45-1 收尾时记录开发体验结论；若判定换回 three.js 直用，纯函数层不动，重写仅限组件层。
+### `DesignItem`
+
+- `id`、`projectId`、名称、当前工作引用、`createdAt/updatedAt`。
+- 表示项目中希望制造的目标物品，不承载 Job、检查、报价或订单状态。
+
+### `ModelConfirmation`
+
+- `id`、`designItemId`、`modelRef snapshot`、`sourceBoundsMm`、`confirmedByUserId`、`confirmedAt`。
+- `modelRef` 使用带类型的联合结构：
+  - `temporary_catalog`：`assetKey + checksum`，仅用于本批交互验证，`quoteEligible=false`；
+  - `owned_asset`：`assetId + checksum/version`，正式链使用，并在写入时验证资产归属和 Project 关系。
+- 不提供 update 用例；重新选择模型创建新确认。
+
+### `Scene`
+
+- `id`、`projectId`（首版一项目一活动场景）、`targetDesignItemId`、`targetModelConfirmationId`、`targetInstanceId`、笼舍尺寸、`items JSONB`、`revision`、`createdAt/updatedAt`。
+- `SceneItemSchema` 至少包含：`instanceId`、`role(target|context|pet_reference)`、版本化 `modelRef`、位置（mm）、`rotationYRad`、`uniformScale`、源包围盒和最终包围盒。
+- Schema 约束：恰有一个 target；target 必须对应 `targetModelConfirmationId`；context 与 pet_reference 永不成为报价目标。
+
+### `SceneConfirmation`
+
+- `id`、`sceneId`、`sceneRevision`、`targetDesignItemId`、`targetModelConfirmationId`、`targetInstanceId`、`snapshotSchemaVersion`、`snapshot JSONB`、`confirmedByUserId`、`confirmedAt`。
+- snapshot 冻结：笼舍尺寸、全部场景实例及角色、最终 mm 尺寸、版本化资产引用、确认时 revision。
+- `@@unique([sceneId, sceneRevision])` 支撑确认幂等；无 update 用例。
+
+### 权限与一致性
+
+- Scene、DesignItem、ModelConfirmation 与所有 `owned_asset` 必须属于当前用户和同一 Project；不能只验证 sceneId 的所有权。
+- 访问他人对象统一按现有模式返回 404；未登录返回 401。
+- 自动保存、确认和资产校验在应用层用例完成，Route Handler 只解析 Contract 和映射响应。
+- JSONB 快照携带 `snapshotSchemaVersion`；读取历史快照不能依赖当前可编辑 schema 恰好未变化。
+
+## 与 B6/B7、电商线的接缝
+
+- 场景确认模块拥有 `SceneConfirmation`，对外提供稳定 `sceneConfirmationId`、目标物品身份和版本化模型引用。
+- B6/B7 与未来 C 线自行定义各自输入 Contract 和不可变输入快照；不能直接把 Scene 当前草稿当成价格、安全或订单真相。
+- 首版报价与订单只针对 `targetInstanceId`，context、笼舍和宠物参照不进入订单项。
+- 正式报价前必须拒绝 `temporary_catalog` 模型；只有用户拥有且版本明确的 Asset 可以继续。
+- 落库 spec 闭合前，由编排方与 B6/B7、电商 session 对齐一次最小读取字段；只记录依赖和约束，不由 B 线单方面定义共享 Contract。
+- 笼舍尺寸首版保存在 Scene，不写入 `Pet.environmentNotes`；结构化宠物环境或多笼舍档案另行讨论。
+
+## 明确后置
+
+- AI 生成链和通用模型上传/解析的正式接入；
+- 多候选并排比较、评论、分享与版本协作（B8）；
+- 三轴独立形变、三轴旋转、镜像和局部模型修改；
+- 吊挂、贴壁、顶部安装、安装点和连接件建模；
+- 测量工具、材料/颜色、贴图编辑、截图分享、剖切；
+- 个性化宠物真实体型与 Pet 档案接通；
+- 预设笼型库、多场景和整套场景购买；
+- GLB 压缩生产管线。首版仍必须定义单资产大小上限、加载失败和性能验收，不能以“后续压缩”为由跳过错误路径。
+
+## 工作包与顺序
+
+### WP-B45-0：Contract 闭合 + R3F 技术尖峰
+
+- 冻结两阶段状态、SceneItem/ModelRef/快照 schema、目标与 context 角色、revision 冲突和确认幂等语义。
+- 用代表性 GLB 验证：加载/卸载、错误重试、OrbitControls 与 TransformControls 冲突、地面拖动、GizmoHelper、Html 尺寸标注、Strict Mode 资源释放、移动端指针和同场多模型性能。
+- 记录 R3F 继续/退回 three.js 直用的结论与证据。尖峰通过前不开始完整工作台组件建设。
+
+### WP-B4-1：单品检视与模型确认
+
+- 固定临时资产清单和 provenance；完成单品 Viewer、加载错误、视角、尺寸常显、等比缩放和显式确认。
+- 先以内存和纯 Contract 完成用户行为；持久化接入后验证不可变 ModelConfirmation。
+- 验收不包含 AI 生成成功，不把临时目录资产描述为用户正式资产。
+
+### WP-B5-1：场景交互与纯逻辑
+
+- 参数化笼箱、唯一 target、context 列表、地面拖动、绕 Y 轴旋转、等比缩放、水平叠放、旋转后 AABB、越界、单个/全部重置、标准花枝鼠比例参照。
+- 几何与状态规则先写纯函数红灯测试，再完成渲染层；首轮以内存 state 跑通阶段转换。
+
+### WP-B45-2：持久化与两类确认 API
+
+- 一个串行 migration 窗口落 `DesignItem`、`ModelConfirmation`、`Scene`、`SceneConfirmation` 及必要关系/索引。
+- 新增 `contracts/scenes.ts`、应用层用例和 `/api/v1/...` 薄 Route Handler；接入自动保存、revision 冲突、恢复、模型确认和场景确认。
+- 前端包可以在 WP-B45-0 Contract 冻结后并行实现，但持久化接线依赖前端行为和 API 都完成；不得边做边分叉字段正本。
+- 合并 schema 变更后按批次纪律立即执行并验证 `migrate deploy`；部署链尚未自动执行 migration，在该缺口修复前不能遗漏人工步骤。
+
+## 验收与证据
+
+### 纯逻辑与 Contract
+
+- 等比缩放及最终尺寸换算；旋转后 AABB；笼舍越界；context 碰撞；水平叠放；恰有一个 target；context 永不成为报价目标。
+- ModelRef 联合结构、snapshot schema version、Scene revision 冲突和相同 revision 的确认幂等。
+
+### 真实数据库集成
+
+- 自动保存后服务器重启仍能恢复；陈旧 revision 写入被拒绝；确认快照不可更新。
+- A 用户持 B 的 scene/designItem/modelConfirmation/asset ID 读取、写入或确认均为 404；未登录为 401；跨 Project 资产注入被拒绝。
+- migration 在目标 RDS 实际 applied，并验证相关表、唯一约束和关系存在。
+
+### 真实浏览器用户竖切
+
+- 登录 → 进入明确项目 → 选择测试模型 → 单品检视 → 确认模型 → 输入笼舍尺寸 → 放置唯一 target → 加入 context → 自动保存 → 刷新恢复 → 确认场景。
+- 修改已确认场景后出现“草稿已变化”提示；重新确认得到新版本，旧确认仍可读取。
+- 模型加载失败可重试；保存失败可见；另一标签页制造 revision 冲突时不会静默覆盖。
+- 用户全程可以区分 target、context、通用宠物参照，以及“预览/确认”和“可制造/可报价”的承诺边界。
+
+编排约定沿用 batch-1：实现者 TDD 红→绿证据、非实现者真实浏览器录屏与关键截图、production build、三包类型检查、lint baseline、landing 零回归截图、`gh pr checks --json` 显式判定。每个阶段证据随阶段产出，不集中到最后补写。
+
+## 原型退役
+
+现有 `SceneViewer.tsx` / `PetViewer.tsx` 只作为语义和行为参考。正式两阶段流程验收后，按实际吸收范围更新 `docs/governance/prototype-retirement-ledger.md`；没有行为证据前不得提前宣告原型已退役。
