@@ -4,10 +4,6 @@ on:
   pull_request:
   push:
     branches: [main]
-  # 供 deploy.yml 以 workflow_call 复用为部署前置门禁（免费计划私有仓无法启用
-  # branch protection / rulesets，2026-07-18 实测 403 付费墙——部署级门禁是
-  # 免费档下的最大保护子集；升 Pro 后应另配 main 分支保护）。
-  workflow_call:
 
 jobs:
   quality-gates:
@@ -54,6 +50,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
+
+      - name: Test production release safety invariants
+        run: node --test deploy/tests/*.test.mjs
 
       - name: Activate pnpm via packageManager
         run: corepack prepare --activate
@@ -148,6 +147,13 @@ jobs:
 
       - name: Build worker image (mesh analyzer runtime)
         run: docker build -f deploy/worker.Dockerfile -t petscape-worker-ci:${{ github.sha }} .
+
+      - name: Exercise exact-image production migration no-op
+        run: |
+          docker run --rm --network host \
+            --env DATABASE_URL=postgresql://petscape_ci:petscape_ci@127.0.0.1:5432/petscape_ci \
+            --entrypoint /bin/sh petscape-worker-ci:${{ github.sha }} -lc \
+            'cd /workspace/packages/server && ./node_modules/.bin/prisma migrate deploy'
 
   viewer-touch-e2e:
     name: viewer-touch-e2e

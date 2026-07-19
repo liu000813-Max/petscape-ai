@@ -46,6 +46,12 @@ FROM base AS run
 WORKDIR /workspace
 ENV NODE_ENV=production
 
+# WP-OPS-1: this exact-SHA worker image is also the one-shot Prisma migration
+# runner. Prisma needs OpenSSL available to select its query engine reliably.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+
 # WP-B7-1: pinned server-side mesh analyzer runtime. Dependencies are baked into
 # the image; production jobs never download Python packages at request time.
 COPY --from=ghcr.io/astral-sh/uv:0.8.12 /uv /usr/local/bin/uv

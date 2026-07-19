@@ -1,27 +1,49 @@
 name: Deploy
 
 on:
-  push:
+  # Only a completed CI push run on main may create a production release. This
+  # consumes the already-finished CI result instead of calling ci.yml again.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# A single production lane prevents two successful main CI runs from changing
+# ECS concurrently. Older queued runs re-check main immediately before migrate.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
-  # 部署前置门禁：main 上 quality-gates 不绿不部署（替代付费墙后的分支保护）。
-  gate:
-    uses: ./.github/workflows/ci.yml
-
-  build-and-push:
-    needs: gate
+  resolve:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
     runs-on: ubuntu-latest
     outputs:
-      image-tag: ${{ steps.tag.outputs.value }}
+      target_sha: ${{ steps.target.outputs.sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Bind release to successful CI head SHA
+        id: target
+        env:
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [[ ! "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "invalid CI head SHA: $TARGET_SHA" >&2
+            exit 1
+          fi
+          echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+          echo "release.target_sha=$TARGET_SHA ci_run=${{ github.event.workflow_run.id }}"
 
-      - name: Resolve image tag (git SHA)
-        id: tag
-        run: echo "value=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+  build-and-push:
+    needs: resolve
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact CI-tested SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.target_sha }}
 
       - name: Set up QEMU (cross-arch emulation for linux/amd64)
         uses: docker/setup-qemu-action@v3
@@ -44,8 +66,8 @@ jobs:
           platforms: linux/amd64
           push: true
           build-args: |
-            GIT_SHA=${{ github.sha }}
-          tags: ${{ secrets.ACR_REGISTRY }}/petscape/web:${{ steps.tag.outputs.value }}
+            GIT_SHA=${{ needs.resolve.outputs.target_sha }}
+          tags: ${{ secrets.ACR_REGISTRY }}/petscape/web:${{ needs.resolve.outputs.target_sha }}
 
       - name: Build & push worker image
         uses: docker/build-push-action@v6
@@ -54,45 +76,73 @@ jobs:
           file: deploy/worker.Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ secrets.ACR_REGISTRY }}/petscape/worker:${{ steps.tag.outputs.value }}
+          tags: ${{ secrets.ACR_REGISTRY }}/petscape/worker:${{ needs.resolve.outputs.target_sha }}
 
   deploy:
-    needs: build-and-push
+    needs: [resolve, build-and-push]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout deployment scripts
+      - name: Checkout exact CI-tested deployment scripts
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.target_sha }}
+          fetch-depth: 0
+
+      # If main advanced while an older release was building or queued, the old
+      # run exits successfully without touching RDS/ECS. The newer successful CI
+      # run owns the next serialized release.
+      - name: Reject stale release before production mutation
+        id: freshness
+        env:
+          TARGET_SHA: ${{ needs.resolve.outputs.target_sha }}
+        run: |
+          LATEST_MAIN_SHA="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$LATEST_MAIN_SHA" == "$TARGET_SHA" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "release.fresh target=$TARGET_SHA"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping stale release target=$TARGET_SHA latest_main=$LATEST_MAIN_SHA"
+          fi
 
       - name: Set up SSH
+        if: steps.freshness.outputs.deploy == 'true'
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.DEPLOY_SSH_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Preflight disk and preserve rollback image IDs
+      - name: Upload exact-SHA release scripts and preflight
+        if: steps.freshness.outputs.deploy == 'true'
         run: |
-          scp -i ~/.ssh/deploy_key deploy/ecs-image-retention.sh \
-            "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}:/tmp/petscape-image-retention.sh"
+          scp -i ~/.ssh/deploy_key deploy/ecs-image-retention.sh deploy/ecs-release.sh \
+            "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}:/tmp/"
           ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
-            "chmod 700 /tmp/petscape-image-retention.sh && /tmp/petscape-image-retention.sh pre"
+            "chmod 700 /tmp/ecs-image-retention.sh /tmp/ecs-release.sh && /tmp/ecs-image-retention.sh pre"
 
-      - name: Pull & restart on ECS
-        env:
-          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+      - name: Log in to ECS ACR mirror
+        if: steps.freshness.outputs.deploy == 'true'
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
-            "cd /opt/petscape-compose && \
-             echo 'ACR_REGISTRY=${{ secrets.ACR_REGISTRY_VPC }}' > .deploy.env && \
-             echo 'IMAGE_TAG=${IMAGE_TAG}' >> .deploy.env && \
-             docker --config /root/.docker-acr login ${{ secrets.ACR_REGISTRY_VPC }} -u '${{ secrets.ALIBABA_CLOUD_ACR_USERNAME }}' -p '${{ secrets.ALIBABA_CLOUD_ACR_PASSWORD }}' && \
-             docker --config /root/.docker-acr compose --env-file .deploy.env pull && \
-             docker --config /root/.docker-acr compose --env-file .deploy.env up -d && \
-             rm -f .deploy.env"
+          printf '%s' '${{ secrets.ALIBABA_CLOUD_ACR_PASSWORD }}' | \
+            ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
+              "docker --config /root/.docker-acr login '${{ secrets.ACR_REGISTRY_VPC }}' --username '${{ secrets.ALIBABA_CLOUD_ACR_USERNAME }}' --password-stdin"
 
-      - name: Verify containers healthy
+      # ecs-release.sh runs migrations from the exact-SHA worker image first. Any migrate
+      # failure exits non-zero before compose pull/up, leaving old containers in
+      # service. "No pending migrations" is the normal successful no-op path.
+      - name: Migrate then switch exact-SHA application images
+        if: steps.freshness.outputs.deploy == 'true'
         env:
-          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+          TARGET_SHA: ${{ needs.resolve.outputs.target_sha }}
         run: |
           ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
-            "/tmp/petscape-image-retention.sh post '${IMAGE_TAG}'"
+            "/tmp/ecs-release.sh '$TARGET_SHA' '${{ secrets.ACR_REGISTRY_VPC }}'"
+
+      - name: Verify exact-SHA containers healthy
+        if: steps.freshness.outputs.deploy == 'true'
+        env:
+          TARGET_SHA: ${{ needs.resolve.outputs.target_sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
+            "/tmp/ecs-image-retention.sh post '$TARGET_SHA'"
