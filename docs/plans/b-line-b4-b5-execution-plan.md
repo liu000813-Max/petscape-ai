@@ -34,7 +34,14 @@
 
 ## 视觉定稿参考（2026-07-19）
 
-两阶段工作台的视觉与交互定调基准 = `docs/plans/assets/b45-prototype/`（designer 探索稿快照，用户 2026-07-19 认可；打开方式、定调要点、开放项与资产事实见其 README）。工作台实现沿用该稿的 psx token 复用、米白视口、胶囊工具栏与状态呈现方式；README 中两处开放项在对应 WP 实现时决定，`starry-hideout.norm.glb` 无材质无法线的事实必须在 WP-B4-1 固定资产清单时处理。
+两阶段工作台的视觉与交互定调基准 = `docs/plans/assets/b45-prototype/`（designer 探索稿快照，用户 2026-07-19 认可；打开方式、定调要点、开放项与资产事实见其 README）。工作台实现沿用该稿的 psx token 复用、米白视口、胶囊工具栏与状态呈现方式；README 中两处开放项及 `starry-hideout.norm.glb` 的处置已由下方“本批默认实现”闭合。
+
+### 本批默认实现（2026-07-19，用户确认）
+
+- 阶段一右栏保留探索稿的 editorial 留白，本批不新增「检视要点」卡；花枝鼠比例参照继续用程序化简化模型，保留“通用比例参照”说明，不引入真实宠物模型制作。
+- 首批 target 测试资产固定为 `cheese-lounge-bed`、`banana-bed`、`cheese-play-mat`；context 测试资产固定为 `cloud-moss-platform`、`star-spiral-ramp`。
+- `cloud-hammock`、`hanging-climb-baskets`、梯子类资产因本批不支持吊挂/安装而剔除；`starry-hideout` 本批直接剔除，不投入材质修复工作。
+- 上述临时资产全部是交互验证 fixture，必须以精确文件、checksum、meta 尺寸和 sandbox 状态登记，不能因此获得正式报价资格。
 
 ## 用户可见行为
 
@@ -68,9 +75,11 @@
 - 确认绑定精确 `sceneRevision`；同一 Scene + revision 重复提交只返回同一确认结果，不重复制造等价快照。
 - 确认后场景仍可编辑。任何编辑都会显示“当前草稿已不同于最近确认版本”；再次确认创建新快照，不覆盖历史。
 
-## 数据与 Contract 草案
+## 数据与 Contract spec（2026-07-19 闭合）
 
 字段正本在实施 spec 中由 zod schema 承载，DTO 从 schema 推导。下列对象表达业务边界，不授权 B 线提前定义报价、检查或订单 Contract。
+
+本批采用以下持久化边界：每个 Project 首版只有一个活动 `Scene`；`Scene.items` 使用版本化 JSONB，不建立 `SceneItem` 数据表；`Scene` 是带 `revision` 乐观锁的可编辑草稿，`ModelConfirmation` 与 `SceneConfirmation` 是 append-only 不可变历史。
 
 ### `DesignItem`
 
@@ -82,12 +91,12 @@
 - `id`、`designItemId`、`modelRef snapshot`、`sourceBoundsMm`、`confirmedByUserId`、`confirmedAt`。
 - `modelRef` 使用带类型的联合结构：
   - `temporary_catalog`：`assetKey + checksum`，仅用于本批交互验证，`quoteEligible=false`；
-  - `owned_asset`：`assetId + checksum/version`，正式链使用，并在写入时验证资产归属和 Project 关系。
+  - `owned_asset`：`assetId + sha256 checksum`，正式链使用，并在写入时验证 checksum 非空、资产归属和 Project 关系；资产内容变化创建新 `Asset`，不覆盖旧二进制，本批不新增 `AssetVersion` 表。
 - 不提供 update 用例；重新选择模型创建新确认。
 
 ### `Scene`
 
-- `id`、`projectId`（首版一项目一活动场景）、`targetDesignItemId`、`targetModelConfirmationId`、`targetInstanceId`、笼舍尺寸、`items JSONB`、`revision`、`createdAt/updatedAt`。
+- `id`、`projectId`（首版一项目一活动场景，数据库唯一约束）、`targetDesignItemId`、`targetModelConfirmationId`、`targetInstanceId`、笼舍尺寸、`items JSONB`、`revision`、`createdAt/updatedAt`。
 - `SceneItemSchema` 至少包含：`instanceId`、`role(target|context|pet_reference)`、版本化 `modelRef`、位置（mm）、`rotationYRad`、`uniformScale`、源包围盒和最终包围盒。
 - Schema 约束：恰有一个 target；target 必须对应 `targetModelConfirmationId`；context 与 pet_reference 永不成为报价目标。
 

@@ -32,11 +32,35 @@
 - **定价公式 v1 参数**（版本化 append-only seed）：售价 = max(起步价, (材料成本 + 基础制作费) × 倍数)；基础制作费 **¥25**（覆盖后处理/包装/包邮运费）、售价倍数 **×2.5**、起步价 **¥129**——定制定位对齐市场定制类锚点（¥184~240），高于规模化仓鼠窝成品区间（¥17~74）。
 - **展示口径**：CNY、含税一口价（价内含税不单列，C 端零售惯例；发票能力后置 E4）；正式报价向上取整到整元；存储用整数分（cent）+ Decimal 计算，禁浮点。
 
-### 仍未确认（开对应工作包前必须显式确认）
+### 仍未确认（不阻塞沙箱 Goal，真实交易开放前必须显式确认）
 
 - **FDM 材料按克单价真值**：占位 0.35 元/g——定向询价（2026-07-19）实测一手区间 0.2~0.8 元/g，占位在区间内**维持但仍非真值**；PETG 加价与颜色加价均无公开证据，行业主流为人工报价，真值需联系供应商询价，随工艺/供应商选定一并拍板；PLA 白/黑只能作为禁用测试 seed，不能默认成为可售材料；
 - 制作工艺细节（层高/填充率/圆角后处理标准）与供应商选定；
 - 首个真实支付渠道的可用产品形态与资质完成时间。
+
+上述三项不阻塞批次 2 沙箱 Goal：执行者不得自行把占位或 mock 升级为真实交易事实，也不得以等待真值为由停止沙箱骨架。
+
+### 批次 2 沙箱默认授权（2026-07-19，用户确认）
+
+#### 资产、材料与价格
+
+- `owned_asset` 的正式候选身份使用 `Asset.id + sha256 checksum`；checksum 为空只能预览，内容变化创建新 Asset，本批不新增 AssetVersion 表。`temporary_catalog` 使用 `assetKey + checksum` 且强制 `sandbox_only`。
+- 首发测试商品固定 `cheese-lounge-bed`，材料固定显示为“PETG 奶酪黄（沙箱）”，本批不做材料选择器。
+- 新增不可售的 `PricingRule v0-sandbox`：材料占位价 0.35 元/g，公式沿用已拍板的 ¥25、×2.5、¥129 与整元向上取整。该规则只能生成清晰标记的沙箱预估/测试报价，正式 Quote 门禁必须拒绝。
+
+#### 状态机与权限
+
+- `CustomizationRequest.status = draft | submitted | superseded | canceled`；审核结论不复制进 Request，新提交产生新版本并保留历史。
+- `CheckRun.status = queued | in_review | completed`，完成时 `result = approved | rejected | uncertain`；普通用户不能审核。
+- Quote 只在 CheckRun approved 且 B7 输入完整后创建，`Quote.status = active | accepted | expired | superseded | canceled`；不建立 `pending_review` Quote。
+- `PaymentIntent.status = requires_action | processing | succeeded | failed | canceled | needs_attention`；`Order.status = paid | canceled`。制作、生产、发货和收货状态由 C6-C9 后续定义。
+- `User.role` 首版仅 `user | admin`，不建设 RBAC；角色授予通过窄用途、append-only 的持久审计记录留痕，CheckRun 自身记录审核动作与规则/checklist 版本。
+
+#### 用户可见输入
+
+- C1 表单只读展示物品、尺寸、资产和 SceneConfirmation；可编辑字段为 `contactName`、`contactPhone`、`usageDescription` 与可选 `additionalRequirements`。
+- C5 当前结算地址字段为 `recipientName`、`mobile`、`province`、`city`、`district`、`detail` 与可选 `postalCode`；不建设地址簿，Order 冻结完整地址快照。
+- C3 只实现 sandbox provider，但 provider port、异步事件去重和主动查单必须真实可替换；生产环境 mock provider fail-closed，交易 feature flag 保持关闭。
 
 ## 三、跨线输入语义
 
@@ -78,7 +102,7 @@ C 线现在冻结消费侧最小 contract v0，不等待 Viewer 内部实现成�
 
 - `Estimate`：实时计算、非支付承诺、可不落库；页面必须明确标注“预估”。
 - `Quote`：仅在 C1 已提交、B6 可信结论为通过、B7 输入完整后生成或激活；绑定输入快照、规则版本、金额明细、币种、税口径、交期和有效期。
-- 建议 Quote 生命周期：`pending_review → active → accepted → expired | superseded | canceled`。精确枚举在 WP-C2-1 spec 中确认。
+- Quote 生命周期已闭合为 `active → accepted | expired | superseded | canceled`；审核等待属于 Request/CheckRun，不在 Quote 重复建 `pending_review`。
 - 设计、尺寸、材料或关键规则变化不得原地改写旧 Quote；应使旧 Quote 失效并创建新版本。
 
 ### 4.2 支付成功与订单生成
@@ -95,9 +119,9 @@ C 线现在冻结消费侧最小 contract v0，不等待 Viewer 内部实现成�
 - v1 只要求填写、修改和确认当前结算地址；多地址与默认地址后补。
 - Order 保存不可变配送地址快照。用户后来修改个人地址，不得覆盖历史订单。
 
-## 五、候选数据模型（开工前逐包闭 spec）
+## 五、数据模型框架（字段按上述默认授权逐包闭 spec）
 
-当前候选为 **10 张新表 + `User.role`**；每张表的精确字段、索引和状态枚举仍需在对应 WP 的 spec 中确认：
+框架为 **10 张新表 + `User.role`**；各 WP 在上述已确认状态机和用户输入边界内机械闭合精确字段与索引，不再逐项向用户重问：
 
 | 表 | 角色 | 关键约束 |
 |---|---|---|
