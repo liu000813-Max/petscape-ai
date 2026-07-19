@@ -60,7 +60,7 @@ test('全部必需键提供时 loadWorkerConfig 校验通过（含供应商 key 
   assert.equal(config.NODE_ENV, 'production');
   assert.equal(config.FAL_KEY, 'fal-test-key');
   assert.equal(config.UV_BIN, '/usr/local/bin/uv');
-  assert.equal(config.WORKER_JOB_TYPES, 'sample.echo,mesh_analysis');
+  assert.equal(config.WORKER_JOB_TYPES, 'sample.echo,mesh_analysis,order_recovery');
   assert.equal(config.MESH_ANALYZER_PYTHON_BIN, 'python3');
 });
 

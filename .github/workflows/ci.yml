@@ -197,6 +197,20 @@ jobs:
           path: web/test-results/c3-payments/
           if-no-files-found: warn
 
+      - name: Test C4 order flow (real Next + PostgreSQL + Chromium)
+        working-directory: web
+        run: node --test tests/e2e-orders.test.mjs
+        env:
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+
+      - name: Upload C4 browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-c4-1-browser-evidence
+          path: web/test-results/c4-orders/
+          if-no-files-found: warn
+
       - name: Prisma validate (packages/server)
         run: pnpm --filter @petscape/server exec prisma validate
 

@@ -27,9 +27,10 @@ import {
   logError,
   type JobRecord,
 } from '@petscape/server/worker-api';
-import { RetryableError, type JobHandler } from './handlers/types.ts';
+import { NeedsAttentionError, RetryableError, type JobHandler } from './handlers/types.ts';
 import { sampleEchoHandler } from './handlers/sampleEcho.ts';
 import { meshAnalysisHandler } from './handlers/meshAnalysis.ts';
+import { orderRecoveryHandler } from './handlers/orderRecovery.ts';
 
 // 本地开发约定：worker/package.json 的 dev/start 脚本用
 // `--env-file=../.env` 指向仓库根目录 `.env`；部署环境由 Compose 直接注入，
@@ -72,7 +73,10 @@ const oss = new OssStorage({
 });
 
 const workerId = `worker-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
-const jobTypes = config.WORKER_JOB_TYPES.split(',').map((t) => t.trim()).filter(Boolean);
+const jobTypes = [...new Set([
+  ...config.WORKER_JOB_TYPES.split(',').map((t) => t.trim()).filter(Boolean),
+  'order_recovery',
+])];
 const leaseSeconds = config.WORKER_LEASE_SECONDS;
 const heartbeatIntervalMs = Math.max(1000, Math.floor((leaseSeconds * 1000) / 3));
 
@@ -87,6 +91,7 @@ logInfo('worker.config', {
 const handlers: Record<string, JobHandler> = {
   'sample.echo': sampleEchoHandler,
   mesh_analysis: meshAnalysisHandler,
+  order_recovery: orderRecoveryHandler,
 };
 
 /**
@@ -213,7 +218,7 @@ async function runJob(job: JobRecord): Promise<void> {
       });
       return;
     }
-    const errorClass = error instanceof RetryableError ? 'retryable' : 'permanent';
+    const errorClass = error instanceof RetryableError ? 'retryable' : error instanceof NeedsAttentionError ? 'manual' : 'permanent';
     const message = error instanceof Error ? error.message : String(error);
     const domainErrorCode =
       error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'

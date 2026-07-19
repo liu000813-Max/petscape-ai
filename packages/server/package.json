@@ -21,6 +21,7 @@
     "./contracts/quotes": "./src/contracts/quotes.ts",
     "./contracts/delivery-addresses": "./src/contracts/delivery-addresses.ts",
     "./contracts/payments": "./src/contracts/payments.ts",
+    "./contracts/orders": "./src/contracts/orders.ts",
     "./worker-api": "./src/worker-api.ts"
   },
   "scripts": {

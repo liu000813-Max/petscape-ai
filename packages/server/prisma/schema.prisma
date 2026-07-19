@@ -65,6 +65,8 @@ model User {
   quotes                Quote[]
   deliveryAddresses     DeliveryAddress[]
   paymentIntents        PaymentIntent[]
+  orders                Order[]
+  orderStatusHistory    OrderStatusHistory[]
 
   @@map("user")
 }
@@ -497,6 +499,7 @@ model CustomizationRequest {
   supersededByRequest CustomizationRequest? @relation("CustomizationRequestSupersession")
   checkRun            CheckRun?
   quotes              Quote[]
+  orders              Order[]
 
   submittedAt DateTime
   canceledAt  DateTime?
@@ -548,6 +551,7 @@ model CheckRun {
   createdAt        DateTime  @default(now())
 
   quotes Quote[]
+  orders Order[]
 
   @@index([status, createdAt])
   @@index([reviewerUserId, status])
@@ -598,6 +602,7 @@ model Quote {
   supersededByQuote Quote?  @relation("QuoteSupersession")
   deliveryAddress   DeliveryAddress?
   paymentIntent     PaymentIntent?
+  order             Order?
 
   validFrom    DateTime
   expiresAt    DateTime
@@ -689,6 +694,7 @@ model PaymentIntent {
 
   attempts PaymentAttempt[]
   events   PaymentEvent[]
+  order    Order?
 
   @@unique([ownerUserId, idempotencyKey], map: "payment_intent_owner_idempotency_key")
   @@index([ownerUserId, createdAt])
@@ -746,4 +752,61 @@ model PaymentEvent {
   @@index([paymentIntentId, receivedAt])
   @@index([paymentAttemptId, occurredAt])
   @@map("payment_event")
+}
+
+// ---- WP-C4-1：沙箱订单、不可变快照与可恢复补单 ----
+// Order 只消费可信 succeeded PaymentIntent；同一 paymentIntentId 唯一。
+// 数据库 trigger 校验金额、购买/审核/地址快照并自动写入初始状态历史。
+model Order {
+  id          String @id @default(cuid())
+  ownerUserId String
+  owner       User   @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+
+  paymentIntentId String        @unique
+  paymentIntent   PaymentIntent @relation(fields: [paymentIntentId], references: [id], onDelete: Restrict)
+  quoteId         String        @unique
+  quote           Quote         @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  requestId       String
+  request         CustomizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  checkRunId      String
+  checkRun        CheckRun      @relation(fields: [checkRunId], references: [id], onDelete: Restrict)
+
+  status      String
+  sandboxOnly Boolean
+  amountCent  Int
+  currency    String
+
+  productCode        String
+  materialName       String
+  materialVersion    String
+  pricingRuleVersion String
+  purchaseSnapshot   Json
+  deliveryAddressSnapshot Json
+
+  paidAt   DateTime
+  createdAt DateTime @default(now())
+
+  history OrderStatusHistory[]
+
+  @@index([ownerUserId, createdAt])
+  @@index([status, createdAt])
+  @@map("order")
+}
+
+model OrderStatusHistory {
+  sequence BigInt @id @default(autoincrement())
+  orderId  String
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  actorUserId String?
+  actor       User?   @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  fromStatus String?
+  toStatus   String
+  reason     String
+  source     String
+  createdAt  DateTime @default(now())
+
+  @@index([orderId, sequence])
+  @@index([actorUserId, createdAt])
+  @@map("order_status_history")
 }

@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import {
   CreateQuoteSchema,
   QuoteDeliveryEstimateSchema,
+  QuoteInputSnapshotSchema,
+  QuotePriceBreakdownSchema,
   QuoteResponseSchema,
   QuoteTransitionSchema,
   type CreateQuote,
@@ -145,7 +147,7 @@ async function resolveInputs(prisma: PrismaClient, ownerUserId: string, input: C
     material,
     rule: { ...rule, multiplier: rule.multiplier.toString() },
   });
-  const inputSnapshot = {
+  const inputSnapshot = QuoteInputSnapshotSchema.parse({
     schemaVersion: 'quote-input.v0',
     request: {
       id: request.id,
@@ -164,8 +166,8 @@ async function resolveInputs(prisma: PrismaClient, ownerUserId: string, input: C
       completedAt: checkRun.completedAt.toISOString(),
     },
     b7: { estimateJobId: job.id, jobInput, analysis },
-  };
-  const priceBreakdown = {
+  });
+  const priceBreakdown = QuotePriceBreakdownSchema.parse({
     schemaVersion: 'quote-price.v0',
     materialCostCent: price.materialCostCent,
     weightGrams: price.weightGrams,
@@ -175,7 +177,7 @@ async function resolveInputs(prisma: PrismaClient, ownerUserId: string, input: C
     amountBeforeRoundingCent: price.amountBeforeRoundingCent,
     amountCent: price.amountCent,
     formulaVersion: rule.formulaVersion,
-  };
+  });
   const inputFingerprint = canonicalHash({
     quoteMode: input.quoteMode,
     inputSnapshot,

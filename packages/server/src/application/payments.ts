@@ -13,6 +13,8 @@ import { NotFoundError } from '../domain/index.ts';
 import type { PrismaClient } from '../infra/db/index.ts';
 import { DeliveryAddressEligibilityError, getConfirmedDeliveryAddressInput } from './delivery-addresses.ts';
 import { PaymentProviderDisabledError, type PaymentProviderPort } from './payment-provider.ts';
+import { ORDER_RECOVERY_JOB_TYPE, ensureOrderForSucceededPayment } from './orders.ts';
+import { createJob } from '../infra/jobs/index.ts';
 
 export class PaymentConflictError extends Error {
   constructor(message: string) { super(message); this.name = 'PaymentConflictError'; }
@@ -325,6 +327,15 @@ async function applyVerifiedEvent(
         await tx.paymentIntent.update({ where: { id: intent.id }, data: {
           ...intentStateData(event.status, occurredAt), lastAppliedEventId: storedEvent.id,
         } });
+        if (event.status === 'succeeded') {
+          await createJob(tx as PrismaClient, {
+            type: ORDER_RECOVERY_JOB_TYPE,
+            ownerUserId: intent.ownerUserId,
+            idempotencyKey: intent.id,
+            input: { schemaVersion: 'order-recovery.v0', paymentIntentId: intent.id },
+            maxAttempts: 5,
+          });
+        }
       }
       return { duplicate: false as const, paymentIntentId: intent.id };
       }, { isolationLevel: 'Serializable' });
@@ -347,7 +358,9 @@ export async function ingestPaymentEvent({ prisma, provider, rawBody, signature,
   await requireTrustedProvider(prisma, provider);
   const verified = await provider.verifyEvent(rawBody, signature);
   const event = ProviderEventSchema.parse(verified.event);
-  return applyVerifiedEvent(prisma, event, source, verified.persistenceProof);
+  const applied = await applyVerifiedEvent(prisma, event, source, verified.persistenceProof);
+  await ensureOrderForSucceededPayment({ prisma, paymentIntentId: applied.paymentIntentId });
+  return applied;
 }
 
 export async function reconcilePaymentIntent({ prisma, provider, ownerUserId, paymentIntentId }: {
@@ -371,6 +384,7 @@ export async function reconcilePaymentIntent({ prisma, provider, ownerUserId, pa
     failureMessage: queried.status === 'failed' ? '沙箱支付失败' : null,
   });
   await applyVerifiedEvent(prisma, event, 'query', verified.persistenceProof);
+  await ensureOrderForSucceededPayment({ prisma, paymentIntentId });
   return getPaymentIntent({ prisma, ownerUserId, paymentIntentId });
 }
 

@@ -66,3 +66,5 @@ export type {
   RecoverOrphanResult,
   RecoverOrphanAction,
 } from './infra/jobs/index.ts';
+
+export { processOrderRecoveryJob } from './application/orders.ts';

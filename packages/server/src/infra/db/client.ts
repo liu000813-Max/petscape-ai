@@ -9,7 +9,7 @@
 // web pool max + worker pool max + migration 预留 < 实例 max_connections 实测值）。
 // 本模块不读 process.env——按 lint 边界规则，配置只应从 infra/config 消费。
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../../generated/prisma/client.js';
+import { PrismaClient, type Prisma } from '../../generated/prisma/client.js';
 
 export interface CreatePrismaClientOptions {
   /** 已校验的数据库连接串（来自 infra/config 的 DATABASE_URL）。 */
@@ -38,3 +38,4 @@ export function createPrismaClient({
 }
 
 export type { PrismaClient } from '../../generated/prisma/client.js';
+export type PrismaInputJsonValue = Prisma.InputJsonValue;

@@ -3,4 +3,4 @@
 // schema/client 已在 WP-2.3 落地（探针表 + Better Auth 四表）；
 // 正式业务 repositories 从 WP-3.1 起逐包添加。
 export { createPrismaClient } from './client.ts';
-export type { CreatePrismaClientOptions, PrismaClient } from './client.ts';
+export type { CreatePrismaClientOptions, PrismaClient, PrismaInputJsonValue } from './client.ts';

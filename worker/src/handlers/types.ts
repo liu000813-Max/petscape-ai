@@ -16,6 +16,14 @@ export class RetryableError extends Error {
   }
 }
 
+/** Handler cannot safely repair automatically; failJob records a durable needs_attention outcome. */
+export class NeedsAttentionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NeedsAttentionError';
+  }
+}
+
 export interface JobHandlerContext {
   /** 当前认领该任务的 workerId（供 handler 需要时使用，例如日志标注）。 */
   workerId: string;
