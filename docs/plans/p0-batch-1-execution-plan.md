@@ -148,4 +148,6 @@ WP-A4-1（宠物档案）：等 Pet 字段讨论收敛拍板 → 闭合 spec 派
 R 线调研 ✅（报告已入 docs/plans/，ADR 草案挂 B6/B7 前置）
 ```
 
-**当前批次状态（2026-07-19）**：模块 A3（注册登录，含邮箱与双向绑定）与 WP-A4-1 已完成实现和本地 production 行为验收。A4 的字段/关系决策正本见 `docs/plans/wp-a3-pet-schema-agreed.md`，行为证据见 `docs/operations/wp-a4-1-qa/`。PR #30 仍须完成 CI、生产 migration 先行、合并后 ECS `/pets` 冒烟，才能宣告 A 线锚点闭环完成；随后再定批次 2（B 线吸收 + C 骨架）范围。
+**当前批次状态（2026-07-19）**：模块 A3（注册登录，含邮箱与双向绑定）与 WP-A4-1 已完成实现和本地 production 行为验收。A4 的字段/关系决策正本见 `docs/plans/wp-a3-pet-schema-agreed.md`，行为证据见 `docs/operations/wp-a4-1-qa/`。
+
+**PR #30 收尾核验（2026-07-19 复核）**：①生产 migration 已确认执行——RDS `_prisma_migrations` 中 `20260719090000_a4_pets_and_user_owned_assets` finished_at=2026-07-19 02:51(+08)，`Pet` 表存在（psql 实查）；②ECS 冒烟通过——现网版本 `44be4e8`（healthz `db:true`），未登录 `/pets` 307→`/login`、`/api/v1/pets` 401 结构化响应，无 P2021。技术侧收尾完成；**锚点闭环最终宣告仍待用户亲手走批次完成定义四步**（注册登录→建档案含照片→重启后仍在→他人不可见）。随后再定批次 2（B 线吸收 + C 骨架）范围。
