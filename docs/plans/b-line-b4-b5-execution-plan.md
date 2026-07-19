@@ -1,6 +1,6 @@
 # B 线执行文档：B4 单品检视 + B5 场景确认首版
 
-状态：v2（2026-07-19，用户复核 PR #31 后修订）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`（B4/B5）、`ARCHITECTURE.md` §6、§7.3、§7.4、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/plans/p0-batch-1-execution-plan.md`。
+状态：v3（2026-07-19，批次 2 跨线收敛：接缝节按用户拍板改写，新增 WP-B45-3 producer adapter）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`（B4/B5）、`ARCHITECTURE.md` §6、§7.3、§7.4、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/plans/p0-batch-1-execution-plan.md`。
 
 本版取代 PR #31 中“单页完成 B4+B5、选中场景物品即预览”的范围切法。首版采用两个明确阶段：用户先检视并确认单个目标模型版本，再把该模型放入完整场景确认尺寸、摆放和空间关系。提议、预览、模型确认、场景确认、制作/安全检查、报价和订单是不同承诺，不得混写。
 
@@ -31,6 +31,10 @@
 ```
 
 临时目录资产可以跑通上述行为，但 `temporary_catalog` 模型不具备正式报价资格。真正进入检查、报价和订单前，目标模型必须转为用户拥有的正式 `Asset` 版本，并携带不可变校验信息。
+
+## 视觉定稿参考（2026-07-19）
+
+两阶段工作台的视觉与交互定调基准 = `docs/plans/assets/b45-prototype/`（designer 探索稿快照，用户 2026-07-19 认可；打开方式、定调要点、开放项与资产事实见其 README）。工作台实现沿用该稿的 psx token 复用、米白视口、胶囊工具栏与状态呈现方式；README 中两处开放项在对应 WP 实现时决定，`starry-hideout.norm.glb` 无材质无法线的事实必须在 WP-B4-1 固定资产清单时处理。
 
 ## 用户可见行为
 
@@ -100,13 +104,14 @@
 - 自动保存、确认和资产校验在应用层用例完成，Route Handler 只解析 Contract 和映射响应。
 - JSONB 快照携带 `snapshotSchemaVersion`；读取历史快照不能依赖当前可编辑 schema 恰好未变化。
 
-## 与 B6/B7、电商线的接缝
+## 与 B6/B7、电商线的接缝（2026-07-19 批次 2 收敛，用户拍板）
 
 - 场景确认模块拥有 `SceneConfirmation`，对外提供稳定 `sceneConfirmationId`、目标物品身份和版本化模型引用。
-- B6/B7 与未来 C 线自行定义各自输入 Contract 和不可变输入快照；不能直接把 Scene 当前草稿当成价格、安全或订单真相。
+- **跨线输入 contract 以 C 线执行文档的 `WP-SEAM-0` 为正本**：版本化 zod contract 落共享 `packages/server/src/contracts/`，由 C 线 session 起草、B 线 session 会签；不再由各线自行定义输入 Contract 或由编排方逐字段对齐。contract 只约束跨线输出，不规定本线数据库表或内部状态机。
+- **下游报价输入绑定 `SceneConfirmation`**（不是 `ModelConfirmation`）：contract 携带 `targetInstanceId` 的最终 mm 尺寸；`ModelConfirmation` 只作为快照内的间接引用。任何下游都不能直接把 Scene 当前草稿当成价格、安全或订单真相。
+- **B 线拥有 producer adapter 与 provider conformance test**（见 WP-B45-3）：把 `SceneConfirmation` 映射为 WP-SEAM-0 contract 并通过双方共同的兼容性测试。
 - 首版报价与订单只针对 `targetInstanceId`，context、笼舍和宠物参照不进入订单项。
-- 正式报价前必须拒绝 `temporary_catalog` 模型；只有用户拥有且版本明确的 Asset 可以继续。
-- 落库 spec 闭合前，由编排方与 B6/B7、电商 session 对齐一次最小读取字段；只记录依赖和约束，不由 B 线单方面定义共享 Contract。
+- `temporary_catalog` 模型的场景确认经 producer 只能生成 sandbox 来源的下游请求；正式报价必须拒绝，只有用户拥有且版本明确的 Asset 可以继续。
 - 笼舍尺寸首版保存在 Scene，不写入 `Pet.environmentNotes`；结构化宠物环境或多笼舍档案另行讨论。
 
 ## 明确后置
@@ -144,7 +149,13 @@
 - 一个串行 migration 窗口落 `DesignItem`、`ModelConfirmation`、`Scene`、`SceneConfirmation` 及必要关系/索引。
 - 新增 `contracts/scenes.ts`、应用层用例和 `/api/v1/...` 薄 Route Handler；接入自动保存、revision 冲突、恢复、模型确认和场景确认。
 - 前端包可以在 WP-B45-0 Contract 冻结后并行实现，但持久化接线依赖前端行为和 API 都完成；不得边做边分叉字段正本。
-- 合并 schema 变更后按批次纪律立即执行并验证 `migrate deploy`；部署链尚未自动执行 migration，在该缺口修复前不能遗漏人工步骤。
+- 合并 schema 变更后按批次纪律立即执行并验证 `migrate deploy`；部署链尚未自动执行 migration，在该缺口修复前不能遗漏人工步骤。migration 窗口进入批次 2 跨线单队列，由编排方按就绪顺序放行（见 `p0-batch-2-execution-plan.md`）。
+
+### WP-B45-3：WP-SEAM-0 producer adapter（挂 WP-B45-2 之后）
+
+- 实现 `SceneConfirmation` → WP-SEAM-0 contract 的 producer adapter：输出 `schemaVersion`、服务端可验证的确认引用与 `projectId`、单物品资产标识与不可变版本/校验、`targetInstanceId` 最终 mm 尺寸与单位、方向/姿态（首版为 `rotationYRad` + 等比缩放语义）、服务端确认时间与来源。
+- 通过 C 线定义的 provider conformance test；`temporary_catalog` 来源必须显式标记 sandbox。
+- 依赖 WP-B45-2 落库完成；在此之前 C 线只使用 sandbox fixture，不阻塞两线并行。
 
 ## 验收与证据
 

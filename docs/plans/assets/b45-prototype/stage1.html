@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1200" />
+<title>阶段一 · 模型确认 — PetScape 工作台（探索原型）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+  /* ---- psx 基线（与正式站 app-ui.css 同源的品牌语言：白底 / 纯黑 ink / 发丝线 / 999px 胶囊 / 玻璃拟物）---- */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    --psx-ink: #050505;
+    --psx-muted: rgba(0, 0, 0, 0.55);
+    --psx-faint: rgba(0, 0, 0, 0.36);
+    --psx-line: rgba(0, 0, 0, 0.12);
+    --psx-line-soft: rgba(0, 0, 0, 0.08);
+    --psx-soft: #f7f7f5;
+    --psx-danger: #8b1f1f;
+    --psx-warn: #7a5518;
+    --psx-shadow: 0 18px 45px rgba(0, 0, 0, 0.08);
+    font-family: 'Inter', system-ui, -apple-system, 'PingFang SC', 'Segoe UI', sans-serif;
+    font-weight: 400;
+    color: var(--psx-ink);
+    background: #fff;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+  button { font: inherit; }
+
+  /* ---- App 壳顶栏 ---- */
+  .psx-shell-header {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 10px 28px;
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--psx-line-soft);
+    z-index: 40;
+  }
+  .psx-shell-left { display: flex; align-items: center; gap: 22px; }
+  .psx-shell-logo img { width: 135px; height: 34px; object-fit: contain; display: block; }
+  .psx-shell-nav { display: flex; align-items: center; gap: 4px; }
+  .psx-navitem {
+    display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+    border-radius: 999px; font-size: 12px; font-weight: 500;
+    color: var(--psx-muted); text-decoration: none; white-space: nowrap;
+  }
+  .psx-navitem.is-active { background: var(--psx-soft); color: var(--psx-ink); }
+  .psx-account-pill {
+    display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 4px 16px 4px 4px;
+    border-radius: 999px;
+    background: rgba(244, 244, 246, 0.52); border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    font-size: 12px; font-weight: 500; color: var(--psx-ink); text-decoration: none; white-space: nowrap;
+  }
+  .psx-circle {
+    width: 34px; height: 34px; border-radius: 999px; background: var(--psx-ink); color: #fff;
+    display: inline-grid; place-items: center; flex: 0 0 auto;
+  }
+
+  /* ---- 阶段步骤条 ---- */
+  .wb-topbar {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 28px 0;
+  }
+  .wb-steps { display: flex; align-items: center; gap: 10px; }
+  .wb-step {
+    display: inline-flex; align-items: center; gap: 9px; height: 36px; padding: 0 17px 0 7px;
+    border-radius: 999px; font-size: 12px; font-weight: 500; color: var(--psx-faint);
+    border: 1px solid transparent; text-decoration: none; white-space: nowrap;
+  }
+  .wb-step i {
+    width: 22px; height: 22px; border-radius: 999px; display: grid; place-items: center;
+    font-style: normal; font-size: 11px; background: var(--psx-soft); color: var(--psx-faint);
+  }
+  .wb-step.is-current { border-color: var(--psx-line); background: #fff; color: var(--psx-ink); }
+  .wb-step.is-current i { background: var(--psx-ink); color: #fff; }
+  .wb-step-line { width: 36px; height: 1px; background: var(--psx-line); }
+  .psx-tag-soft {
+    display: inline-flex; align-items: center; height: 24px; padding: 0 11px; border-radius: 999px;
+    font-size: 11px; font-weight: 500; background: var(--psx-soft); color: var(--psx-muted); white-space: nowrap;
+  }
+
+  /* ---- 工作台三栏 ---- */
+  .wb {
+    flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 268px minmax(0, 1fr) 330px; gap: 16px;
+    padding: 14px 28px 22px;
+  }
+  .wb-rail, .wb-panel { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+  /* 左栏：测试模型列表 */
+  .wb-rail-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 2px 0; }
+  .psx-dot-label { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; color: var(--psx-muted); }
+  .psx-dot-label::before { content: ''; width: 7px; height: 7px; border-radius: 999px; background: var(--psx-ink); }
+  .psx-minitag {
+    font-size: 10px; font-weight: 500; color: var(--psx-faint);
+    border: 1px solid var(--psx-line-soft); border-radius: 999px; padding: 3px 8px; white-space: nowrap;
+  }
+  .wb-rail-note { margin: 0; padding: 0 2px; font-size: 11.5px; line-height: 1.7; color: var(--psx-faint); }
+  .wb-model-list { display: flex; flex-direction: column; gap: 8px; }
+  .wb-model {
+    display: flex; flex-direction: column; gap: 4px; padding: 13px 16px; text-align: left;
+    border: 1px solid var(--psx-line-soft); border-radius: 16px; background: #fff; cursor: pointer;
+    transition: border-color 160ms ease, transform 160ms ease;
+  }
+  .wb-model:hover { border-color: var(--psx-line); transform: translateY(-1px); }
+  .wb-model.is-on { border-color: var(--psx-ink); }
+  .wb-model b { font-size: 13px; font-weight: 500; letter-spacing: -0.01em; }
+  .wb-model span { font-size: 11px; color: var(--psx-faint); letter-spacing: 0.02em; }
+
+  /* 原型演示开关（探索稿专用 chrome，虚线弱化） */
+  .wb-demo { margin-top: auto; border: 1px dashed var(--psx-line); border-radius: 14px; padding: 12px 14px; }
+  .wb-demo-title { display: block; font-size: 10px; letter-spacing: 0.08em; color: var(--psx-faint); margin-bottom: 9px; }
+  .wb-demo-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .wb-demo-btns button {
+    height: 28px; padding: 0 12px; border: 1px solid var(--psx-line-soft); border-radius: 999px;
+    background: #fff; color: var(--psx-muted); font-size: 11px; cursor: pointer;
+  }
+  .wb-demo-btns button.is-on { border-color: var(--psx-ink); background: var(--psx-ink); color: #fff; }
+
+  /* ---- 中央 3D 视口 ---- */
+  .wb-stage {
+    position: relative; min-width: 0; min-height: 0;
+    border: 1px solid var(--psx-line); border-radius: 28px; background: var(--psx-soft); overflow: hidden;
+  }
+  .wb-stage canvas.viewport { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  .wb-glass {
+    background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  .wb-chip {
+    position: absolute; display: inline-flex; align-items: center; gap: 9px; height: 38px; padding: 0 17px;
+    border-radius: 999px; font-size: 11.5px; font-weight: 500; color: rgba(0, 0, 0, 0.78); white-space: nowrap;
+  }
+  .wb-chip-name { top: 16px; left: 16px; }
+  .wb-chip-name::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: var(--psx-ink); }
+  .wb-chip-name small { font-weight: 400; color: var(--psx-faint); font-size: 11px; }
+  .wb-chip-dims { bottom: 16px; left: 16px; letter-spacing: 0.03em; }
+
+  .wb-cube { position: absolute; top: 16px; right: 16px; width: 96px; height: 96px; border-radius: 22px; overflow: hidden; }
+  .wb-cube canvas { display: block; width: 96px; height: 96px; cursor: pointer; }
+  .wb-cube-tip {
+    position: absolute; top: 118px; right: 16px; font-size: 10px; color: var(--psx-faint);
+    text-align: right; width: 96px; letter-spacing: 0.04em;
+  }
+
+  .wb-toolbar {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    display: inline-flex; align-items: center; gap: 4px; height: 44px; padding: 0 8px;
+    border-radius: 999px;
+  }
+  .wb-toolbar button {
+    height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent;
+    color: rgba(0, 0, 0, 0.72); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  }
+  .wb-toolbar button:hover { background: rgba(0, 0, 0, 0.05); }
+  .wb-toolbar-sep { width: 1px; height: 16px; background: var(--psx-line-soft); margin: 0 4px; }
+  .wb-toolbar-hint { font-size: 11px; color: var(--psx-faint); padding: 0 12px; white-space: nowrap; }
+
+  /* 逐轴尺寸气泡（贴模型，跟随投影） */
+  .wb-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
+  .wb-dim {
+    position: absolute; transform: translate(-50%, -50%);
+    display: inline-flex; align-items: center; gap: 5px; height: 25px; padding: 0 11px;
+    border-radius: 999px; white-space: nowrap;
+    background: rgba(255, 255, 255, 0.74); border: 1px solid rgba(0, 0, 0, 0.09);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    font-size: 10.5px; font-weight: 500; letter-spacing: 0.04em; color: rgba(0, 0, 0, 0.72);
+  }
+  .wb-dim b { font-weight: 500; color: var(--psx-faint); letter-spacing: 0; }
+
+  /* 视口状态遮罩：加载中 / 失败 */
+  .wb-overlay {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    background: rgba(247, 247, 245, 0.78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    z-index: 5;
+  }
+  .wb-overlay[hidden] { display: none; }
+  .wb-overlay-card { display: grid; justify-items: center; gap: 14px; text-align: center; max-width: 340px; padding: 24px; }
+  .wb-overlay-card h3 { margin: 0; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+  .wb-overlay-card p { margin: 0; font-size: 12px; line-height: 1.7; color: var(--psx-muted); }
+  .wb-spinner {
+    width: 30px; height: 30px; border-radius: 999px;
+    border: 2px solid rgba(0, 0, 0, 0.12); border-top-color: var(--psx-ink);
+    animation: wb-spin 0.9s linear infinite;
+  }
+  @keyframes wb-spin { to { transform: rotate(360deg); } }
+  .wb-err-dot { width: 30px; height: 30px; border-radius: 999px; background: rgba(139, 31, 31, 0.1); display: grid; place-items: center; color: var(--psx-danger); font-weight: 500; }
+  .wb-retry {
+    height: 40px; padding: 0 22px; border: 1px solid var(--psx-line); border-radius: 999px; background: #fff;
+    font-size: 12px; font-weight: 500; color: var(--psx-ink); cursor: pointer; transition: border-color 160ms ease;
+  }
+  .wb-retry:hover { border-color: var(--psx-ink); }
+  .wb-file-hint { font-size: 11px !important; color: var(--psx-faint) !important; }
+
+  /* ---- 右栏：尺寸与确认 ---- */
+  .psx-card { border: 1px solid var(--psx-line); border-radius: 24px; background: #fff; overflow: hidden; }
+  .psx-card-title { padding: 18px 22px 2px; font-size: 12px; font-weight: 500; color: var(--psx-muted); }
+  .psx-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 22px; }
+  .psx-row + .psx-row { border-top: 1px solid var(--psx-line-soft); }
+  .psx-row-label { width: 76px; flex: 0 0 auto; font-size: 12.5px; color: var(--psx-muted); }
+  .psx-row-value { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; letter-spacing: 0.02em; }
+  .psx-row-value small { display: block; margin-top: 3px; font-size: 10.5px; font-weight: 400; color: var(--psx-faint); letter-spacing: 0.03em; }
+  .wb-scale-wrap { flex: 1; display: grid; gap: 8px; }
+  .wb-scale-wrap input[type='range'] { width: 100%; accent-color: var(--psx-ink); }
+  .wb-scale-meta { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--psx-faint); }
+  .wb-scale-meta output { font-size: 12px; font-weight: 500; color: var(--psx-ink); }
+
+  .psx-btn-primary {
+    width: 100%; height: 56px; border: 0; border-radius: 999px; background: var(--psx-ink); color: #fff;
+    font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    cursor: pointer; box-shadow: var(--psx-shadow); text-decoration: none;
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+  .psx-btn-primary:hover { transform: translateY(-1px); }
+  .psx-btn-primary svg { transition: transform 180ms ease; }
+  .psx-btn-primary:hover svg { transform: translateX(3px); }
+
+  .psx-note {
+    display: flex; align-items: baseline; gap: 10px; padding: 13px 16px; border-radius: 14px;
+    background: var(--psx-soft); font-size: 12px; line-height: 1.65; color: var(--psx-muted); margin: 0;
+  }
+  .psx-note::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: var(--psx-ink); flex: 0 0 auto; transform: translateY(-1px); }
+
+  .wb-panel-foot { margin-top: auto; display: grid; gap: 12px; }
+  .psx-footnote { margin: 2px 4px 0; font-size: 10.5px; letter-spacing: 0.08em; color: var(--psx-faint); }
+
+  .psx-fade-up { animation: psx-fade-up 420ms ease-out both; }
+  @keyframes psx-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<header class="psx-shell-header">
+  <div class="psx-shell-left">
+    <a class="psx-shell-logo" href="index.html" aria-label="PetScape">
+      <img src="assets/petscape-logo.png" alt="PetScape" />
+    </a>
+    <nav class="psx-shell-nav">
+      <a class="psx-navitem" href="#">宠物档案</a>
+      <a class="psx-navitem is-active" href="#">定制工作台</a>
+    </nav>
+  </div>
+  <a class="psx-account-pill" href="#">
+    <span class="psx-circle">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></svg>
+    </span>
+    <span>138****6688</span>
+  </a>
+</header>
+
+<div class="wb-topbar">
+  <div class="wb-steps">
+    <span class="wb-step is-current"><i>1</i>模型确认</span>
+    <span class="wb-step-line"></span>
+    <span class="wb-step"><i>2</i>场景确认</span>
+  </div>
+  <span class="psx-tag-soft">探索原型 · 非实现代码</span>
+</div>
+
+<main class="wb">
+
+  <aside class="wb-rail psx-fade-up">
+    <div class="wb-rail-head">
+      <span class="psx-dot-label">测试模型</span>
+      <span class="psx-minitag">AI 生成链尚未接入</span>
+    </div>
+    <p class="wb-rail-note">以下为预置测试模型，用于打磨检视与确认流程。AI 生成链接入后，你的生成结果将出现在这里。</p>
+    <div class="wb-model-list" id="modelList"></div>
+    <div class="wb-demo">
+      <span class="wb-demo-title">原型演示 · 视口状态</span>
+      <div class="wb-demo-btns" id="demoBtns">
+        <button data-demo="normal" class="is-on">正常</button>
+        <button data-demo="loading">加载中</button>
+        <button data-demo="error">加载失败</button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="wb-stage psx-fade-up" style="animation-delay:60ms">
+    <canvas class="viewport" id="viewport"></canvas>
+
+    <div class="wb-chip wb-glass wb-chip-name"><span id="chipName">—</span><small id="chipTag">测试模型</small></div>
+    <div class="wb-chip wb-glass wb-chip-dims" id="chipDims">—</div>
+    <div class="wb-labels" id="labels"></div>
+
+    <div class="wb-cube wb-glass"><canvas id="cubeCanvas" width="192" height="192" title="点击立方体面切换视角"></canvas></div>
+    <div class="wb-cube-tip">点击立方体切换视角</div>
+
+    <div class="wb-toolbar wb-glass">
+      <button id="btnHome">回到原点</button>
+      <span class="wb-toolbar-sep"></span>
+      <span class="wb-toolbar-hint">拖动旋转 · 滚轮缩放 · 右键平移</span>
+    </div>
+
+    <div class="wb-overlay" id="ovLoading" hidden>
+      <div class="wb-overlay-card">
+        <div class="wb-spinner"></div>
+        <h3>正在载入模型</h3>
+        <p>正在准备网格与材质，通常只需数秒。</p>
+      </div>
+    </div>
+
+    <div class="wb-overlay" id="ovError" hidden>
+      <div class="wb-overlay-card">
+        <div class="wb-err-dot">!</div>
+        <h3>模型载入失败</h3>
+        <p>网络或文件出现问题，模型未能载入。你可以重试，或先切换其他测试模型。</p>
+        <button class="wb-retry" id="btnRetry">重新载入</button>
+        <p class="wb-file-hint" id="fileHint" hidden>检测到以 file:// 直接打开——浏览器会拦截本地模型读取。请在原型目录运行 <b>python3 -m http.server 8080</b> 后访问 localhost:8080。</p>
+      </div>
+    </div>
+  </section>
+
+  <aside class="wb-panel psx-fade-up" style="animation-delay:120ms">
+    <div class="psx-card">
+      <div class="psx-card-title">尺寸确认</div>
+      <div class="psx-row">
+        <span class="psx-row-label">原始包围盒</span>
+        <span class="psx-row-value" id="rawDims">—<small>长 × 宽 × 高 · 资产归一化后</small></span>
+      </div>
+      <div class="psx-row">
+        <span class="psx-row-label">等比缩放</span>
+        <span class="wb-scale-wrap">
+          <input type="range" id="scaleRange" min="60" max="150" value="100" step="1" />
+          <span class="wb-scale-meta"><span>60%</span><output id="scaleOut">100%</output><span>150%</span></span>
+        </span>
+      </div>
+      <div class="psx-row">
+        <span class="psx-row-label">最终尺寸</span>
+        <span class="psx-row-value" id="finalDims">—<small>等比缩放后 · 以此进入报价</small></span>
+      </div>
+    </div>
+
+    <div class="wb-panel-foot">
+      <button class="psx-btn-primary" id="btnConfirm">
+        确认此模型，进入场景
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+      </button>
+      <p class="psx-note">模型检视与场景确认不代表可制造或适合宠物使用；制造与宠物安全检查将在后续流程中单独进行。</p>
+      <p class="psx-footnote">PETSCAPE · 阶段一 / 单品检视与模型确认</p>
+    </div>
+  </aside>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+/* ---------------- 数据：预置测试模型（尺寸来自仓库 scene-assets meta，单位 mm） ---------------- */
+const MODELS = [
+  { id: 'starry-hideout',      name: '星空躲避小屋',  file: 'assets/starry-hideout.norm.glb',      dims: [186.3, 186.4, 150.0] },
+  { id: 'cloud-hammock',       name: '云朵吊床',      file: 'assets/cloud-hammock.norm.glb',       dims: [171.0, 67.0, 56.2] },
+  { id: 'cloud-moss-platform', name: '云苔栖息平台',  file: 'assets/cloud-moss-platform.norm.glb', dims: [198.0, 67.0, 57.3] },
+  { id: 'star-spiral-ramp',    name: '星轨旋转坡道',  file: 'assets/star-spiral-ramp.norm.glb',    dims: [217.3, 140.5, 144.2] },
+  { id: 'wood-dna-ladder',     name: '原木 DNA 爬梯', file: 'assets/wood-dna-ladder.norm.glb',     dims: [112.8, 70.4, 216.3] },
+];
+let current = MODELS[0];
+let scalePct = 100;
+
+/* ---------------- 场景基础 ---------------- */
+const stageEl = document.querySelector('.wb-stage');
+const canvas = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0xf7f7f5);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(34, 1, 1, 20000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.55;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xe9e5de, 1.15));
+// 方向光压低仰角：拉长的软阴影（竞品 viewer-05 的质感要点）
+const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+sun.position.set(430, 330, 230);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.radius = 6;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.25);
+fill.position.set(-300, 200, -260);
+scene.add(fill);
+
+const shadowGround = new THREE.Mesh(
+  new THREE.PlaneGeometry(2400, 2400),
+  new THREE.ShadowMaterial({ opacity: 0.13 })
+);
+shadowGround.rotation.x = -Math.PI / 2;
+shadowGround.receiveShadow = true;
+scene.add(shadowGround);
+
+const ring = new THREE.LineLoop(
+  new THREE.BufferGeometry().setFromPoints(
+    Array.from({ length: 96 }, (_, i) => {
+      const a = (i / 96) * Math.PI * 2;
+      return new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    })
+  ),
+  new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 })
+);
+ring.position.y = 0.4;
+scene.add(ring);
+
+const modelRoot = new THREE.Group();
+scene.add(modelRoot);
+
+function updateShadowCamera(size) {
+  const c = sun.shadow.camera;
+  c.left = -size; c.right = size; c.top = size; c.bottom = -size;
+  c.near = 10; c.far = 3000;
+  c.updateProjectionMatrix();
+}
+
+/* ---------------- 相机取景与回位 ---------------- */
+let homePos = new THREE.Vector3(), homeTarget = new THREE.Vector3();
+let camAnim = null;
+
+function frameModel(dims) {
+  const maxDim = Math.max(...dims);
+  const dist = maxDim * 2.35;
+  homeTarget.set(0, dims[2] * 0.42, 0);
+  homePos.copy(homeTarget).add(new THREE.Vector3(0.72, 0.5, 1).normalize().multiplyScalar(dist));
+  camera.position.copy(homePos);
+  controls.target.copy(homeTarget);
+  camera.near = maxDim / 50; camera.far = maxDim * 60;
+  camera.updateProjectionMatrix();
+  controls.update();
+  updateShadowCamera(maxDim * 2.4);
+}
+
+function tweenCameraTo(pos, target, ms = 460) {
+  camAnim = {
+    t0: performance.now(), ms,
+    p0: camera.position.clone(), p1: pos.clone(),
+    g0: controls.target.clone(), g1: target.clone(),
+  };
+}
+function stepCamAnim(now) {
+  if (!camAnim) return;
+  const k = Math.min(1, (now - camAnim.t0) / camAnim.ms);
+  const e = 1 - Math.pow(1 - k, 3);
+  camera.position.lerpVectors(camAnim.p0, camAnim.p1, e);
+  controls.target.lerpVectors(camAnim.g0, camAnim.g1, e);
+  if (k >= 1) camAnim = null;
+}
+document.getElementById('btnHome').addEventListener('click', () => tweenCameraTo(homePos, homeTarget));
+
+/* ---------------- 视角立方体 ---------------- */
+const cubeCanvas = document.getElementById('cubeCanvas');
+const cubeRenderer = new THREE.WebGLRenderer({ canvas: cubeCanvas, alpha: true, antialias: true });
+cubeRenderer.setPixelRatio(2);
+cubeRenderer.setSize(96, 96, false);
+const cubeScene = new THREE.Scene();
+const cubeCam = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
+cubeCam.position.z = 5.4;
+
+function faceTexture(label) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fcfcfb'; g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = 'rgba(0,0,0,0.16)'; g.lineWidth = 2; g.strokeRect(1, 1, 126, 126);
+  g.fillStyle = 'rgba(0,0,0,0.62)';
+  g.font = '500 30px Inter, "PingFang SC", sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(label, 64, 67);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const cubeMats = ['右', '左', '顶', '底', '前', '后'].map(
+  (l) => new THREE.MeshBasicMaterial({ map: faceTexture(l) })
+);
+const cubeMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), cubeMats);
+cubeScene.add(cubeMesh);
+
+const cubeRay = new THREE.Raycaster();
+cubeCanvas.addEventListener('click', (ev) => {
+  const r = cubeCanvas.getBoundingClientRect();
+  const p = new THREE.Vector2(
+    ((ev.clientX - r.left) / r.width) * 2 - 1,
+    -((ev.clientY - r.top) / r.height) * 2 + 1
+  );
+  cubeRay.setFromCamera(p, cubeCam);
+  const hit = cubeRay.intersectObject(cubeMesh)[0];
+  if (!hit) return;
+  const n = hit.face.normal.clone().applyQuaternion(cubeMesh.quaternion).round();
+  const dist = camera.position.distanceTo(controls.target);
+  const dir = new THREE.Vector3(n.x, n.y, n.z);
+  if (Math.abs(dir.y) > 0.9) dir.z = 0.28; // 顶/底视角略微前倾，避免万向锁
+  dir.normalize();
+  tweenCameraTo(controls.target.clone().add(dir.multiplyScalar(dist)), controls.target);
+});
+
+/* ---------------- 模型加载 ---------------- */
+// starry-hideout 等资产可能不带材质定义：glTF 默认 metallicFactor=1，在无环境贴图下会渲成暗灰，
+// 这里把默认材质兜底为品牌感的哑光深星蓝。
+function normalizeMaterials(root) {
+  root.traverse((o) => {
+    if (o.isMesh && o.material && !o.material.map && o.material.metalness >= 0.99) {
+      if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+      o.material = new THREE.MeshStandardMaterial({ color: 0x465062, roughness: 0.85, metalness: 0 });
+    }
+  });
+}
+const loader = new GLTFLoader();
+const ovLoading = document.getElementById('ovLoading');
+const ovError = document.getElementById('ovError');
+const fileHint = document.getElementById('fileHint');
+let loadSeq = 0;
+
+function setOverlay(state) {
+  ovLoading.hidden = state !== 'loading';
+  ovError.hidden = state !== 'error';
+  if (state === 'error' && location.protocol === 'file:') fileHint.hidden = false;
+}
+
+function loadModel(model) {
+  const seq = ++loadSeq;
+  current = model;
+  modelLoaded = false;
+  document.getElementById('chipName').textContent = model.name;
+  setOverlay('loading');
+  const t0 = performance.now();
+  loader.load(
+    model.file,
+    (gltf) => {
+      if (seq !== loadSeq) return;
+      modelRoot.clear();
+      normalizeMaterials(gltf.scene);
+      gltf.scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      modelRoot.add(gltf.scene);
+      // 发丝虚线包围盒：给逐轴尺寸气泡一个空间锚（竞品 viewer-02 的标注思路，psx 语言重做）
+      const [L0, W0, H0] = model.dims;
+      const bbox = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(L0, H0, W0)),
+        new THREE.LineDashedMaterial({ color: 0x000000, transparent: true, opacity: 0.22, dashSize: 9, gapSize: 7 })
+      );
+      bbox.computeLineDistances();
+      bbox.position.y = H0 / 2;
+      modelRoot.add(bbox);
+      modelLoaded = true;
+      applyScale();
+      frameModel(scaledDims());
+      const wait = Math.max(0, 420 - (performance.now() - t0)); // 让加载态可感知，避免闪烁
+      setTimeout(() => { if (seq === loadSeq && !demoLock) setOverlay('none'); }, wait);
+      refreshDims();
+    },
+    undefined,
+    () => { if (seq === loadSeq) setOverlay('error'); }
+  );
+}
+document.getElementById('btnRetry').addEventListener('click', () => loadModel(current));
+
+/* ---------------- 逐轴尺寸气泡：贴模型常显 ---------------- */
+let modelLoaded = false;
+const labelsEl = document.getElementById('labels');
+const dimEls = {};
+for (const axis of ['L', 'W', 'H']) {
+  const el = document.createElement('span');
+  el.className = 'wb-dim';
+  labelsEl.appendChild(el);
+  dimEls[axis] = el;
+}
+function placeDim(el, worldPos, html) {
+  const v = worldPos.project(camera);
+  if (v.z > 1 || v.z < -1) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.innerHTML = html;
+  el.style.left = `${(v.x * 0.5 + 0.5) * stageEl.clientWidth}px`;
+  el.style.top = `${(-v.y * 0.5 + 0.5) * stageEl.clientHeight}px`;
+}
+function updateDimLabels() {
+  if (!modelLoaded) {
+    for (const k in dimEls) dimEls[k].style.display = 'none';
+    return;
+  }
+  const s = scalePct / 100;
+  const hx = (current.dims[0] * s) / 2, hz = (current.dims[1] * s) / 2, fy = current.dims[2] * s;
+  placeDim(dimEls.L, new THREE.Vector3(0, 2, hz + 18), `<b>长</b>${fmt(current.dims[0] * s)} mm`);
+  placeDim(dimEls.W, new THREE.Vector3(hx + 18, 2, 0), `<b>宽</b>${fmt(current.dims[1] * s)} mm`);
+  placeDim(dimEls.H, new THREE.Vector3(hx + 30, fy * 0.55, hz + 30), `<b>高</b>${fmt(fy)} mm`);
+}
+
+/* ---------------- 尺寸与缩放 ---------------- */
+const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('zh-CN', { maximumFractionDigits: 1 });
+const dimText = (d) => `${fmt(d[0])} × ${fmt(d[1])} × ${fmt(d[2])} mm`;
+const scaledDims = () => current.dims.map((v) => (v * scalePct) / 100);
+
+function applyScale() {
+  const s = scalePct / 100;
+  modelRoot.scale.setScalar(s);
+  const foot = Math.max(current.dims[0], current.dims[1]) * s;
+  ring.scale.setScalar(foot / 2 + 22);
+}
+function refreshDims() {
+  document.getElementById('rawDims').innerHTML =
+    `${dimText(current.dims)}<small>长 × 宽 × 高 · 资产归一化后</small>`;
+  document.getElementById('finalDims').innerHTML =
+    `${dimText(scaledDims())}<small>等比缩放后 · 以此进入报价</small>`;
+  document.getElementById('chipDims').textContent = `最终 ${dimText(scaledDims())}`;
+  document.getElementById('scaleOut').textContent = `${scalePct}%`;
+}
+document.getElementById('scaleRange').addEventListener('input', (e) => {
+  scalePct = +e.target.value;
+  applyScale();
+  refreshDims();
+});
+
+/* ---------------- 模型列表 ---------------- */
+const listEl = document.getElementById('modelList');
+MODELS.forEach((m, i) => {
+  const b = document.createElement('button');
+  b.className = 'wb-model' + (i === 0 ? ' is-on' : '');
+  b.innerHTML = `<b>${m.name}</b><span>${dimText(m.dims)}</span>`;
+  b.addEventListener('click', () => {
+    listEl.querySelectorAll('.wb-model').forEach((x) => x.classList.remove('is-on'));
+    b.classList.add('is-on');
+    demoReset();
+    loadModel(m);
+  });
+  listEl.appendChild(b);
+});
+
+/* ---------------- 原型演示：状态切换 ---------------- */
+let demoLock = false;
+const demoBtns = document.getElementById('demoBtns');
+function demoReset() {
+  demoLock = false;
+  demoBtns.querySelectorAll('button').forEach((x) => x.classList.toggle('is-on', x.dataset.demo === 'normal'));
+}
+demoBtns.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  demoBtns.querySelectorAll('button').forEach((x) => x.classList.toggle('is-on', x === btn));
+  const d = btn.dataset.demo;
+  demoLock = d !== 'normal';
+  setOverlay(d === 'loading' ? 'loading' : d === 'error' ? 'error' : 'none');
+});
+
+/* ---------------- 确认进入阶段二 ---------------- */
+document.getElementById('btnConfirm').addEventListener('click', () => {
+  location.href = `stage2.html?item=${current.id}&scale=${scalePct}`;
+});
+
+/* ---------------- 尺寸自适应与渲染循环 ---------------- */
+function resize() {
+  const w = stageEl.clientWidth, h = stageEl.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stageEl);
+resize();
+
+renderer.setAnimationLoop((now) => {
+  stepCamAnim(now);
+  controls.update();
+  renderer.render(scene, camera);
+  updateDimLabels();
+  cubeMesh.quaternion.copy(camera.quaternion).invert();
+  cubeRenderer.render(cubeScene, cubeCam);
+});
+
+refreshDims();
+loadModel(current);
+</script>
+</body>
+</html>

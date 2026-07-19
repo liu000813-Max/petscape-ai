@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1200" />
+<title>阶段二 · 场景确认 — PetScape 工作台（探索原型）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+  /* ---- psx 基线（与正式站 app-ui.css 同源）---- */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    --psx-ink: #050505;
+    --psx-muted: rgba(0, 0, 0, 0.55);
+    --psx-faint: rgba(0, 0, 0, 0.36);
+    --psx-line: rgba(0, 0, 0, 0.12);
+    --psx-line-soft: rgba(0, 0, 0, 0.08);
+    --psx-soft: #f7f7f5;
+    --psx-danger: #8b1f1f;
+    --psx-warn: #6d4d17;
+    --psx-shadow: 0 18px 45px rgba(0, 0, 0, 0.08);
+    font-family: 'Inter', system-ui, -apple-system, 'PingFang SC', 'Segoe UI', sans-serif;
+    font-weight: 400;
+    color: var(--psx-ink);
+    background: #fff;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+  button { font: inherit; }
+
+  .psx-shell-header {
+    flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 10px 28px;
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--psx-line-soft); z-index: 40;
+  }
+  .psx-shell-left { display: flex; align-items: center; gap: 22px; }
+  .psx-shell-logo img { width: 135px; height: 34px; object-fit: contain; display: block; }
+  .psx-shell-nav { display: flex; align-items: center; gap: 4px; }
+  .psx-navitem {
+    display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+    border-radius: 999px; font-size: 12px; font-weight: 500;
+    color: var(--psx-muted); text-decoration: none; white-space: nowrap;
+  }
+  .psx-navitem.is-active { background: var(--psx-soft); color: var(--psx-ink); }
+  .psx-account-pill {
+    display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 4px 16px 4px 4px;
+    border-radius: 999px;
+    background: rgba(244, 244, 246, 0.52); border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    font-size: 12px; font-weight: 500; color: var(--psx-ink); text-decoration: none; white-space: nowrap;
+  }
+  .psx-circle {
+    width: 34px; height: 34px; border-radius: 999px; background: var(--psx-ink); color: #fff;
+    display: inline-grid; place-items: center; flex: 0 0 auto;
+  }
+
+  .wb-topbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 28px 0; }
+  .wb-steps { display: flex; align-items: center; gap: 10px; }
+  .wb-step {
+    display: inline-flex; align-items: center; gap: 9px; height: 36px; padding: 0 17px 0 7px;
+    border-radius: 999px; font-size: 12px; font-weight: 500; color: var(--psx-faint);
+    border: 1px solid transparent; text-decoration: none; white-space: nowrap;
+    transition: border-color 160ms ease;
+  }
+  .wb-step i {
+    width: 22px; height: 22px; border-radius: 999px; display: grid; place-items: center;
+    font-style: normal; font-size: 11px; background: var(--psx-soft); color: var(--psx-faint);
+  }
+  .wb-step.is-done { color: var(--psx-muted); }
+  .wb-step.is-done:hover { border-color: var(--psx-line); }
+  .wb-step.is-done i { background: #fff; border: 1px solid var(--psx-line); color: var(--psx-ink); }
+  .wb-step.is-current { border-color: var(--psx-line); background: #fff; color: var(--psx-ink); }
+  .wb-step.is-current i { background: var(--psx-ink); color: #fff; }
+  .wb-step-line { width: 36px; height: 1px; background: var(--psx-line); }
+  .wb-topbar-right { display: flex; align-items: center; gap: 10px; }
+  .psx-tag-soft {
+    display: inline-flex; align-items: center; height: 24px; padding: 0 11px; border-radius: 999px;
+    font-size: 11px; font-weight: 500; background: var(--psx-soft); color: var(--psx-muted); white-space: nowrap;
+  }
+
+  /* 保存状态胶囊 */
+  .wb-save {
+    display: inline-flex; align-items: center; gap: 9px; height: 36px; padding: 0 16px;
+    border-radius: 999px; border: 1px solid var(--psx-line-soft); background: #fff;
+    font-size: 11.5px; font-weight: 500; color: var(--psx-muted); white-space: nowrap;
+  }
+  .wb-save-dot { width: 7px; height: 7px; border-radius: 999px; background: #4e7157; }
+  .wb-save.is-saving .wb-save-dot { background: rgba(0, 0, 0, 0.3); animation: wb-pulse 0.9s ease-in-out infinite; }
+  .wb-save.is-fail { border-color: rgba(165, 30, 30, 0.28); color: var(--psx-danger); }
+  .wb-save.is-fail .wb-save-dot { background: var(--psx-danger); }
+  .wb-save button {
+    border: 0; background: transparent; padding: 0; font-size: 11.5px; font-weight: 500;
+    color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+  }
+  @keyframes wb-pulse { 50% { opacity: 0.25; } }
+
+  .wb {
+    flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 268px minmax(0, 1fr) 330px; gap: 16px;
+    padding: 14px 28px 22px;
+  }
+  .wb-rail, .wb-panel { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+  .psx-card { border: 1px solid var(--psx-line); border-radius: 24px; background: #fff; overflow: hidden; flex: 0 0 auto; }
+  .psx-card-title { padding: 17px 20px 2px; font-size: 12px; font-weight: 500; color: var(--psx-muted); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .psx-minitag {
+    font-size: 10px; font-weight: 500; color: var(--psx-faint);
+    border: 1px solid var(--psx-line-soft); border-radius: 999px; padding: 3px 8px; white-space: nowrap;
+  }
+  .wb-card-note { margin: 0; padding: 10px 20px 16px; font-size: 11px; line-height: 1.65; color: var(--psx-faint); }
+
+  /* 笼舍尺寸输入 */
+  .wb-input-grid { padding: 12px 20px 6px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .wb-input-grid label { display: grid; gap: 6px; font-size: 10.5px; font-weight: 500; color: var(--psx-muted); }
+  .wb-input-grid input {
+    height: 42px; width: 100%; border: 1px solid var(--psx-line); border-radius: 12px; padding: 0 11px;
+    font: inherit; font-size: 13px; letter-spacing: 0.03em; color: var(--psx-ink); outline: none; background: #fff;
+    transition: border-color 160ms ease;
+  }
+  .wb-input-grid input:focus { border-color: var(--psx-ink); }
+
+  /* 参照物库 */
+  .wb-lib { padding: 8px 10px 12px; display: grid; gap: 2px; }
+  .wb-lib-row { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; border-radius: 12px; }
+  .wb-lib-row:hover { background: var(--psx-soft); }
+  .wb-lib-row b { font-size: 12.5px; font-weight: 500; flex: 1; letter-spacing: -0.01em; }
+  .wb-lib-row small { font-size: 10px; color: var(--psx-faint); }
+  .wb-lib-add {
+    width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--psx-line);
+    background: #fff; cursor: pointer; display: grid; place-items: center; color: var(--psx-ink);
+    transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+  }
+  .wb-lib-add:hover { border-color: var(--psx-ink); }
+  .wb-lib-added { padding: 0 20px 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .wb-lib-added:empty { display: none; }
+  .wb-added-chip {
+    display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 6px 0 12px;
+    border-radius: 999px; background: var(--psx-soft); font-size: 11px; font-weight: 500; color: var(--psx-muted);
+  }
+  .wb-added-chip button {
+    width: 18px; height: 18px; border: 0; border-radius: 999px; background: rgba(0, 0, 0, 0.08);
+    color: var(--psx-muted); font-size: 11px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0;
+  }
+  .wb-added-chip button:hover { background: var(--psx-ink); color: #fff; }
+
+  /* 比例参照开关 */
+  .wb-switch-row { display: flex; align-items: center; gap: 12px; padding: 14px 20px 4px; }
+  .wb-switch-row b { flex: 1; font-size: 12.5px; font-weight: 500; }
+  .wb-switch {
+    position: relative; width: 42px; height: 25px; border-radius: 999px; flex: 0 0 auto;
+    background: rgba(0, 0, 0, 0.14); border: 0; cursor: pointer; transition: background 180ms ease; padding: 0;
+  }
+  .wb-switch::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 19px; height: 19px; border-radius: 999px;
+    background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22); transition: transform 180ms ease;
+  }
+  .wb-switch[aria-checked='true'] { background: var(--psx-ink); }
+  .wb-switch[aria-checked='true']::after { transform: translateX(17px); }
+
+  /* 原型演示 */
+  .wb-demo { margin-top: auto; border: 1px dashed var(--psx-line); border-radius: 14px; padding: 12px 14px; flex: 0 0 auto; }
+  .wb-demo-title { display: block; font-size: 10px; letter-spacing: 0.08em; color: var(--psx-faint); margin-bottom: 9px; }
+  .wb-demo-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .wb-demo-btns button {
+    height: 28px; padding: 0 12px; border: 1px solid var(--psx-line-soft); border-radius: 999px;
+    background: #fff; color: var(--psx-muted); font-size: 11px; cursor: pointer;
+  }
+  .wb-demo-btns button:hover { border-color: var(--psx-line); }
+
+  /* ---- 视口 ---- */
+  .wb-stage {
+    position: relative; min-width: 0; min-height: 0;
+    border: 1px solid var(--psx-line); border-radius: 28px; background: var(--psx-soft); overflow: hidden;
+  }
+  .wb-stage canvas.viewport { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  .wb-glass {
+    background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  .wb-chip {
+    position: absolute; display: inline-flex; align-items: center; gap: 9px; height: 38px; padding: 0 17px;
+    border-radius: 999px; font-size: 11.5px; font-weight: 500; color: rgba(0, 0, 0, 0.78); white-space: nowrap; z-index: 6;
+  }
+  .wb-chip-name { top: 16px; left: 16px; }
+  .wb-chip-name::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: var(--psx-ink); }
+  .wb-chip-name small { font-weight: 400; color: var(--psx-faint); font-size: 11px; }
+
+  .wb-cube { position: absolute; top: 16px; right: 16px; width: 96px; height: 96px; border-radius: 22px; overflow: hidden; z-index: 6; }
+  .wb-cube canvas { display: block; width: 96px; height: 96px; cursor: pointer; }
+
+  .wb-toolbar {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    display: inline-flex; align-items: center; gap: 4px; height: 46px; padding: 0 8px;
+    border-radius: 999px; z-index: 6;
+  }
+  .wb-toolbar button {
+    height: 33px; padding: 0 15px; border: 0; border-radius: 999px; background: transparent;
+    color: rgba(0, 0, 0, 0.72); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap;
+    transition: background 140ms ease, color 140ms ease;
+  }
+  .wb-toolbar button:hover { background: rgba(0, 0, 0, 0.05); }
+  .wb-toolbar button.is-on { background: var(--psx-ink); color: #fff; }
+  .wb-toolbar-sep { width: 1px; height: 16px; background: var(--psx-line-soft); margin: 0 4px; }
+  .wb-toolbar-hint { font-size: 11px; color: var(--psx-faint); padding: 0 12px; white-space: nowrap; }
+
+  /* 越界 / 碰撞提示 */
+  .wb-warns {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 7; pointer-events: none;
+  }
+  .wb-warn {
+    display: inline-flex; align-items: center; gap: 9px; height: 36px; padding: 0 17px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 500; white-space: nowrap;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    animation: psx-fade-up 260ms ease-out both;
+  }
+  .wb-warn::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+  .wb-warn.is-danger { background: rgba(255, 246, 246, 0.88); border: 1px solid rgba(165, 30, 30, 0.3); color: var(--psx-danger); }
+  .wb-warn.is-warn { background: rgba(253, 248, 238, 0.88); border: 1px solid rgba(122, 85, 24, 0.28); color: var(--psx-warn); }
+
+  /* 3D 浮动标签 */
+  .wb-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 5; }
+  .wb-3dlabel {
+    position: absolute; transform: translate(-50%, -130%);
+    display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 13px;
+    border-radius: 999px; white-space: nowrap; font-size: 11px; font-weight: 500;
+  }
+  .wb-3dlabel.is-target { background: var(--psx-ink); color: #fff; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18); }
+  .wb-3dlabel.is-target::before { content: ''; width: 5px; height: 5px; border-radius: 999px; background: #fff; }
+  .wb-3dlabel.is-ref {
+    background: rgba(255, 255, 255, 0.66); border: 1px solid rgba(0, 0, 0, 0.07);
+    color: rgba(0, 0, 0, 0.58); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* ---- 右栏 ---- */
+  .psx-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 15px 20px; }
+  .psx-row + .psx-row { border-top: 1px solid var(--psx-line-soft); }
+  .psx-row-label { width: 64px; flex: 0 0 auto; font-size: 12.5px; color: var(--psx-muted); }
+  .psx-row-value { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; letter-spacing: 0.02em; }
+  .psx-row-value small { display: block; margin-top: 3px; font-size: 10.5px; font-weight: 400; color: var(--psx-faint); letter-spacing: 0.03em; }
+  .psx-tag-solid {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 999px;
+    background: var(--psx-ink); color: #fff; font-size: 11px; font-weight: 500; white-space: nowrap;
+  }
+
+  .wb-drift {
+    display: flex; align-items: baseline; gap: 10px; padding: 13px 16px; border-radius: 14px;
+    background: rgba(122, 85, 24, 0.06); border: 1px solid rgba(122, 85, 24, 0.18);
+    font-size: 12px; line-height: 1.65; color: var(--psx-warn); margin: 0;
+    animation: psx-fade-up 260ms ease-out both;
+  }
+  .wb-drift::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: currentColor; flex: 0 0 auto; transform: translateY(-1px); }
+  .wb-drift[hidden] { display: none; }
+
+  .psx-btn-primary {
+    width: 100%; height: 56px; border: 0; border-radius: 999px; background: var(--psx-ink); color: #fff;
+    font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    cursor: pointer; box-shadow: var(--psx-shadow);
+    transition: transform 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
+  }
+  .psx-btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+  .psx-btn-primary:disabled { opacity: 0.3; cursor: default; box-shadow: none; }
+
+  .psx-note {
+    display: flex; align-items: baseline; gap: 10px; padding: 13px 16px; border-radius: 14px;
+    background: var(--psx-soft); font-size: 12px; line-height: 1.65; color: var(--psx-muted); margin: 0;
+  }
+  .psx-note::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: var(--psx-ink); flex: 0 0 auto; transform: translateY(-1px); }
+
+  .wb-panel-foot { margin-top: auto; display: grid; gap: 12px; }
+  .psx-footnote { margin: 2px 4px 0; font-size: 10.5px; letter-spacing: 0.08em; color: var(--psx-faint); }
+
+  .psx-fade-up { animation: psx-fade-up 420ms ease-out both; }
+  @keyframes psx-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<header class="psx-shell-header">
+  <div class="psx-shell-left">
+    <a class="psx-shell-logo" href="index.html" aria-label="PetScape">
+      <img src="assets/petscape-logo.png" alt="PetScape" />
+    </a>
+    <nav class="psx-shell-nav">
+      <a class="psx-navitem" href="#">宠物档案</a>
+      <a class="psx-navitem is-active" href="#">定制工作台</a>
+    </nav>
+  </div>
+  <a class="psx-account-pill" href="#">
+    <span class="psx-circle">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></svg>
+    </span>
+    <span>138****6688</span>
+  </a>
+</header>
+
+<div class="wb-topbar">
+  <div class="wb-steps">
+    <a class="wb-step is-done" href="stage1.html" title="返回阶段一"><i>✓</i>模型确认</a>
+    <span class="wb-step-line"></span>
+    <span class="wb-step is-current"><i>2</i>场景确认</span>
+  </div>
+  <div class="wb-topbar-right">
+    <span class="wb-save" id="savePill"><span class="wb-save-dot"></span><span id="saveText">已保存</span></span>
+    <span class="psx-tag-soft">探索原型 · 非实现代码</span>
+  </div>
+</div>
+
+<main class="wb">
+
+  <aside class="wb-rail psx-fade-up">
+    <div class="psx-card">
+      <div class="psx-card-title">笼舍内部尺寸<span class="psx-minitag">mm</span></div>
+      <div class="wb-input-grid">
+        <label>长<input type="number" id="cageL" value="700" min="200" max="1500" step="10" /></label>
+        <label>宽<input type="number" id="cageW" value="460" min="200" max="1500" step="10" /></label>
+        <label>高<input type="number" id="cageH" value="520" min="200" max="1500" step="10" /></label>
+      </div>
+      <p class="wb-card-note">按笼舍内部可用空间填写；线框仅用于空间参照，不代表真实笼具外观。</p>
+    </div>
+
+    <div class="psx-card">
+      <div class="psx-card-title">空间参照物</div>
+      <div class="wb-lib" id="libList"></div>
+      <div class="wb-lib-added" id="addedList"></div>
+      <p class="wb-card-note">参照物仅供空间参照，不参与本次制造与报价。</p>
+    </div>
+
+    <div class="psx-card">
+      <div class="wb-switch-row">
+        <b>标准花枝鼠</b>
+        <button class="wb-switch" id="ratSwitch" role="switch" aria-checked="true" aria-label="标准花枝鼠比例参照"></button>
+      </div>
+      <p class="wb-card-note">通用比例参照，不代表你的宠物真实体型。</p>
+    </div>
+
+    <div class="wb-demo">
+      <span class="wb-demo-title">原型演示 · 状态</span>
+      <div class="wb-demo-btns">
+        <button id="demoFail">保存失败</button>
+        <button id="demoDrift">草稿漂移</button>
+        <button id="demoReset">恢复</button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="wb-stage psx-fade-up" style="animation-delay:60ms">
+    <canvas class="viewport" id="viewport"></canvas>
+
+    <div class="wb-chip wb-glass wb-chip-name"><span>场景确认</span><small id="chipCage">笼舍 700 × 460 × 520 mm</small></div>
+
+    <div class="wb-warns" id="warns"></div>
+    <div class="wb-labels" id="labels"></div>
+
+    <div class="wb-cube wb-glass"><canvas id="cubeCanvas" width="192" height="192" title="点击立方体面切换视角"></canvas></div>
+
+    <div class="wb-toolbar wb-glass">
+      <button data-mode="move" class="is-on">移动</button>
+      <button data-mode="rotate">旋转</button>
+      <button data-mode="scale">缩放</button>
+      <span class="wb-toolbar-sep"></span>
+      <button id="btnHome">回到原点</button>
+      <span class="wb-toolbar-sep"></span>
+      <span class="wb-toolbar-hint" id="modeHint">拖动物品在地面移动 · 空白处拖动旋转视角</span>
+    </div>
+  </section>
+
+  <aside class="wb-panel psx-fade-up" style="animation-delay:120ms">
+    <div class="psx-card">
+      <div class="psx-card-title">本次目标物品</div>
+      <div class="psx-row">
+        <span class="psx-row-label">名称</span>
+        <span class="psx-row-value" id="targetName">—</span>
+        <span class="psx-tag-solid">目标物品</span>
+      </div>
+      <div class="psx-row">
+        <span class="psx-row-label">最终尺寸</span>
+        <span class="psx-row-value" id="targetDims">—<small>由阶段一确认 · 以此进入报价</small></span>
+      </div>
+      <div class="psx-row">
+        <span class="psx-row-label">摆放</span>
+        <span class="psx-row-value" id="targetPose">—<small>相对笼舍中心 · 实时</small></span>
+      </div>
+    </div>
+
+    <div class="wb-panel-foot">
+      <p class="wb-drift" id="driftNote" hidden>当前草稿已不同于最近确认版本（07-18 18:24）。确认后，当前摆放将成为新的基准。</p>
+      <button class="psx-btn-primary" id="btnConfirm">
+        确认场景
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </button>
+      <p class="psx-note">模型检视与场景确认不代表可制造或适合宠物使用；制造与宠物安全检查将在后续流程中单独进行。</p>
+      <p class="psx-footnote">PETSCAPE · 阶段二 / 完整场景确认</p>
+    </div>
+  </aside>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+/* ---------------- 资产表（尺寸来自仓库 scene-assets meta，单位 mm） ---------------- */
+const LIB = {
+  'starry-hideout':      { name: '星空躲避小屋',  file: 'assets/starry-hideout.norm.glb',      dims: [186.3, 186.4, 150.0] },
+  'cloud-hammock':       { name: '云朵吊床',      file: 'assets/cloud-hammock.norm.glb',       dims: [171.0, 67.0, 56.2] },
+  'cloud-moss-platform': { name: '云苔栖息平台',  file: 'assets/cloud-moss-platform.norm.glb', dims: [198.0, 67.0, 57.3] },
+  'star-spiral-ramp':    { name: '星轨旋转坡道',  file: 'assets/star-spiral-ramp.norm.glb',    dims: [217.3, 140.5, 144.2] },
+  'wood-dna-ladder':     { name: '原木 DNA 爬梯', file: 'assets/wood-dna-ladder.norm.glb',     dims: [112.8, 70.4, 216.3] },
+};
+const params = new URLSearchParams(location.search);
+const targetId = LIB[params.get('item')] ? params.get('item') : 'starry-hideout';
+const targetScale = Math.min(1.5, Math.max(0.6, (+params.get('scale') || 100) / 100));
+const targetDef = LIB[targetId];
+
+const cage = { L: 700, W: 460, H: 520 };
+
+/* ---------------- 渲染基础 ---------------- */
+const stageEl = document.querySelector('.wb-stage');
+const canvas = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0xf7f7f5);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(34, 1, 2, 40000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.55;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xe9e5de, 1.12));
+const sun = new THREE.DirectionalLight(0xffffff, 0.95);
+sun.position.set(500, 900, 380);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.radius = 6;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.22);
+fill.position.set(-420, 300, -380);
+scene.add(fill);
+
+const outerShadow = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.ShadowMaterial({ opacity: 0.1 }));
+outerShadow.rotation.x = -Math.PI / 2;
+outerShadow.position.y = -0.8;
+outerShadow.receiveShadow = true;
+scene.add(outerShadow);
+
+/* ---------------- 参数化线框笼箱（含地面） ---------------- */
+const cageGroup = new THREE.Group();
+scene.add(cageGroup);
+let cageLineMat = null;
+
+function rebuildCage() {
+  cageGroup.clear();
+  const { L, W, H } = cage;
+
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(L, W),
+    new THREE.MeshStandardMaterial({ color: 0xeeece7, roughness: 1 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -0.4;
+  floor.receiveShadow = true;
+  cageGroup.add(floor);
+
+  // 地面 50mm 网格
+  const pts = [];
+  for (let x = -L / 2; x <= L / 2 + 0.1; x += 50) pts.push(x, 0.2, -W / 2, x, 0.2, W / 2);
+  for (let z = -W / 2; z <= W / 2 + 0.1; z += 50) pts.push(-L / 2, 0.2, z, L / 2, 0.2, z);
+  const gridGeo = new THREE.BufferGeometry();
+  gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  cageGroup.add(new THREE.LineSegments(gridGeo, new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.055 })));
+
+  cageLineMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3 });
+  const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(L, H, W)), cageLineMat);
+  box.position.y = H / 2;
+  cageGroup.add(box);
+
+  const c = sun.shadow.camera, s = Math.max(L, W, H) * 1.1;
+  c.left = -s; c.right = s; c.top = s; c.bottom = -s; c.near = 10; c.far = 5000;
+  c.updateProjectionMatrix();
+
+  document.getElementById('chipCage').textContent = `笼舍 ${cage.L} × ${cage.W} × ${cage.H} mm`;
+}
+
+/* ---------------- 相机 ---------------- */
+let homePos = new THREE.Vector3(), homeTarget = new THREE.Vector3(), camAnim = null;
+function frameCage(instant = true) {
+  const diag = Math.hypot(cage.L, cage.W, cage.H);
+  homeTarget.set(0, cage.H * 0.32, 0);
+  homePos.copy(homeTarget).add(new THREE.Vector3(0.85, 0.62, 1).normalize().multiplyScalar(diag * 1.45));
+  if (instant) {
+    camera.position.copy(homePos);
+    controls.target.copy(homeTarget);
+    controls.update();
+  }
+}
+function tweenCameraTo(pos, target, ms = 460) {
+  camAnim = { t0: performance.now(), ms, p0: camera.position.clone(), p1: pos.clone(), g0: controls.target.clone(), g1: target.clone() };
+}
+function stepCamAnim(now) {
+  if (!camAnim) return;
+  const k = Math.min(1, (now - camAnim.t0) / camAnim.ms);
+  const e = 1 - Math.pow(1 - k, 3);
+  camera.position.lerpVectors(camAnim.p0, camAnim.p1, e);
+  controls.target.lerpVectors(camAnim.g0, camAnim.g1, e);
+  if (k >= 1) camAnim = null;
+}
+document.getElementById('btnHome').addEventListener('click', () => tweenCameraTo(homePos, homeTarget));
+
+/* ---------------- 视角立方体 ---------------- */
+const cubeCanvas = document.getElementById('cubeCanvas');
+const cubeRenderer = new THREE.WebGLRenderer({ canvas: cubeCanvas, alpha: true, antialias: true });
+cubeRenderer.setPixelRatio(2);
+cubeRenderer.setSize(96, 96, false);
+const cubeScene = new THREE.Scene();
+const cubeCam = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
+cubeCam.position.z = 5.4;
+function faceTexture(label) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fcfcfb'; g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = 'rgba(0,0,0,0.16)'; g.lineWidth = 2; g.strokeRect(1, 1, 126, 126);
+  g.fillStyle = 'rgba(0,0,0,0.62)';
+  g.font = '500 30px Inter, "PingFang SC", sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(label, 64, 67);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const cubeMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(2, 2, 2),
+  ['右', '左', '顶', '底', '前', '后'].map((l) => new THREE.MeshBasicMaterial({ map: faceTexture(l) }))
+);
+cubeScene.add(cubeMesh);
+const cubeRay = new THREE.Raycaster();
+cubeCanvas.addEventListener('click', (ev) => {
+  const r = cubeCanvas.getBoundingClientRect();
+  const p = new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  cubeRay.setFromCamera(p, cubeCam);
+  const hit = cubeRay.intersectObject(cubeMesh)[0];
+  if (!hit) return;
+  const n = hit.face.normal.clone().applyQuaternion(cubeMesh.quaternion).round();
+  const dist = camera.position.distanceTo(controls.target);
+  const dir = new THREE.Vector3(n.x, n.y, n.z);
+  if (Math.abs(dir.y) > 0.9) dir.z = 0.28;
+  dir.normalize();
+  tweenCameraTo(controls.target.clone().add(dir.multiplyScalar(dist)), controls.target);
+});
+
+/* ---------------- 目标物品与参照物 ---------------- */
+const loader = new GLTFLoader();
+const gltfCache = new Map();
+// 无材质定义的资产（glTF 默认 metallicFactor=1）在无环境贴图下会渲成暗灰，兜底为哑光深星蓝。
+function normalizeMaterials(root) {
+  root.traverse((o) => {
+    if (o.isMesh && o.material && !o.material.map && o.material.metalness >= 0.99) {
+      if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+      o.material = new THREE.MeshStandardMaterial({ color: 0x465062, roughness: 0.85, metalness: 0 });
+    }
+  });
+}
+function loadAsset(id) {
+  if (gltfCache.has(id)) return gltfCache.get(id);
+  const p = new Promise((res, rej) =>
+    loader.load(LIB[id].file, (g) => { normalizeMaterials(g.scene); res(g.scene); }, undefined, rej)
+  );
+  gltfCache.set(id, p);
+  return p;
+}
+
+const targetGroup = new THREE.Group(); // 缩放施加在外层，内部保持归一化坐标
+scene.add(targetGroup);
+targetGroup.scale.setScalar(targetScale);
+
+const targetRing = new THREE.LineLoop(
+  new THREE.BufferGeometry().setFromPoints(
+    Array.from({ length: 96 }, (_, i) => {
+      const a = (i / 96) * Math.PI * 2;
+      return new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    })
+  ),
+  new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 })
+);
+targetRing.position.y = 0.6;
+scene.add(targetRing);
+targetRing.scale.setScalar((Math.max(targetDef.dims[0], targetDef.dims[1]) * targetScale) / 2 + 24);
+
+loadAsset(targetId).then((s) => {
+  const inst = s.clone(true);
+  inst.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  targetGroup.add(inst);
+});
+
+const contexts = []; // { obj, id, uid }
+let ctxUid = 0;
+function addContext(id) {
+  loadAsset(id).then((s) => {
+    const inst = s.clone(true);
+    inst.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.material = o.material.clone();
+        o.material.transparent = true;
+        o.material.opacity = 0.5;
+        o.material.depthWrite = true;
+      }
+    });
+    const wrap = new THREE.Group();
+    wrap.add(inst);
+    const slots = [[-0.3, -0.22], [0.3, 0.24], [-0.26, 0.26], [0.24, -0.26], [0, 0.3], [-0.32, 0]];
+    const [sx, sz] = slots[contexts.length % slots.length];
+    wrap.position.set(cage.L * sx, 0, cage.W * sz);
+    scene.add(wrap);
+    contexts.push({ obj: wrap, id, uid: ++ctxUid });
+    renderAddedChips();
+    touch();
+  });
+}
+function removeContext(uid) {
+  const i = contexts.findIndex((c) => c.uid === uid);
+  if (i < 0) return;
+  scene.remove(contexts[i].obj);
+  contexts.splice(i, 1);
+  renderAddedChips();
+  touch();
+}
+
+/* ---------------- 标准花枝鼠比例参照（程序化几何，约 200mm 体长 + 尾） ---------------- */
+function buildRat() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x8f8b86, roughness: 1, transparent: true, opacity: 0.55 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 20), mat);
+  body.scale.set(78, 40, 34); body.position.set(-20, 38, 0); g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), mat);
+  head.scale.set(34, 27, 25); head.position.set(62, 42, 0); g.add(head);
+  const snout = new THREE.Mesh(new THREE.ConeGeometry(13, 30, 18), mat);
+  snout.rotation.z = -Math.PI / 2; snout.position.set(95, 36, 0); g.add(snout);
+  for (const s of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(10, 14, 10), mat);
+    ear.scale.set(1, 1, 0.45); ear.position.set(52, 64, 14 * s); g.add(ear);
+  }
+  const tailCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-90, 26, 0),
+    new THREE.Vector3(-150, 14, 22),
+    new THREE.Vector3(-205, 4, 8),
+    new THREE.Vector3(-245, 2, -18),
+  ]);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(tailCurve, 24, 4.5, 8), mat));
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+const rat = buildRat();
+rat.position.set(cage.L * 0.24, 0, -cage.W * 0.27);
+rat.rotation.y = -0.7;
+scene.add(rat);
+document.getElementById('ratSwitch').addEventListener('click', (e) => {
+  const on = e.currentTarget.getAttribute('aria-checked') !== 'true';
+  e.currentTarget.setAttribute('aria-checked', String(on));
+  rat.visible = on;
+});
+
+/* ---------------- 参照物库 UI ---------------- */
+const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('zh-CN', { maximumFractionDigits: 1 });
+const dimText = (d) => `${fmt(d[0])} × ${fmt(d[1])} × ${fmt(d[2])} mm`;
+const libList = document.getElementById('libList');
+Object.entries(LIB).forEach(([id, def]) => {
+  if (id === targetId) return; // 目标物品本身不出现在参照物库
+  const row = document.createElement('div');
+  row.className = 'wb-lib-row';
+  row.innerHTML = `<b>${def.name}</b><small>${fmt(def.dims[0])}×${fmt(def.dims[1])}</small>`;
+  const add = document.createElement('button');
+  add.className = 'wb-lib-add';
+  add.title = `加入 ${def.name}（仅供空间参照）`;
+  add.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  add.addEventListener('click', () => addContext(id));
+  row.appendChild(add);
+  libList.appendChild(row);
+});
+function renderAddedChips() {
+  const box = document.getElementById('addedList');
+  box.innerHTML = '';
+  contexts.forEach((c) => {
+    const chip = document.createElement('span');
+    chip.className = 'wb-added-chip';
+    chip.innerHTML = `<span>${LIB[c.id].name} · 参照</span>`;
+    const x = document.createElement('button');
+    x.textContent = '×';
+    x.title = '移除参照物';
+    x.addEventListener('click', () => removeContext(c.uid));
+    chip.appendChild(x);
+    box.appendChild(chip);
+  });
+}
+
+/* ---------------- 交互模式：移动 / 旋转 / 缩放 ---------------- */
+let mode = 'move';
+const HINTS = {
+  move: '拖动物品在地面移动 · 空白处拖动旋转视角',
+  rotate: '在目标物品上左右拖动，绕竖轴旋转',
+  scale: '在目标物品上上下拖动，等比缩放（影响最终尺寸与报价）',
+};
+document.querySelectorAll('.wb-toolbar [data-mode]').forEach((b) => {
+  b.addEventListener('click', () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll('.wb-toolbar [data-mode]').forEach((x) => x.classList.toggle('is-on', x === b));
+    document.getElementById('modeHint').textContent = HINTS[mode];
+  });
+});
+
+const ray = new THREE.Raycaster();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+let drag = null;
+function pickables() { return [targetGroup, ...contexts.map((c) => c.obj)]; }
+function pointerNDC(e) {
+  const r = canvas.getBoundingClientRect();
+  return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+}
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  ray.setFromCamera(pointerNDC(e), camera);
+  const hits = ray.intersectObjects(pickables(), true);
+  if (!hits.length) return;
+  let root = hits[0].object;
+  while (root.parent && !pickables().includes(root)) root = root.parent;
+  if ((mode === 'rotate' || mode === 'scale') && root !== targetGroup) return; // 旋转/缩放只作用于目标物品
+
+  const gp = new THREE.Vector3();
+  ray.ray.intersectPlane(groundPlane, gp);
+  drag = {
+    obj: root,
+    offX: gp.x - root.position.x,
+    offZ: gp.z - root.position.z,
+    startX: e.clientX, startY: e.clientY,
+    rot0: root.rotation.y,
+    scale0: targetGroup.scale.x,
+    moved: false,
+  };
+  controls.enabled = false;
+  canvas.setPointerCapture(e.pointerId);
+  canvas.style.cursor = 'grabbing';
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  drag.moved = true;
+  if (mode === 'move') {
+    ray.setFromCamera(pointerNDC(e), camera);
+    const gp = new THREE.Vector3();
+    if (ray.ray.intersectPlane(groundPlane, gp)) {
+      const limX = cage.L / 2 + 260, limZ = cage.W / 2 + 260;
+      drag.obj.position.x = Math.max(-limX, Math.min(limX, gp.x - drag.offX));
+      drag.obj.position.z = Math.max(-limZ, Math.min(limZ, gp.z - drag.offZ));
+    }
+  } else if (mode === 'rotate') {
+    drag.obj.rotation.y = drag.rot0 + (e.clientX - drag.startX) * 0.012;
+  } else if (mode === 'scale') {
+    const s = Math.max(0.5, Math.min(1.6, drag.scale0 * (1 - (e.clientY - drag.startY) * 0.004)));
+    targetGroup.scale.setScalar(s);
+  }
+  refreshTargetInfo();
+});
+function endDrag(e) {
+  if (!drag) return;
+  if (drag.moved) touch();
+  drag = null;
+  controls.enabled = true;
+  canvas.style.cursor = '';
+  if (e.pointerId !== undefined) { try { canvas.releasePointerCapture(e.pointerId); } catch {} }
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+/* ---------------- 越界与碰撞检测 ---------------- */
+const warnsEl = document.getElementById('warns');
+let warnState = { out: false, hit: false };
+function checkPlacement() {
+  const tb = new THREE.Box3().setFromObject(targetGroup);
+  if (tb.isEmpty()) return;
+  const eps = 2;
+  const out =
+    tb.min.x < -cage.L / 2 - eps || tb.max.x > cage.L / 2 + eps ||
+    tb.min.z < -cage.W / 2 - eps || tb.max.z > cage.W / 2 + eps ||
+    tb.max.y > cage.H + eps;
+  let hit = false;
+  for (const c of contexts) {
+    const cb = new THREE.Box3().setFromObject(c.obj).expandByScalar(-5);
+    if (tb.intersectsBox(cb)) { hit = true; break; }
+  }
+  if (out !== warnState.out || hit !== warnState.hit) {
+    warnState = { out, hit };
+    warnsEl.innerHTML =
+      (out ? '<span class="wb-warn is-danger">目标物品超出笼舍范围，请调整位置或尺寸</span>' : '') +
+      (hit ? '<span class="wb-warn is-warn">目标物品与参照物重叠，确认前建议错开摆放</span>' : '');
+    if (cageLineMat) {
+      cageLineMat.color.set(out ? 0xa51e1e : 0x000000);
+      cageLineMat.opacity = out ? 0.5 : 0.3;
+    }
+  }
+}
+
+/* ---------------- 浮动标签 ---------------- */
+const labelsEl = document.getElementById('labels');
+const labelPool = new Map();
+function getLabel(key, cls, text) {
+  if (!labelPool.has(key)) {
+    const el = document.createElement('span');
+    el.className = `wb-3dlabel ${cls}`;
+    el.textContent = text;
+    labelsEl.appendChild(el);
+    labelPool.set(key, el);
+  }
+  return labelPool.get(key);
+}
+function placeLabel(el, worldPos) {
+  const v = worldPos.clone().project(camera);
+  if (v.z > 1 || v.z < -1) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.style.left = `${(v.x * 0.5 + 0.5) * stageEl.clientWidth}px`;
+  el.style.top = `${(-v.y * 0.5 + 0.5) * stageEl.clientHeight}px`;
+}
+const tmpBox = new THREE.Box3();
+function updateLabels() {
+  tmpBox.setFromObject(targetGroup);
+  if (!tmpBox.isEmpty()) {
+    placeLabel(
+      getLabel('target', 'is-target', `本次目标物品 · ${targetDef.name}`),
+      new THREE.Vector3((tmpBox.min.x + tmpBox.max.x) / 2, tmpBox.max.y + 14, (tmpBox.min.z + tmpBox.max.z) / 2)
+    );
+    targetRing.position.x = targetGroup.position.x;
+    targetRing.position.z = targetGroup.position.z;
+    targetRing.scale.setScalar((Math.max(targetDef.dims[0], targetDef.dims[1]) * targetGroup.scale.x) / 2 + 24);
+  }
+  const seen = new Set(['target']);
+  contexts.forEach((c) => {
+    const key = `ctx-${c.uid}`;
+    seen.add(key);
+    tmpBox.setFromObject(c.obj);
+    if (!tmpBox.isEmpty()) placeLabel(getLabel(key, 'is-ref', `参照 · ${LIB[c.id].name}`), new THREE.Vector3(c.obj.position.x, tmpBox.max.y + 12, c.obj.position.z));
+  });
+  if (rat.visible) {
+    seen.add('rat');
+    placeLabel(getLabel('rat', 'is-ref', '花枝鼠 · 通用比例参照'), rat.position.clone().add(new THREE.Vector3(0, 92, 0)));
+  } else if (labelPool.has('rat')) {
+    labelPool.get('rat').style.display = 'none';
+  }
+  for (const [key, el] of labelPool) {
+    if (!seen.has(key)) { el.remove(); labelPool.delete(key); }
+  }
+}
+
+/* ---------------- 目标物品信息 ---------------- */
+document.getElementById('targetName').textContent = targetDef.name;
+function refreshTargetInfo() {
+  const s = targetGroup.scale.x;
+  const d = targetDef.dims.map((v) => v * s);
+  document.getElementById('targetDims').innerHTML =
+    `${dimText(d)}<small>由阶段一确认（${Math.round(s * 100)}%）· 以此进入报价</small>`;
+  const deg = ((targetGroup.rotation.y * 180) / Math.PI) % 360;
+  document.getElementById('targetPose').innerHTML =
+    `x ${fmt(targetGroup.position.x)} · z ${fmt(targetGroup.position.z)} · 旋 ${Math.round((deg + 360) % 360)}°<small>相对笼舍中心 · 实时</small>`;
+}
+refreshTargetInfo();
+
+/* ---------------- 保存状态与草稿漂移 ---------------- */
+const savePill = document.getElementById('savePill');
+const saveText = document.getElementById('saveText');
+const driftNote = document.getElementById('driftNote');
+const btnConfirm = document.getElementById('btnConfirm');
+const confirmLabel = btnConfirm.innerHTML;
+let saveTimer = null;
+let forceFail = false;
+let confirmed = false;
+
+function nowText() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function setSaveState(state, extra = '') {
+  savePill.classList.toggle('is-saving', state === 'saving');
+  savePill.classList.toggle('is-fail', state === 'fail');
+  if (state === 'saving') saveText.textContent = '保存中…';
+  else if (state === 'saved') saveText.textContent = `已保存 ${extra}`;
+  else if (state === 'fail') saveText.innerHTML = '保存失败 <button id="btnRetrySave">重试</button>';
+  const retry = document.getElementById('btnRetrySave');
+  if (retry) retry.addEventListener('click', () => { forceFail = false; queueSave(); });
+}
+function queueSave() {
+  clearTimeout(saveTimer);
+  setSaveState('saving');
+  saveTimer = setTimeout(() => {
+    if (forceFail) setSaveState('fail');
+    else setSaveState('saved', nowText());
+  }, 700);
+}
+function touch() {
+  if (confirmed) {
+    confirmed = false;
+    btnConfirm.disabled = false;
+    btnConfirm.innerHTML = confirmLabel;
+  }
+  driftNote.hidden = false;
+  queueSave();
+  checkPlacement();
+}
+btnConfirm.addEventListener('click', () => {
+  confirmed = true;
+  driftNote.hidden = true;
+  btnConfirm.disabled = true;
+  btnConfirm.innerHTML = '场景已确认 · 摆放已成为新基准';
+  queueSave();
+});
+
+/* 原型演示按钮 */
+document.getElementById('demoFail').addEventListener('click', () => { forceFail = true; queueSave(); });
+document.getElementById('demoDrift').addEventListener('click', () => { driftNote.hidden = false; });
+document.getElementById('demoReset').addEventListener('click', () => {
+  forceFail = false;
+  driftNote.hidden = true;
+  queueSave();
+});
+
+/* ---------------- 笼舍尺寸输入 ---------------- */
+for (const k of ['L', 'W', 'H']) {
+  document.getElementById(`cage${k}`).addEventListener('change', (e) => {
+    const v = Math.max(200, Math.min(1500, +e.target.value || cage[k]));
+    e.target.value = v;
+    cage[k] = v;
+    rebuildCage();
+    frameCage(false);
+    tweenCameraTo(homePos, homeTarget);
+    warnState = { out: !warnState.out, hit: warnState.hit }; // 强制重算提示
+    touch();
+  });
+}
+
+/* ---------------- 自适应与渲染循环 ---------------- */
+function resize() {
+  const w = stageEl.clientWidth, h = stageEl.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stageEl);
+resize();
+
+rebuildCage();
+frameCage(true);
+setSaveState('saved', nowText());
+
+/* ?demo=states：一键摆出越界 + 碰撞 + 草稿漂移的全提示态，供评审截图 */
+if (params.get('demo') === 'states') {
+  addContext('cloud-hammock');
+  addContext('cloud-moss-platform');
+  setTimeout(() => {
+    targetGroup.position.set(cage.L * 0.38, 0, cage.W * 0.1);
+    if (contexts[0]) contexts[0].obj.position.set(cage.L * 0.3, 0, cage.W * 0.05);
+    driftNote.hidden = false;
+    refreshTargetInfo();
+  }, 900);
+}
+
+renderer.setAnimationLoop((now) => {
+  stepCamAnim(now);
+  controls.update();
+  checkPlacement();
+  renderer.render(scene, camera);
+  updateLabels();
+  cubeMesh.quaternion.copy(camera.quaternion).invert();
+  cubeRenderer.render(cubeScene, cubeCam);
+});
+</script>
+</body>
+</html>
