@@ -99,3 +99,6 @@ export {
   confirmScene,
   getSceneConfirmation,
 } from './scenes.ts';
+
+// WP-B45-3：不可变 SceneConfirmation → WP-SEAM-0 producer adapter。
+export { produceSceneConfirmationCommerceInput } from './scene-confirmation-commerce-producer.ts';
