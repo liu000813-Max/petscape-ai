@@ -1,6 +1,6 @@
 # C 线执行文档：报价、支付与订单骨架（B7 输入 + C1-C5 首版）
 
-状态：v5（2026-07-19，批次 2 执行中；§3.1 明确确认记录绑定层，migration 单队列收窄为进入 main 与生产的临界区）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
+状态：v6（2026-07-19，批次 2 执行中；§3.1 明确确认记录绑定层，migration 槽位缩至生产 DB 临界区，WP-OPS-1 提前到 B6-0 后）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
 
 目标：先做出可验证的**沙箱交易骨架**，再在真实材料、定价、审核和支付渠道全部就绪后开放真实成交：
 
@@ -211,7 +211,7 @@ Viewer 确认引用
 ```text
 构建顺序：WP-SEAM-0
           → Viewer producer adapter、WP-B7-1、WP-C1-1 可并行
-          → WP-B6-0 → WP-C2-1 → WP-C5-1 → WP-C3-1 → WP-C4-1
+          → WP-B6-0 → WP-OPS-1 → WP-C2-1 → WP-C5-1 → WP-C3-1 → WP-C4-1
 运行顺序：C1 → B6 → B7 → C2 → C5 → C3 → C4
 ```
 
@@ -220,7 +220,8 @@ Viewer 确认引用
 - builder 对资金、权限、并发和失败恢复执行 TDD 红→绿；进程边界统一用 zod。
 - 用户可见流程由非实现者在真实浏览器验收；沙箱 UI 必须常显测试标识。
 - `pnpm lint:baseline`、三包 `tsc --noEmit`、`pnpm build` 和 CI 必须明确通过。
-- schema migration 的生产临界区串行：两线可并行开发 schema、Draft migration 和隔离临时数据库 CI；同一时间仅一个 migration PR 可在 rebase 最新 `main`、重跑完整 migration CI、合并、生产 `migrate deploy` 与生产验证链路中。后一个 PR 不得复用旧 base 的 CI 结论（详见 `p0-batch-2-execution-plan.md`）。每个带 migration 的 PR 合并后由编排方立即手动 `migrate deploy`。“代码部署后立即手动 migrate”不足以作为支付模块的长期发布方案：**「migrate deploy 进部署链」立为批次 2 独立小 WP（WP-OPS-1），必须在 C3 开工前完成并实际演练**，避免 P2021 窗口。
+- 不含 migration 的 PR 不进队列；schema migration 的短生产临界区串行，结束于生产 `migrate deploy`、`_prisma_migrations`/目标 schema 核验和 `/api/healthz db:true`，完整功能冒烟与浏览器 QA 移出槽位并行执行。两线仍可并行开发 schema、Draft migration 和一次性 PostgreSQL 16 CI；后一个 migration PR 获槽后必须 rebase 最新 `main` 并重跑完整 migration CI（详见 `p0-batch-2-execution-plan.md`）。**WP-OPS-1 在 B6-0 后立即完成**：消除 Deploy 对同一 SHA 的重复整套 CI、把 `migrate deploy` 纳入部署链，并保证生产部署串行且绑定精确 SHA；WP-B45-2 作为第一次真实 migration 演练。
+- 用户可见 WP 的日常浏览器 QA 在本地 Compose 完成：生产已有 schema 可经 RDS SSH 隧道，Draft schema 必须使用一次性 PostgreSQL 16；C 线收口时再做一次真实生产浏览器 E2E。WP 合并后直接发送关键截图给用户，不等待回复、不阻塞下一包。
 - C1-C5、订单恢复和地址快照未全部完成前，交易 feature flag 保持关闭。
 - 真实支付开放前清零 engineering conventions §3 checklist：PITR 恢复、回滚、限流、监控告警、对账、异常处理和审计。
 - webhook 原文不得无边界持久化；明确脱敏、加密/访问控制和保留期限。

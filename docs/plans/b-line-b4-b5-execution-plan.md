@@ -1,6 +1,6 @@
 # B 线执行文档：B4 单品检视 + B5 场景确认首版
 
-状态：v4（2026-07-19，批次 2 执行中；migration 单队列收窄为进入 main 与生产的临界区）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`（B4/B5）、`ARCHITECTURE.md` §6、§7.3、§7.4、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/plans/p0-batch-1-execution-plan.md`。
+状态：v5（2026-07-19，批次 2 执行中；migration 槽位缩至生产 DB 临界区，WP-B45-2 作为 OPS-1 首次真实 migration 演练）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`（B4/B5）、`ARCHITECTURE.md` §6、§7.3、§7.4、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/plans/p0-batch-1-execution-plan.md`。
 
 本版取代 PR #31 中“单页完成 B4+B5、选中场景物品即预览”的范围切法。首版采用两个明确阶段：用户先检视并确认单个目标模型版本，再把该模型放入完整场景确认尺寸、摆放和空间关系。提议、预览、模型确认、场景确认、制作/安全检查、报价和订单是不同承诺，不得混写。
 
@@ -158,7 +158,7 @@
 - 一个职责闭合的 migration 落 `DesignItem`、`ModelConfirmation`、`Scene`、`SceneConfirmation` 及必要关系/索引。
 - 新增 `contracts/scenes.ts`、应用层用例和 `/api/v1/...` 薄 Route Handler；接入自动保存、revision 冲突、恢复、模型确认和场景确认。
 - 前端包可以在 WP-B45-0 Contract 冻结后并行实现，但持久化接线依赖前端行为和 API 都完成；不得边做边分叉字段正本。
-- WP-B45-2 可在独立 worktree 并行完成 schema、Draft migration、实现/测试与隔离临时数据库 CI；生产合并槽位由批次 2 跨线单队列按就绪顺序放行。进入槽位后必须 rebase 最新 `main` 并重跑完整 migration CI，不得复用旧 base 结论；合并后由编排方立即执行并验证生产 `migrate deploy`（详见 `p0-batch-2-execution-plan.md`）。
+- WP-B45-2 可在独立 worktree 并行完成 schema、Draft migration、实现/测试与隔离临时数据库 CI；生产合并槽位由批次 2 跨线单队列按就绪顺序放行。进入槽位后必须 rebase 最新 `main` 并重跑完整 migration CI，不得复用旧 base 结论；槽位只持续到生产 `migrate deploy`、目标 schema 验证与 `/api/healthz db:true`，完整功能/浏览器 QA 在槽外并行（详见 `p0-batch-2-execution-plan.md`）。WP-OPS-1 先独立落地部署链改造，WP-B45-2 随后作为该链路第一次真实 migration 演练，不把运维改造混进本 WP。
 
 ### WP-B45-3：WP-SEAM-0 producer adapter（挂 WP-B45-2 之后）
 
@@ -177,7 +177,7 @@
 
 - 自动保存后服务器重启仍能恢复；陈旧 revision 写入被拒绝；确认快照不可更新。
 - A 用户持 B 的 scene/designItem/modelConfirmation/asset ID 读取、写入或确认均为 404；未登录为 401；跨 Project 资产注入被拒绝。
-- migration 在目标 RDS 实际 applied，并验证相关表、唯一约束和关系存在。
+- migration 在目标 RDS 实际 applied，并验证 `_prisma_migrations`、相关表、唯一约束、关系和 `/api/healthz db:true`；完整业务冒烟不占 migration 槽位。
 
 ### 真实浏览器用户竖切
 
@@ -186,7 +186,7 @@
 - 模型加载失败可重试；保存失败可见；另一标签页制造 revision 冲突时不会静默覆盖。
 - 用户全程可以区分 target、context、通用宠物参照，以及“预览/确认”和“可制造/可报价”的承诺边界。
 
-编排约定沿用 batch-1：实现者 TDD 红→绿证据、非实现者真实浏览器录屏与关键截图、production build、三包类型检查、lint baseline、landing 零回归截图、`gh pr checks --json` 显式判定。每个阶段证据随阶段产出，不集中到最后补写。
+编排约定沿用 batch-1：实现者 TDD 红→绿证据、非实现者真实浏览器录屏与关键截图、production build、三包类型检查、lint baseline、landing 零回归截图、`gh pr checks --json` 显式判定。Draft schema 的 QA 使用一次性 PostgreSQL 16，不提前修改生产 RDS；B 线收口时再做一次生产浏览器 E2E。每个阶段证据随阶段产出，不集中到最后补写；用户可见 WP 合并后关键截图直接发给用户，不等待回复、不阻塞下一包。
 
 ## 原型退役
 
