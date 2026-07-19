@@ -43,7 +43,7 @@ export const VIEWER_ASSET_CATALOG: readonly ViewerCatalogAsset[] = [
     role: 'target',
     publicPath: '/scene-assets/cheese-lounge-bed.norm.glb',
     metaPath: '/scene-assets/cheese-lounge-bed.meta.json',
-    bytes: 3_503_856,
+    bytes: 6_379_824,
   }),
   temporaryAsset({
     assetKey: 'banana-bed',
@@ -51,7 +51,7 @@ export const VIEWER_ASSET_CATALOG: readonly ViewerCatalogAsset[] = [
     role: 'target',
     publicPath: '/scene-assets/banana-bed.norm.glb',
     metaPath: '/scene-assets/banana-bed.meta.json',
-    bytes: 3_503_696,
+    bytes: 6_195_368,
   }),
   temporaryAsset({
     assetKey: 'cheese-play-mat',
@@ -59,7 +59,7 @@ export const VIEWER_ASSET_CATALOG: readonly ViewerCatalogAsset[] = [
     role: 'target',
     publicPath: '/scene-assets/cheese-play-mat.norm.glb',
     metaPath: '/scene-assets/cheese-play-mat.meta.json',
-    bytes: 3_441_712,
+    bytes: 5_444_216,
   }),
   temporaryAsset({
     assetKey: 'cloud-moss-platform',
@@ -67,7 +67,7 @@ export const VIEWER_ASSET_CATALOG: readonly ViewerCatalogAsset[] = [
     role: 'context',
     publicPath: '/scene-assets/cloud-moss-platform.norm.glb',
     metaPath: '/scene-assets/cloud-moss-platform.meta.json',
-    bytes: 50_856,
+    bytes: 8_247_412,
   }),
   temporaryAsset({
     assetKey: 'star-spiral-ramp',
@@ -75,7 +75,7 @@ export const VIEWER_ASSET_CATALOG: readonly ViewerCatalogAsset[] = [
     role: 'context',
     publicPath: '/scene-assets/star-spiral-ramp.norm.glb',
     metaPath: '/scene-assets/star-spiral-ramp.meta.json',
-    bytes: 125_668,
+    bytes: 5_486_140,
   }),
 ] as const;
 

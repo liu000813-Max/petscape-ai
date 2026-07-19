@@ -1,28 +1,35 @@
 {
-  "sourceFile": "create_cloud_teapot_modules.mjs",
+  "sourceFile": "cloud-moss-teapot-platform.meshy.glb",
   "normalizedFile": "cloud-moss-platform.norm.glb",
+  "bytes": 8247412,
+  "checksumSha256": "3e003e2747c9ba2571cf2108a6b953746b18da09b0e89cfb9b6dfe1acd404c01",
   "heightMm": 57.261,
   "footprint": {
-    "xMm": 198,
-    "zMm": 67
+    "xMm": 84.469,
+    "zMm": 83.799
   },
   "boundsMm": [
     [
-      -99,
-      0,
-      -33.5
+      -42.235,
+      0.0,
+      -41.899
     ],
     [
-      99,
+      42.235,
       57.261,
-      33.5
+      41.899
     ]
   ],
   "transform": {
     "convention": "Y-up, 1 unit = 1mm",
-    "scale": 1,
+    "scale": 44.211180251005224,
     "droppedToY0": true,
     "centeredXZ": true,
-    "authoredLocally": true
+    "maxTextureSize": 1024,
+    "originalExtentsMm": [
+      1.910587,
+      1.29517,
+      1.895422
+    ]
   }
 }

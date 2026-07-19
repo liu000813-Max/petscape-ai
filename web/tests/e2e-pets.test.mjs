@@ -2,15 +2,18 @@
 // 真实 Next dev + PostgreSQL；浏览器上下文持真实 session cookie，不 mock Route Handler。
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const webRoot = fileURLToPath(new URL('../', import.meta.url));
+const evidenceRoot = fileURLToPath(new URL('../test-results/ui-polish-pack-a/', import.meta.url));
 const PORT = process.env.E2E_PETS_PORT ?? '3413';
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const PHONES = ['13700004131', '13700004132', '13700004133'];
+const UI_PHONE = '13700004134';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL 未设置：e2e-pets 需要已执行最新 migration 的 PostgreSQL。');
@@ -68,6 +71,7 @@ async function browserApi(page, path, init = {}) {
 }
 
 test.before(async () => {
+  await mkdir(evidenceRoot, { recursive: true });
   serverProcess = spawn('pnpm', ['exec', 'next', 'dev', '-H', '127.0.0.1', '-p', PORT], {
     cwd: webRoot,
     env: {
@@ -184,5 +188,54 @@ test('跨账号读取/修改/删除都是 404；owner 可编辑并软删除', as
   } finally {
     await contextA.close();
     await contextB.close();
+  }
+});
+
+test('390×844 宠物档案弹窗可滚动，上传区紧凑且保存按钮完整可见', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  try {
+    await login(page, UI_PHONE);
+    await page.goto(`${BASE_URL}/pets`);
+    await page.getByRole('heading', { name: '宠物档案', level: 1 }).waitFor();
+    await page.getByRole('button', { name: '新建档案' }).click();
+
+    const dialog = page.getByRole('dialog', { name: '新建宠物档案' });
+    const form = dialog.locator('form');
+    const coverPicker = dialog.locator('.psx-cover-picker');
+    const saveButton = dialog.getByRole('button', { name: '保存档案' });
+    await dialog.waitFor();
+
+    const coverBox = await coverPicker.boundingBox();
+    assert.ok(coverBox);
+    assert.ok(coverBox.height >= 132 && coverBox.height <= 168, `上传区高度应为 132–168px，实际 ${coverBox.height}px`);
+
+    const scrollMetrics = await form.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+    }));
+    assert.ok(scrollMetrics.scrollHeight > scrollMetrics.clientHeight, '移动端弹窗表单应有可滚动内容');
+    assert.equal(scrollMetrics.scrollTop, 0);
+
+    await form.hover();
+    await page.mouse.wheel(0, 640);
+    await page.waitForFunction((selector) => {
+      const element = document.querySelector(selector);
+      return element instanceof HTMLElement && element.scrollTop > 0;
+    }, '.psx-pet-editor form');
+
+    await saveButton.scrollIntoViewIfNeeded();
+    const [dialogBox, saveBox] = await Promise.all([dialog.boundingBox(), saveButton.boundingBox()]);
+    assert.ok(dialogBox);
+    assert.ok(saveBox);
+    assert.ok(saveBox.y >= dialogBox.y, '保存按钮顶部应位于弹窗内');
+    assert.ok(saveBox.y + saveBox.height <= dialogBox.y + dialogBox.height, '保存按钮底部应完整位于弹窗内');
+    assert.ok(saveBox.y + saveBox.height <= 844, '保存按钮底部应完整位于视口内');
+    assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden');
+
+    await page.screenshot({ path: `${evidenceRoot}/pet-modal.png`, fullPage: true });
+  } finally {
+    await context.close();
   }
 });

@@ -1,28 +1,35 @@
 {
-  "sourceFile": "create_cloud_teapot_modules.mjs",
+  "sourceFile": "s-cloud-star-ramp.meshy.glb",
   "normalizedFile": "star-spiral-ramp.norm.glb",
+  "bytes": 5486140,
+  "checksumSha256": "80bd234ba51d598d517fe8b252652c0430ac5b5bf4cb444db877e3ea8e40530f",
   "heightMm": 144.16,
   "footprint": {
-    "xMm": 217.303,
-    "zMm": 140.5
+    "xMm": 144.39,
+    "zMm": 114.169
   },
   "boundsMm": [
     [
-      -108.652,
-      0,
-      -70.25
+      -72.195,
+      0.0,
+      -57.085
     ],
     [
-      108.652,
+      72.195,
       144.16,
-      70.25
+      57.085
     ]
   ],
   "transform": {
     "convention": "Y-up, 1 unit = 1mm",
-    "scale": 1,
+    "scale": 75.54690868963752,
     "droppedToY0": true,
     "centeredXZ": true,
-    "authoredLocally": true
+    "maxTextureSize": 1024,
+    "originalExtentsMm": [
+      1.911268,
+      1.908218,
+      1.511236
+    ]
   }
 }

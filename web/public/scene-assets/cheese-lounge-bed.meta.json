@@ -1,6 +1,8 @@
 {
   "sourceFile": "raw.glb",
-  "normalizedFile": "raw.norm.glb",
+  "normalizedFile": "cheese-lounge-bed.norm.glb",
+  "bytes": 6379824,
+  "checksumSha256": "ad7ff9f2b6e2f53ab0908dee9caa58e23f22b7319962bd57931b991bd56d61b5",
   "heightMm": 100.0,
   "footprint": {
     "xMm": 274.148,
@@ -23,6 +25,7 @@
     "scale": 143.681019739293,
     "droppedToY0": true,
     "centeredXZ": true,
+    "maxTextureSize": 1024,
     "originalExtentsMm": [
       1.908033,
       0.695986,

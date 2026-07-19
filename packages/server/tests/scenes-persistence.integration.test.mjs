@@ -25,7 +25,7 @@ if (!databaseUrl) {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const ownerUserId = `viewer-owner-${suffix}`;
   const otherUserId = `viewer-other-${suffix}`;
-  const checksum = 'bbc2517c6503485c086d3b9e2987de1c75906426b5318d00e59ef232149d0112';
+  const checksum = 'ad7ff9f2b6e2f53ab0908dee9caa58e23f22b7319962bd57931b991bd56d61b5';
   const sourceBoundsMm = { x: 274.148, y: 100, z: 194.543 };
   const temporaryModel = {
     kind: 'temporary_catalog',

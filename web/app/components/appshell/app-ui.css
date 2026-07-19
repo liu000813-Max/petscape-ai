@@ -955,13 +955,15 @@
   backdrop-filter: blur(8px);
   display: grid;
   place-items: center;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .psx-pet-editor {
   width: min(720px, 100%);
-  max-height: calc(100vh - 48px);
-  overflow: auto;
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: 28px;
   background: #fff;
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.22);
@@ -997,12 +999,16 @@
 }
 
 .psx-pet-editor form {
-  padding: 22px 26px 28px;
+  min-height: 0;
+  padding: 22px 26px 30px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .psx-cover-picker {
   width: 100%;
-  aspect-ratio: 16 / 6;
+  height: clamp(132px, 20dvh, 168px);
   border: 1px dashed var(--psx-line);
   border-radius: 20px;
   background: var(--psx-soft);
@@ -1117,11 +1123,16 @@
 }
 
 .psx-pet-editor footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: grid;
   grid-template-columns: auto minmax(180px, 280px);
   justify-content: end;
   gap: 10px;
   margin-top: 24px;
+  padding: 14px 0 4px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0), #fff 18px);
 }
 
 .psx-pet-editor footer .psx-btn-primary {

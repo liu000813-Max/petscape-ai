@@ -1,6 +1,8 @@
 {
   "sourceFile": "raw.glb",
-  "normalizedFile": "raw.norm.glb",
+  "normalizedFile": "cheese-play-mat.norm.glb",
+  "bytes": 5444216,
+  "checksumSha256": "0442e89e3948a6ff77bcb45491e4269dc86976632dcf5383950742fe4da730e1",
   "heightMm": 60.0,
   "footprint": {
     "xMm": 162.435,
@@ -23,6 +25,7 @@
     "scale": 84.96572531056715,
     "droppedToY0": true,
     "centeredXZ": true,
+    "maxTextureSize": 1024,
     "originalExtentsMm": [
       1.911768,
       0.706167,

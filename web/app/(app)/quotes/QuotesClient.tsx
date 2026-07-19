@@ -6,6 +6,8 @@ import Link from 'next/link';
 import type { CustomizationRequestResponse } from '@petscape/server/contracts/customization-requests';
 import type { CheckRunResponse } from '@petscape/server/contracts/check-runs';
 import type { QuoteResponse } from '@petscape/server/contracts/quotes';
+import { formatDimensionsMm } from '../../lib/display-format';
+import { getViewerAsset } from '../../lib/viewer/catalog';
 
 class ApiError extends Error {}
 
@@ -104,22 +106,22 @@ export function QuotesClient() {
 
   return <div className="psx-page psx-quote-page psx-fade-up">
     <header className="psx-request-heading">
-      <div><span className="psx-dot-label">Sandbox quote</span><h1 className="psx-page-title">测试报价</h1>
-        <p>仅消费审核通过与完整服务端分析；金额、材料和规则均冻结为不可变快照。</p></div>
+      <div><span className="psx-dot-label">沙箱报价</span><h1 className="psx-page-title">测试报价</h1>
+        <p>仅使用审核通过且完成服务端分析的申请；金额、材料和规则会随本次报价保存。</p></div>
       <span className="psx-sandbox-badge">沙箱 · 不可真实支付</span>
     </header>
     {error ? <div className="psx-request-alert is-error" role="alert">{error}</div> : null}
     {notice ? <div className="psx-request-alert" role="status">{notice}</div> : null}
     <section className="psx-quote-eligible">
-      <div className="psx-request-history-heading"><div><span className="psx-dot-label">Approved input</span><h2>可生成报价的申请</h2></div><span>{eligible.length} 条</span></div>
-      {eligible.length === 0 ? <div className="psx-request-empty">尚无 completed + approved 的申请。</div> : eligible.map((request) =>
+      <div className="psx-request-history-heading"><div><span className="psx-dot-label">可报价的申请</span><h2>可生成报价的申请</h2></div><span>{eligible.length} 条</span></div>
+      {eligible.length === 0 ? <div className="psx-request-empty">还没有通过审核的申请。</div> : eligible.map((request) =>
         <article className="psx-quote-source" key={request.id}>
-          <div><strong>{request.productCode}</strong><span>{request.materialName}</span><small>{request.sceneConfirmation.dimensionsMm.x} × {request.sceneConfirmation.dimensionsMm.y} × {request.sceneConfirmation.dimensionsMm.z} mm</small></div>
+          <div><strong>{getViewerAsset(request.productCode).label}</strong><span>{request.materialName}</span><small>{request.productCode} · {formatDimensionsMm(request.sceneConfirmation.dimensionsMm)}</small></div>
           <button className="psx-btn-primary" disabled={busyId !== null} onClick={() => createFor(request)}><Calculator size={16}/>{busyId === request.id ? '分析中…' : '生成沙箱测试报价'}</button>
         </article>)}
     </section>
     <section className="psx-quote-history">
-      <div className="psx-request-history-heading"><div><span className="psx-dot-label">Immutable history</span><h2>报价历史</h2></div><span>{quotes.length} 条</span></div>
+      <div className="psx-request-history-heading"><div><span className="psx-dot-label">报价历史</span><h2>报价历史</h2></div><span>{quotes.length} 条</span></div>
       {quotes.length === 0 ? <div className="psx-request-empty">尚无报价。</div> : <div className="psx-quote-grid">{quotes.map((quote) =>
         <article className={`psx-quote-card is-${quote.status}`} key={quote.id}>
           <header><span>{statusLabel[quote.status]}</span><small>{quote.label}</small></header>

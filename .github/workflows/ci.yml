@@ -304,10 +304,14 @@ jobs:
         working-directory: web
         run: node --test tests/e2e-viewer-model.test.mjs
 
-      - name: Upload model confirmation evidence
+      - name: Run mobile pet modal layout flow
+        working-directory: web
+        run: node --test tests/e2e-pets.test.mjs
+
+      - name: Upload UI polish browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: wp-b4-1-model-confirmation-evidence
-          path: web/test-results/viewer-model-confirmation.png
+          name: ui-polish-pack-a-browser-evidence
+          path: web/test-results/ui-polish-pack-a/
           if-no-files-found: warn

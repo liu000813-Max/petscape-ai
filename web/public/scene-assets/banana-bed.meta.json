@@ -1,6 +1,8 @@
 {
   "sourceFile": "raw.glb",
-  "normalizedFile": "raw.norm.glb",
+  "normalizedFile": "banana-bed.norm.glb",
+  "bytes": 6195368,
+  "checksumSha256": "6cc74ace31d4899b275279b4c8ceb2902597ac819a221b1fa2b87ddbec3e0a3d",
   "heightMm": 100.0,
   "footprint": {
     "xMm": 234.107,
@@ -23,6 +25,7 @@
     "scale": 122.45760944320898,
     "droppedToY0": true,
     "centeredXZ": true,
+    "maxTextureSize": 1024,
     "originalExtentsMm": [
       1.911735,
       0.816609,

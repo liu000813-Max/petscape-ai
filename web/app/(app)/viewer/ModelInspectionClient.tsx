@@ -1,7 +1,7 @@
 'use client';
 
 import { Canvas, useThree } from '@react-three/fiber';
-import { ContactShadows, GizmoHelper, GizmoViewport, OrbitControls } from '@react-three/drei';
+import { ContactShadows, OrbitControls } from '@react-three/drei';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -24,7 +24,9 @@ import {
   saveViewerScene,
 } from '../../lib/viewer/viewer-api';
 import { createPersistedSceneDraft } from '../../lib/viewer/viewer-workspace';
+import { formatDimensionsMm } from '../../lib/display-format';
 import { SceneEditorClient } from './SceneEditorClient';
+import { ViewerViewCube } from './ViewerViewCube';
 import './viewer.css';
 
 function disposeScene(scene: THREE.Object3D) {
@@ -143,15 +145,9 @@ function InspectionCanvas({
       <gridHelper args={[650, 13, '#d8d7d2', '#e8e7e2']} position={[0, -0.5, 0]} />
       <OrbitControls makeDefault enableDamping minDistance={180} maxDistance={900} target={[0, 60, 0]} />
       <CameraReset token={resetToken} />
-      <GizmoHelper alignment="top-right" margin={[78, 78]}>
-        <GizmoViewport axisColors={['#b94848', '#4b8c65', '#4d6ea9']} labelColor="white" />
-      </GizmoHelper>
+      <ViewerViewCube />
     </Canvas>
   );
-}
-
-function formatBounds(bounds: { x: number; y: number; z: number }) {
-  return `${bounds.x.toFixed(1)} × ${bounds.y.toFixed(1)} × ${bounds.z.toFixed(1)} mm`;
 }
 
 type ViewerProject = {
@@ -306,7 +302,7 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
         <div className="viewer-project-card">
           <span className="viewer-eyebrow">3D 工作台入口</span>
           <h1 id="viewer-project-title">先选择一个明确项目</h1>
-          <p>工作台不会替你静默创建项目。选择已有项目，或明确创建一个新项目后再开始检视模型。</p>
+          <p>选择已有项目，或创建一个新项目开始。</p>
 
           {projectStatus === 'loading' ? <div className="viewer-project-status" role="status">正在读取你的项目…</div> : null}
           {projectStatus === 'error' ? (
@@ -334,7 +330,7 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
               <button type="submit" disabled={!newProjectTitle.trim() || creatingProject}>{creatingProject ? '创建中…' : '创建并进入'}</button>
             </div>
           </form>
-          <p className="viewer-boundary">测试模型全部来自 temporary catalog，仅限 sandbox；AI 生成链尚未接入。</p>
+          <p className="viewer-boundary">测试模型 · 沙箱环境；AI 生成即将开放，当前提供测试模型。</p>
         </div>
       </section>
     );
@@ -379,7 +375,7 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
           >
             项目 · {projectName(selectedProject)} <span>更换</span>
           </button>
-          <span className="viewer-sandbox">temporary catalog · sandbox only</span>
+          <span className="viewer-sandbox">测试模型 · 沙箱环境</span>
         </div>
       </header>
 
@@ -388,7 +384,7 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
           <div>
             <span className="viewer-eyebrow">测试模型</span>
             <h1>选择一个目标物品</h1>
-            <p>固定归一化 GLB，用于验证检视和阶段交接。</p>
+            <p>首批开放的测试模型。</p>
           </div>
           <div className="viewer-model-list">
             {TARGET_INSPECTION_ASSETS.map((candidate) => (
@@ -400,11 +396,11 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
                 onClick={() => setState((current) => selectInspectionAsset(current, candidate.assetKey))}
               >
                 <strong>{candidate.label}</strong>
-                <span>{formatBounds(candidate.sourceBoundsMm)}</span>
+                <span>{formatDimensionsMm(candidate.sourceBoundsMm)}</span>
               </button>
             ))}
           </div>
-          <p className="viewer-ai-note">AI 生成链尚未接入</p>
+          <p className="viewer-ai-note">AI 生成即将开放，当前提供测试模型</p>
         </aside>
 
         <div className="viewer-stage">
@@ -417,7 +413,7 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
             onLoad={handleLoad}
           />
           <div className="viewer-stage-name"><span />{asset.label}<small>{asset.assetKey}</small></div>
-          <div className="viewer-final-chip">最终 {formatBounds(state.finalBoundsMm)}</div>
+          <div className="viewer-final-chip">最终 {formatDimensionsMm(state.finalBoundsMm)}</div>
           <div className="viewer-toolbar">
             <span>拖动旋转 · 滚轮缩放视角</span>
             <button type="button" onClick={() => setResetToken((token) => token + 1)}>回到原点</button>
@@ -436,8 +432,8 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
         <aside className="viewer-panel" aria-label="尺寸与确认">
           <div className="viewer-card">
             <h2>尺寸与比例</h2>
-            <div className="viewer-dimension-row"><span>原始尺寸</span><strong>{formatBounds(asset.sourceBoundsMm)}</strong><small>来源：冻结 meta 包围盒</small></div>
-            <div className="viewer-dimension-row"><span>最终尺寸</span><strong>{formatBounds(state.finalBoundsMm)}</strong><small>仅预览交互值，不是制造推荐</small></div>
+            <div className="viewer-dimension-row"><span>原始尺寸</span><strong>{formatDimensionsMm(asset.sourceBoundsMm)}</strong><small>模型原始尺寸</small></div>
+            <div className="viewer-dimension-row"><span>最终尺寸</span><strong>{formatDimensionsMm(state.finalBoundsMm)}</strong><small>预览尺寸，非制造建议</small></div>
             <label className="viewer-scale">
               <span>统一比例 <output>{Math.round(state.uniformScale * 100)}%</output></span>
               <input
@@ -449,7 +445,7 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
                 value={state.uniformScale}
                 onChange={(event) => setState((current) => setInspectionUniformScale(current, Number(event.target.value)))}
               />
-              <small>等比缩放三轴；不支持单轴拉伸</small>
+              <small>整体等比缩放</small>
             </label>
           </div>
 
@@ -465,7 +461,7 @@ export function ModelInspectionClient({ initialProjectId }: { initialProjectId?:
               {confirmingModel ? '正在写入不可变确认…' : '确认此模型，进入场景'} <span aria-hidden="true">→</span>
             </button>
             {workspaceError ? <small role="alert">{workspaceError}</small> : null}
-            <small>temporary catalog · sandbox only · checksum 已冻结</small>
+            <small>测试模型 · 沙箱环境</small>
           </div>
         </aside>
       </div>

@@ -8,6 +8,7 @@ import { chromium } from 'playwright';
 
 const webRoot = fileURLToPath(new URL('../', import.meta.url));
 const evidenceRoot = fileURLToPath(new URL('../../screenshots/browser-qa/wp-b45-2/', import.meta.url));
+const ciEvidenceRoot = fileURLToPath(new URL('../test-results/ui-polish-pack-a/', import.meta.url));
 const PORT = process.env.E2E_VIEWER_PORT ?? '3415';
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const PHONE = process.env.E2E_VIEWER_PHONE ?? '13700004315';
@@ -112,39 +113,51 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     assert.match(page.url(), /\/viewer\?projectId=/);
     await page.getByText(`项目 · ${title}`).waitFor();
 
-    await page.getByRole('button', { name: /香蕉小床/ }).click();
     const confirm = page.getByRole('button', { name: /确认此模型，进入场景/ });
-    await assert.doesNotReject(async () => {
+    async function waitForModelReady() {
       await confirm.waitFor({ state: 'visible' });
       await page.waitForFunction(() => {
         const button = [...document.querySelectorAll('button')].find((candidate) => candidate.textContent?.includes('确认此模型'));
         return button instanceof HTMLButtonElement && !button.disabled;
       });
-    });
+    }
+
+    await waitForModelReady();
+    await mkdir(evidenceRoot, { recursive: true });
+    await mkdir(ciEvidenceRoot, { recursive: true });
+    await page.screenshot({ path: `${evidenceRoot}/ui-polish-stage1-cheese-lounge-bed.png`, fullPage: true });
+    await page.screenshot({ path: `${ciEvidenceRoot}/stage1-cheese-lounge-bed.png`, fullPage: true });
+
+    await page.getByRole('button', { name: /奶酪游戏垫/ }).click();
+    await waitForModelReady();
+    await page.screenshot({ path: `${ciEvidenceRoot}/stage1-cheese-play-mat.png`, fullPage: true });
+
+    await page.getByRole('button', { name: /香蕉小床/ }).click();
+    await waitForModelReady();
+    await page.screenshot({ path: `${ciEvidenceRoot}/stage1-banana-bed.png`, fullPage: true });
 
     const scale = page.getByRole('slider', { name: '统一比例' });
     await scale.fill('1.25');
-    await page.getByText('最终 292.6 × 125.0 × 118.4 mm').waitFor();
+    await page.getByText('最终 292.6 × 125 × 118.4 mm').waitFor();
 
     await confirm.click();
     await page.getByRole('heading', { name: '布置笼舍' }).waitFor();
-    await page.getByText(/已保存 · revision 1/).waitFor();
+    await page.getByText('已自动保存').waitFor();
     await page.getByText(`项目 · ${title}`).waitFor();
     assert.equal(await page.locator('.viewer-role.is-target').count(), 1);
     await page.getByText('香蕉小床').waitFor();
-    await page.getByText(/最终尺寸 X 292\.6 · Y 125\.0 · Z 118\.4 mm/).waitFor();
+    await page.getByText('最终尺寸 292.6 × 125 × 118.4 mm').waitFor();
 
     await page.getByRole('button', { name: /加入 云朵苔藓台/ }).click();
     await page.getByRole('button', { name: /环境.*云朵苔藓台/ }).click();
     const sceneScale = page.getByRole('slider', { name: '等比缩放' });
     await sceneScale.fill('1.1');
-    await page.getByText(/最终尺寸 X 217\.8 · Y 63\.0 · Z 73\.7 mm/).waitFor();
+    await page.getByText('最终尺寸 92.9 × 63 × 92.2 mm').waitFor();
 
     await page.getByLabel('位置 X (mm)').fill('0');
     await page.getByLabel('位置 Z (mm)').fill('0');
     await page.getByText('本次操作会与其他物品碰撞').waitFor();
     assert.equal(await page.getByLabel('位置 Z (mm)').inputValue(), '130');
-    await mkdir(evidenceRoot, { recursive: true });
     await page.screenshot({ path: `${evidenceRoot}/viewer-scene-collision-blocked.png`, fullPage: true });
     await page.getByRole('button', { name: '重置当前物品' }).click();
 
@@ -156,7 +169,7 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
 
     await page.getByLabel('长度 X').fill('200');
     await page.getByText(/超出笼舍边界/).waitFor();
-    assert.equal(await page.getByRole('button', { name: '确认已保存场景' }).isDisabled(), true);
+    assert.equal(await page.getByRole('button', { name: '确认此场景' }).isDisabled(), true);
     await page.getByLabel('长度 X').fill('800');
 
     await page.getByRole('button', { name: /环境.*云朵苔藓台/ }).click();
@@ -179,8 +192,12 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     await page.screenshot({ path: `${evidenceRoot}/viewer-scene-touch.png`, fullPage: true });
     await page.setViewportSize({ width: 1440, height: 960 });
     await page.getByRole('button', { name: '重置当前物品' }).click();
+    await page.getByRole('button', { name: /加入 星星螺旋坡道/ }).click();
+    await page.getByRole('button', { name: /环境.*星星螺旋坡道/ }).waitFor();
+    await page.screenshot({ path: `${evidenceRoot}/ui-polish-stage2-edges-layout.png`, fullPage: true });
+    await page.screenshot({ path: `${ciEvidenceRoot}/stage2-edges-layout.png`, fullPage: true });
 
-    await page.getByText(/已保存 · revision/).waitFor({ timeout: 15_000 });
+    await page.getByText('已自动保存').waitFor({ timeout: 15_000 });
 
     // 可见失败与人工重试：只注入一次网络失败，随后仍由真实 Route + DB 保存。
     let abortedOnce = false;
@@ -196,19 +213,24 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     await page.getByText('保存失败，可重试').waitFor({ timeout: 15_000 });
     await page.unroute('**/api/v1/projects/*/scene');
     await page.getByRole('button', { name: '重试保存' }).click();
-    await page.getByText(/已保存 · revision/).waitFor({ timeout: 15_000 });
+    await page.getByText('已自动保存').waitFor({ timeout: 15_000 });
 
-    const sceneConfirm = page.getByRole('button', { name: '确认已保存场景' });
+    const sceneConfirm = page.getByRole('button', { name: '确认此场景' });
     await page.waitForFunction(() => {
-      const button = [...document.querySelectorAll('button')].find((candidate) => candidate.textContent?.includes('确认已保存场景'));
+      const button = [...document.querySelectorAll('button')].find((candidate) => candidate.textContent?.includes('确认此场景'));
       return button instanceof HTMLButtonElement && !button.disabled;
     });
+    const firstConfirmationResponse = page.waitForResponse((response) => (
+      response.request().method() === 'POST'
+      && response.url().includes('/api/v1/scenes/')
+      && response.url().endsWith('/confirmations')
+    ));
     await sceneConfirm.click();
-    const firstConfirmationText = await page.getByText(/最近确认 · revision/).textContent();
-    const firstConfirmationId = firstConfirmationText.match(/(cm[a-z0-9]+)/)?.[1];
-    assert.ok(firstConfirmationId, firstConfirmationText);
+    const firstConfirmationId = (await (await firstConfirmationResponse).json()).id;
+    assert.ok(firstConfirmationId);
+    await page.getByText('最近确认已保存').waitFor();
     await page.getByRole('button', { name: '回到原点' }).click();
-    await page.getByText(/服务器持久化确认 · 不代表可制造/).waitFor();
+    await page.getByText(/确认已保存到服务器；不代表可制造/).waitFor();
 
     await page.screenshot({ path: `${evidenceRoot}/viewer-scene-confirmation.png`, fullPage: true });
 
@@ -216,28 +238,34 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     const stalePage = await context.newPage();
     await stalePage.goto(page.url());
     await stalePage.getByRole('heading', { name: '布置笼舍' }).waitFor();
-    const oldRevisionText = await stalePage.getByText(/已保存 · revision/).textContent();
+    await stalePage.getByText('已自动保存').waitFor();
 
     await page.getByLabel('长度 X').fill('820');
-    await page.getByText(/当前草稿已变化/).waitFor();
+    await page.getByText(/当前场景已有新变化/).waitFor();
     await page.getByText(/有未保存更改|保存中/).waitFor();
-    await page.getByText(/已保存 · revision/).waitFor({ timeout: 15_000 });
+    await page.getByText('已自动保存').waitFor({ timeout: 15_000 });
+    const secondConfirmationResponse = page.waitForResponse((response) => (
+      response.request().method() === 'POST'
+      && response.url().includes('/api/v1/scenes/')
+      && response.url().endsWith('/confirmations')
+    ));
     await sceneConfirm.click();
-    await page.waitForFunction((oldId) => {
-      const text = [...document.querySelectorAll('p')].find((node) => node.textContent?.includes('最近确认 · revision'))?.textContent ?? '';
-      return text.length > 0 && !text.includes(oldId);
-    }, firstConfirmationId);
-    const secondConfirmationText = await page.getByText(/最近确认 · revision/).textContent();
-    const secondConfirmationId = secondConfirmationText.match(/(cm[a-z0-9]+)/)?.[1];
-    assert.ok(secondConfirmationId, secondConfirmationText);
+    const secondConfirmationId = (await (await secondConfirmationResponse).json()).id;
+    assert.ok(secondConfirmationId);
     assert.notEqual(secondConfirmationId, firstConfirmationId);
 
+    const staleSaveResponse = stalePage.waitForResponse((response) => (
+      response.request().method() === 'PUT'
+      && response.url().includes('/api/v1/projects/')
+      && response.url().endsWith('/scene')
+      && response.status() === 409
+    ));
     await stalePage.getByLabel('宽度 Z').fill('520');
-    await stalePage.getByText(/检测到 revision 冲突/).waitFor({ timeout: 15_000 });
-    await stalePage.getByText(/当前草稿未覆盖服务器版本/).waitFor();
-    assert.equal(await stalePage.getByRole('button', { name: '确认已保存场景' }).isDisabled(), true);
+    await staleSaveResponse;
+    await stalePage.getByRole('status').filter({ hasText: '检测到保存冲突，未覆盖服务器内容' }).waitFor();
+    await stalePage.getByRole('alert').filter({ hasText: '其他标签页已保存更新；当前草稿没有覆盖服务器内容。' }).waitFor();
+    assert.equal(await stalePage.getByRole('button', { name: '确认此场景' }).isDisabled(), true);
     await stalePage.screenshot({ path: `${evidenceRoot}/viewer-revision-conflict.png`, fullPage: true });
-    assert.match(oldRevisionText, /revision/);
 
     const oldSnapshot = await page.evaluate(async (id) => {
       const response = await fetch(`/api/v1/scene-confirmations/${id}`);
@@ -252,7 +280,10 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     await page.reload();
     await page.getByRole('heading', { name: '布置笼舍' }).waitFor();
     assert.equal(await page.getByLabel('长度 X').inputValue(), '820');
-    await page.getByText(secondConfirmationId).waitFor();
+    assert.equal(await page.evaluate(async (projectId) => {
+      const response = await fetch(`/api/v1/projects/${projectId}/viewer-state`);
+      return (await response.json()).latestSceneConfirmation.id;
+    }, new URL(page.url()).searchParams.get('projectId')), secondConfirmationId);
 
     const persistedViewerUrl = page.url();
     await stopServer();
@@ -260,7 +291,10 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     await page.goto(persistedViewerUrl);
     await page.getByRole('heading', { name: '布置笼舍' }).waitFor({ timeout: 20_000 });
     assert.equal(await page.getByLabel('长度 X').inputValue(), '820');
-    await page.getByText(secondConfirmationId).waitFor();
+    assert.equal(await page.evaluate(async (projectId) => {
+      const response = await fetch(`/api/v1/projects/${projectId}/viewer-state`);
+      return (await response.json()).latestSceneConfirmation.id;
+    }, new URL(page.url()).searchParams.get('projectId')), secondConfirmationId);
     await page.screenshot({ path: `${evidenceRoot}/viewer-server-restart-restored.png`, fullPage: true });
 
     await page.goto(BASE_URL);

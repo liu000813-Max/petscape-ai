@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { ClipboardCheck, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { CheckRunResponse, CheckRunRequestSnapshot } from '@petscape/server/contracts/check-runs';
+import { formatDimensionsMm } from '../../../lib/display-format';
+import { getViewerAsset } from '../../../lib/viewer/catalog';
 
 type Candidate = { request: CheckRunRequestSnapshot; checkRun: CheckRunResponse | null; canComplete: boolean };
 type DecisionDraft = { result: 'approved' | 'rejected' | 'uncertain'; issues: string; suggestions: string; evidence: string; note: string };
@@ -70,8 +72,8 @@ export function AdminReviewsClient() {
   return (
     <div className="psx-page b6-page psx-fade-up">
       <header className="b6-heading">
-        <div><span className="psx-dot-label">Admin · trusted review</span><h1>沙箱人工审核台</h1><p>检查结论会冻结输入快照，但不会生成真实报价、支付或订单。</p></div>
-        <span className="psx-sandbox-badge"><ShieldCheck size={15} /> Admin only · Sandbox</span>
+        <div><span className="psx-dot-label">管理员审核</span><h1>沙箱人工审核台</h1><p>检查结论会保存输入快照，但不会生成真实报价、支付或订单。</p></div>
+        <span className="psx-sandbox-badge"><ShieldCheck size={15} /> 仅管理员 · 沙箱环境</span>
       </header>
       {error ? <div className="b6-alert" role="alert">{error}</div> : null}
       <div className="b6-toolbar"><button type="button" onClick={() => load()}><RefreshCcw size={15} /> 刷新队列</button><span>{candidates.length} 条 submitted 申请</span></div>
@@ -82,10 +84,10 @@ export function AdminReviewsClient() {
             const run = candidate.checkRun;
             const draft = drafts[id] ?? emptyDecision;
             return <article className="b6-card" key={id}>
-              <header><div><span className="psx-dot-label">CustomizationRequest</span><h2>{candidate.request.contactName} · {candidate.request.contactPhone}</h2></div><ClipboardCheck size={22} /></header>
+              <header><div><span className="psx-dot-label">定制申请</span><h2>{candidate.request.contactName} · {candidate.request.contactPhone}</h2></div><ClipboardCheck size={22} /></header>
               <p>{candidate.request.usageDescription}</p>
               {candidate.request.additionalRequirements ? <p className="b6-secondary">补充：{candidate.request.additionalRequirements}</p> : null}
-              <dl><div><dt>商品 / 材料</dt><dd>{candidate.request.productCode} / {candidate.request.materialName}</dd></div><div><dt>资产</dt><dd>{candidate.request.sceneConfirmation.assetRef.kind} · {candidate.request.sceneConfirmation.assetRef.sha256.slice(0, 12)}…</dd></div><div><dt>最终尺寸</dt><dd>{candidate.request.sceneConfirmation.dimensionsMm.x} × {candidate.request.sceneConfirmation.dimensionsMm.y} × {candidate.request.sceneConfirmation.dimensionsMm.z} mm</dd></div><div><dt>规则</dt><dd>fdm-manual-sandbox-v0</dd></div></dl>
+              <dl><div><dt>商品 / 材料</dt><dd>{getViewerAsset(candidate.request.productCode).label} / {candidate.request.materialName}</dd></div><div><dt>资产</dt><dd>{candidate.request.sceneConfirmation.assetRef.kind} · {candidate.request.sceneConfirmation.assetRef.sha256.slice(0, 12)}…</dd></div><div><dt>最终尺寸</dt><dd>{formatDimensionsMm(candidate.request.sceneConfirmation.dimensionsMm)}</dd></div><div><dt>规则</dt><dd>fdm-manual-sandbox-v0</dd></div></dl>
               {!run ? <button disabled={busy === id} onClick={() => act(id, '/api/v1/admin/check-runs', { requestId: id })}>加入审核队列</button> : null}
               {run?.status === 'queued' ? <button disabled={busy === id} onClick={() => act(id, `/api/v1/admin/check-runs/${run.id}/start`)}>认领并开始审核</button> : null}
               {run?.status === 'in_review' && candidate.canComplete ? <div className="b6-decision">
@@ -98,7 +100,7 @@ export function AdminReviewsClient() {
               </div> : null}
               {run?.status === 'in_review' && !candidate.canComplete ? <p className="b6-boundary">已由其他审核员认领；当前账号只能查看，不能提交结论。</p> : null}
               {run?.status === 'completed' && run.result ? <div className={`b6-result is-${run.result}`}><strong>{resultLabel[run.result]}</strong><span>{run.note ?? '审核已完成'}</span></div> : null}
-              <p className="b6-boundary">CheckRun 与 Request 状态彼此独立；只有 completed + approved 可供后续 C2 门禁消费。</p>
+              <p className="b6-boundary">审核记录与申请状态彼此独立；只有审核完成且通过的申请才能进入后续报价流程。</p>
             </article>;
           })}
         </div>

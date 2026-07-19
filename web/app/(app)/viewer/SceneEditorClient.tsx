@@ -1,12 +1,13 @@
 'use client';
 
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
-import { GizmoHelper, GizmoViewport, OrbitControls } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { SceneConfirmationResponse, SceneItem, SceneRecord } from '@petscape/server/contracts/scenes';
 import { VIEWER_ASSET_CATALOG, getViewerAsset } from '../../lib/viewer/catalog';
+import { formatDimensionsMm, formatMillimeters } from '../../lib/display-format';
 import { confirmViewerScene, saveViewerScene, ViewerApiError } from '../../lib/viewer/viewer-api';
 import {
   addContextItem,
@@ -23,10 +24,39 @@ import {
   type SceneBlockingReason,
   type SceneEditorState,
 } from '../../lib/viewer/scene-state';
+import { ViewerViewCube } from './ViewerViewCube';
 
 type LoadState = Record<string, 'loading' | 'ready' | 'error'>;
 
 const CONTEXT_ASSETS = VIEWER_ASSET_CATALOG.filter((asset) => asset.role === 'context');
+
+function BoxEdges({
+  size,
+  position,
+  color = '#171717',
+  opacity = 0.72,
+}: {
+  size: [number, number, number];
+  position: [number, number, number];
+  color?: string;
+  opacity?: number;
+}) {
+  const [width, height, depth] = size;
+  const geometry = useMemo(() => {
+    const box = new THREE.BoxGeometry(width, height, depth);
+    const edges = new THREE.EdgesGeometry(box);
+    box.dispose();
+    return edges;
+  }, [depth, height, width]);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  return (
+    <lineSegments geometry={geometry} position={position}>
+      <lineBasicMaterial color={color} transparent opacity={opacity} toneMapped={false} />
+    </lineSegments>
+  );
+}
 
 function disposeScene(scene: THREE.Object3D) {
   const textures = new Set<THREE.Texture>();
@@ -151,12 +181,7 @@ function GltfItem({
       onLostPointerCapture={() => { dragging.current = false; onInteraction(false); }}
     >
       {scene ? <primitive object={scene} /> : null}
-      {selected ? (
-        <mesh position={[0, item.sourceBoundsMm.y / 2, 0]}>
-          <boxGeometry args={[item.sourceBoundsMm.x, item.sourceBoundsMm.y, item.sourceBoundsMm.z]} />
-          <meshBasicMaterial color="#111111" wireframe transparent opacity={0.72} />
-        </mesh>
-      ) : null}
+      {selected ? <BoxEdges size={[item.sourceBoundsMm.x, item.sourceBoundsMm.y, item.sourceBoundsMm.z]} position={[0, item.sourceBoundsMm.y / 2, 0]} /> : null}
     </group>
   );
 }
@@ -177,7 +202,7 @@ function RatReference({ item, selected, onSelect }: { item: SceneItem; selected:
         <sphereGeometry args={[30, 20, 12]} />
         <meshStandardMaterial color="#aaa8a2" transparent opacity={0.72} />
       </mesh>
-      {selected ? <axesHelper args={[125]} /> : null}
+      {selected ? <BoxEdges size={[item.sourceBoundsMm.x, item.sourceBoundsMm.y, item.sourceBoundsMm.z]} position={[0, 10, 0]} opacity={0.55} /> : null}
     </group>
   );
 }
@@ -221,10 +246,7 @@ function SceneCanvas({
       <ambientLight intensity={1.8} />
       <directionalLight position={[400, 700, 350]} intensity={2.2} castShadow />
       <gridHelper args={[Math.max(cage.width, cage.depth), 12, '#c7c6c0', '#dfded8']} />
-      <mesh position={[0, cage.height / 2, 0]}>
-        <boxGeometry args={[cage.width, cage.height, cage.depth]} />
-        <meshBasicMaterial color="#171717" wireframe transparent opacity={0.22} />
-      </mesh>
+      <BoxEdges size={[cage.width, cage.height, cage.depth]} position={[0, cage.height / 2, 0]} opacity={0.24} />
       {state.draft.items.map((item) => {
         if (item.role === 'pet_reference') {
           return <RatReference key={item.instanceId} item={item} selected={selectedId === item.instanceId} onSelect={() => onSelect(item.instanceId)} />;
@@ -248,9 +270,7 @@ function SceneCanvas({
       })}
       <OrbitControls makeDefault enabled={!interactionActive} enableDamping minDistance={260} maxDistance={1800} target={[0, cage.height * 0.28, 0]} />
       <SceneCameraReset token={resetToken} cageHeight={cage.height} />
-      <GizmoHelper alignment="top-right" margin={[74, 74]}>
-        <GizmoViewport axisColors={['#b94848', '#4b8c65', '#4d6ea9']} labelColor="white" />
-      </GizmoHelper>
+      <ViewerViewCube />
     </Canvas>
   );
 }
@@ -359,7 +379,7 @@ export function SceneEditorClient({
       }).catch((error) => {
         if (error instanceof ViewerApiError && error.code === 'revision_conflict') {
           setSaveStatus('conflict');
-          setSaveError(`其他标签页已保存 revision ${error.currentRevision ?? '未知'}；当前草稿未覆盖服务器版本。`);
+          setSaveError('其他标签页已保存更新；当前草稿没有覆盖服务器内容。');
           return;
         }
         setSaveStatus('error');
@@ -401,7 +421,7 @@ export function SceneEditorClient({
           <span className="viewer-step-line" />
           <span className="viewer-step is-current"><i>2</i>完整场景确认</span>
         </div>
-        <div className="viewer-topbar-context"><span className="viewer-project-pill">项目 · {projectName}</span><span className="viewer-sandbox">temporary catalog · sandbox only</span></div>
+        <div className="viewer-topbar-context"><span className="viewer-project-pill">项目 · {projectName}</span><span className="viewer-sandbox">测试模型 · 沙箱环境</span></div>
       </header>
 
       <div className="viewer-grid viewer-scene-grid">
@@ -464,23 +484,23 @@ export function SceneEditorClient({
               <label><span>位置 Z (mm)</span><input type="number" step="10" value={selected.positionMm.z} onChange={(event) => changeTransform({ positionMm: { ...selected.positionMm, z: Number(event.target.value) } })} /><output>mm</output></label>
               <label><span>Y 轴旋转</span><input type="range" min={-3.142} max={3.142} step={0.01} value={selected.rotationYRad} onChange={(event) => changeTransform({ rotationYRad: Number(event.target.value) })} /><output>{(selected.rotationYRad * 180 / Math.PI).toFixed(0)}°</output></label>
               <label><span>等比缩放</span><input type="range" min={0.5} max={2} step={0.01} value={selected.uniformScale} onChange={(event) => changeTransform({ uniformScale: Number(event.target.value) })} /><output>{selected.uniformScale.toFixed(2)}×</output></label>
-              <p>位置 X {selected.positionMm.x} · Y {selected.positionMm.y} · Z {selected.positionMm.z} mm</p>
-              <p>最终尺寸 X {selected.finalBoundsMm.x.toFixed(1)} · Y {selected.finalBoundsMm.y.toFixed(1)} · Z {selected.finalBoundsMm.z.toFixed(1)} mm</p>
-              <button type="button" onClick={() => applyResult(snapSceneItemToSupport(state, selected.instanceId))}>吸附到水平支撑面</button>
+              <p>位置 X {formatMillimeters(selected.positionMm.x)} · Y {formatMillimeters(selected.positionMm.y)} · Z {formatMillimeters(selected.positionMm.z)} mm</p>
+              <p>最终尺寸 {formatDimensionsMm(selected.finalBoundsMm)}</p>
+              <button type="button" onClick={() => applyResult(snapSceneItemToSupport(state, selected.instanceId))}>贴放到支撑面</button>
               <button type="button" onClick={() => applyResult(resetSceneItem(state, selected.instanceId))}>重置当前物品</button>
               <button type="button" onClick={() => { commitEditorState(resetAllSceneItems(state)); setBlockingReasons([]); }}>全部重置</button>
             </div>}
           </div>
           <div className="viewer-confirm-block viewer-scene-confirm">
-            <p role="status">{{ saved: `已保存 · revision ${serverRevision}`, dirty: '有未保存更改', saving: '保存中…', error: '保存失败，可重试', conflict: '检测到 revision 冲突，未覆盖服务器版本' }[saveStatus]}</p>
+            <p role="status">{{ saved: '已自动保存', dirty: '有未保存更改', saving: '保存中…', error: '保存失败，可重试', conflict: '检测到保存冲突，未覆盖服务器内容' }[saveStatus]}</p>
             {saveError ? <p role="alert">{saveError}</p> : null}
             {saveStatus === 'error' ? <button type="button" className="viewer-secondary-action" onClick={() => { setSaveStatus('dirty'); setRetryToken((token) => token + 1); }}>重试保存</button> : null}
             {saveStatus === 'conflict' ? <button type="button" className="viewer-secondary-action" onClick={() => window.location.reload()}>重新载入服务器版本</button> : null}
-            {sceneConfirmation ? <p className="is-success">最近确认 · revision {sceneConfirmation.sceneRevision} · {sceneConfirmation.id}{draftDiffersFromLastConfirmation(state) ? '；当前草稿已变化' : ''}</p> : <p>{eligibility.eligible ? '场景已保存且几何检查通过，可以确认。' : eligibility.blockingReasons.map(reasonLabel).join('；')}</p>}
+            {sceneConfirmation ? <p className="is-success">最近确认已保存{draftDiffersFromLastConfirmation(state) ? '；当前场景已有新变化' : ''}</p> : <p>{eligibility.eligible ? '场景已保存且几何检查通过，可以确认。' : eligibility.blockingReasons.map(reasonLabel).join('；')}</p>}
             {confirmationError ? <p role="alert">{confirmationError}</p> : null}
-            <button type="button" disabled={!eligibility.eligible || confirmingScene} onClick={() => { void confirmCurrentScene(); }}>{confirmingScene ? '确认中…' : '确认已保存场景'}</button>
+            <button type="button" disabled={!eligibility.eligible || confirmingScene} onClick={() => { void confirmCurrentScene(); }}>{confirmingScene ? '确认中…' : '确认此场景'}</button>
             <button type="button" className="viewer-secondary-action" onClick={onBack}>返回并新建模型确认</button>
-            <small>服务器持久化确认 · 不代表可制造、宠物安全、报价或成交</small>
+            <small>确认已保存到服务器；不代表可制造、适合宠物使用或已报价</small>
           </div>
         </aside>
       </div>

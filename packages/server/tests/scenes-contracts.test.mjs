@@ -54,8 +54,8 @@ function context(overrides = {}) {
     positionMm: { x: 100, y: 0, z: 0 },
     rotationYRad: 0,
     uniformScale: 1,
-    sourceBoundsMm: { x: 198, y: 57.261, z: 67 },
-    finalBoundsMm: { x: 198, y: 57.261, z: 67 },
+    sourceBoundsMm: { x: 84.469, y: 57.261, z: 83.799 },
+    finalBoundsMm: { x: 84.469, y: 57.261, z: 83.799 },
     ...overrides,
   };
 }
@@ -214,7 +214,7 @@ test('persistence contract：SceneRecord 带服务端 id/revision，draft 字段
 test('temporary catalog registry：服务端冻结 key、role、checksum 与原始尺寸', () => {
   const cheese = resolveViewerCatalogAsset('cheese-lounge-bed');
   assert.equal(cheese.role, 'target');
-  assert.equal(cheese.checksum, 'bbc2517c6503485c086d3b9e2987de1c75906426b5318d00e59ef232149d0112');
+  assert.equal(cheese.checksum, 'ad7ff9f2b6e2f53ab0908dee9caa58e23f22b7319962bd57931b991bd56d61b5');
   assert.deepEqual(cheese.sourceBoundsMm, { x: 274.148, y: 100, z: 194.543 });
   assert.throws(() => resolveViewerCatalogAsset('forged-catalog-item'), /未知临时目录资产/);
 });

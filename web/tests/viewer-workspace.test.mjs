@@ -9,7 +9,7 @@ const confirmation = {
   modelRef: {
     kind: 'temporary_catalog',
     assetKey: 'cheese-lounge-bed',
-    checksum: 'bbc2517c6503485c086d3b9e2987de1c75906426b5318d00e59ef232149d0112',
+    checksum: 'ad7ff9f2b6e2f53ab0908dee9caa58e23f22b7319962bd57931b991bd56d61b5',
     quoteEligible: false,
   },
   sourceBoundsMm: { x: 274.148, y: 100, z: 194.543 },

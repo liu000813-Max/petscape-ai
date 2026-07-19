@@ -141,6 +141,15 @@ export function PetProfilesClient() {
     };
   }, [coverPreview]);
 
+  useEffect(() => {
+    if (!editorOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [editorOpen]);
+
   const title = useMemo(() => (editingPet ? `编辑 ${editingPet.name}` : '新建宠物档案'), [editingPet]);
 
   function openCreate() {
@@ -315,7 +324,7 @@ export function PetProfilesClient() {
         }}>
           <section className="psx-pet-editor" role="dialog" aria-modal="true" aria-labelledby="pet-editor-title">
             <header>
-              <div><span className="psx-dot-label">Pet Profile</span><h2 id="pet-editor-title">{title}</h2></div>
+              <div><span className="psx-dot-label">宠物档案</span><h2 id="pet-editor-title">{title}</h2></div>
               <button type="button" className="psx-pet-editor-close" onClick={closeEditor} aria-label="关闭编辑器"><X size={19} /></button>
             </header>
 

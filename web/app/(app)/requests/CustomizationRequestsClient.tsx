@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ClipboardList, RefreshCcw, Send } from 'lucide-react';
 import type { CustomizationRequestResponse } from '@petscape/server/contracts/customization-requests';
 import type { CheckRunResponse } from '@petscape/server/contracts/check-runs';
+import { formatDimensionsMm } from '../../lib/display-format';
 
 type FormState = {
   contactName: string;
@@ -154,7 +155,7 @@ export function CustomizationRequestsClient({
     <div className="psx-page psx-request-page psx-fade-up">
       <header className="psx-request-heading">
         <div>
-          <span className="psx-dot-label">Sandbox commerce</span>
+          <span className="psx-dot-label">沙箱验证</span>
           <h1 className="psx-page-title">定制申请</h1>
           <p>提交用途与联系方式，系统会冻结本次确认记录。当前全程仅用于沙箱验证。</p>
         </div>
@@ -172,10 +173,10 @@ export function CustomizationRequestsClient({
           </div>
 
           <dl className="psx-request-readonly">
-            <div><dt>商品</dt><dd>cheese-lounge-bed</dd></div>
+            <div><dt>商品</dt><dd><strong>奶酪软垫小床</strong><small>cheese-lounge-bed</small></dd></div>
             <div><dt>材料</dt><dd>PETG 奶酪黄（沙箱）</dd></div>
-            <div><dt>最终尺寸</dt><dd>120 × 119.022 × 53.865 mm</dd></div>
-            <div><dt>确认来源</dt><dd>沙箱 SceneConfirmation</dd></div>
+            <div><dt>最终尺寸</dt><dd>{formatDimensionsMm({ x: 120, y: 119.022, z: 53.865 })}</dd></div>
+            <div><dt>确认来源</dt><dd>来自场景确认（沙箱）</dd></div>
           </dl>
 
           {supersedesRequestId ? (
@@ -237,12 +238,12 @@ export function CustomizationRequestsClient({
           <button className="psx-btn-primary psx-request-submit" type="submit" disabled={saving}>
             <Send size={17} /> {saving ? '正在提交…' : supersedesRequestId ? '提交新版本' : '提交沙箱申请'}
           </button>
-          <p className="psx-request-disclaimer">此操作不会生成正式 Quote，也不会进入支付或生产履约。</p>
+          <p className="psx-request-disclaimer">此操作不会生成正式报价，也不会进入支付或生产履约。</p>
         </form>
 
         <section className="psx-request-history" aria-label="申请历史">
           <div className="psx-request-history-heading">
-            <div><span className="psx-dot-label">Version history</span><h2>申请历史</h2></div>
+            <div><span className="psx-dot-label">申请历史</span><h2>申请历史</h2></div>
             <span>{requests.length} 条</span>
           </div>
           {loading ? (
@@ -262,7 +263,7 @@ export function CustomizationRequestsClient({
                   {request.additionalRequirements ? <p className="is-secondary">补充：{request.additionalRequirements}</p> : null}
                   <dl>
                     <div><dt>确认记录</dt><dd>{request.sceneConfirmation.sceneConfirmationId}</dd></div>
-                    <div><dt>尺寸</dt><dd>{request.sceneConfirmation.dimensionsMm.x} × {request.sceneConfirmation.dimensionsMm.y} × {request.sceneConfirmation.dimensionsMm.z} mm</dd></div>
+                    <div><dt>尺寸</dt><dd>{formatDimensionsMm(request.sceneConfirmation.dimensionsMm)}</dd></div>
                   </dl>
                   {(() => {
                     const review = checkRuns.find((checkRun) => checkRun.requestId === request.id);
