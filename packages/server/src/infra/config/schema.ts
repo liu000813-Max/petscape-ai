@@ -99,6 +99,11 @@ export const webSchema = z.object({
   MAIL_FROM_ADDRESS: z.string().min(1).default('no-reply@mail.petscape3d.com'),
   MAIL_FROM_ALIAS: z.string().min(1).default('PetScape'),
   MAIL_DIRECTMAIL_ENDPOINT: z.string().min(1).default('dm.aliyuncs.com'),
+
+  // WP-C3-1：真实支付尚未授权。默认 disabled；sandbox 仅允许本地/CI 显式开启，
+  // production 选择 sandbox 会在配置解析阶段 fail-closed。
+  PAYMENT_PROVIDER_MODE: z.enum(['disabled', 'sandbox']).default('disabled'),
+  SANDBOX_PAYMENT_SECRET: z.string().min(32).optional(),
 });
 
 export type WebOnlyConfig = z.infer<typeof webSchema>;
@@ -131,7 +136,14 @@ export const workerSchema = z.object({
 
 export type WorkerOnlyConfig = z.infer<typeof workerSchema>;
 
-export const webConfigSchema = commonSchema.merge(webSchema);
+export const webConfigSchema = commonSchema.merge(webSchema).superRefine((config, ctx) => {
+  if (config.PAYMENT_PROVIDER_MODE === 'sandbox' && !config.SANDBOX_PAYMENT_SECRET) {
+    ctx.addIssue({ code: 'custom', path: ['SANDBOX_PAYMENT_SECRET'], message: 'sandbox provider 需要至少 32 字符 secret' });
+  }
+  if (config.NODE_ENV === 'production' && config.PAYMENT_PROVIDER_MODE === 'sandbox') {
+    ctx.addIssue({ code: 'custom', path: ['PAYMENT_PROVIDER_MODE'], message: 'production 禁止 sandbox payment provider' });
+  }
+});
 export const workerConfigSchema = commonSchema.merge(workerSchema);
 
 export type WebConfig = z.infer<typeof webConfigSchema>;

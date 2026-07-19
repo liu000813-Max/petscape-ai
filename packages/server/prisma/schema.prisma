@@ -64,6 +64,7 @@ model User {
   sceneConfirmations    SceneConfirmation[]
   quotes                Quote[]
   deliveryAddresses     DeliveryAddress[]
+  paymentIntents        PaymentIntent[]
 
   @@map("user")
 }
@@ -596,6 +597,7 @@ model Quote {
   supersedesQuote   Quote?  @relation("QuoteSupersession", fields: [supersedesQuoteId], references: [id], onDelete: Restrict)
   supersededByQuote Quote?  @relation("QuoteSupersession")
   deliveryAddress   DeliveryAddress?
+  paymentIntent     PaymentIntent?
 
   validFrom    DateTime
   expiresAt    DateTime
@@ -637,7 +639,111 @@ model DeliveryAddress {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  paymentIntents PaymentIntent[]
+
   @@index([ownerUserId, updatedAt])
   @@index([ownerUserId, confirmedAt])
   @@map("delivery_address")
+}
+
+// ---- WP-C3-1：沙箱支付抽象、尝试与可信事件 ----
+model PaymentProviderTrust {
+  provider            String   @id
+  verificationKeyHash String
+  sandboxOnly         Boolean
+  createdAt           DateTime @default(now())
+
+  @@map("payment_provider_trust")
+}
+
+model PaymentIntent {
+  id          String @id @default(cuid())
+  ownerUserId String
+  owner       User   @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  quoteId     String @unique
+  quote       Quote  @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+
+  deliveryAddressId       String
+  deliveryAddress         DeliveryAddress @relation(fields: [deliveryAddressId], references: [id], onDelete: Restrict)
+  deliveryAddressVersion  Int
+  deliveryAddressSnapshot Json
+
+  amountCent  Int
+  currency    String
+  mode        String
+  provider    String
+  sandboxOnly Boolean
+  status      String
+
+  idempotencyKey       String
+  requestFingerprint   String
+  verificationKeyHash String
+  lastAppliedEventId   String?
+
+  succeededAt      DateTime?
+  failedAt         DateTime?
+  canceledAt       DateTime?
+  needsAttentionAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  attempts PaymentAttempt[]
+  events   PaymentEvent[]
+
+  @@unique([ownerUserId, idempotencyKey], map: "payment_intent_owner_idempotency_key")
+  @@index([ownerUserId, createdAt])
+  @@index([status, updatedAt])
+  @@index([deliveryAddressId])
+  @@map("payment_intent")
+}
+
+model PaymentAttempt {
+  id                 String        @id @default(cuid())
+  paymentIntentId    String
+  paymentIntent      PaymentIntent @relation(fields: [paymentIntentId], references: [id], onDelete: Restrict)
+  attemptNo          Int
+  provider           String
+  providerPaymentId  String        @unique
+  status                 String
+  failureCode            String?
+  failureMessage         String?
+  providerObservedStatus String
+  providerObservedAt     DateTime
+  lastEventAt            DateTime?
+  lastAppliedEventId     String?
+  resolvedAt             DateTime?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  events PaymentEvent[]
+
+  @@unique([paymentIntentId, attemptNo])
+  @@index([paymentIntentId, status])
+  @@map("payment_attempt")
+}
+
+model PaymentEvent {
+  id                String         @id @default(cuid())
+  sequence          BigInt         @unique @default(autoincrement())
+  paymentIntentId   String
+  paymentIntent     PaymentIntent  @relation(fields: [paymentIntentId], references: [id], onDelete: Restrict)
+  paymentAttemptId  String
+  paymentAttempt    PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Restrict)
+  provider          String
+  providerEventId   String         @unique
+  providerPaymentId String
+  source            String
+  providerStatus    String
+  verified          Boolean
+  amountCent        Int
+  currency          String
+  occurredAt        DateTime
+  sanitizedPayload  Json
+  processingResult  String
+  receivedAt        DateTime       @default(now())
+  processedAt       DateTime
+
+  @@index([paymentIntentId, receivedAt])
+  @@index([paymentAttemptId, occurredAt])
+  @@map("payment_event")
 }

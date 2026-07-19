@@ -104,3 +104,14 @@ test('web 专属供应商/生成键在提供给 loadWebConfig 时被忽略而非
   });
   assert.equal('FAL_KEY' in config, false);
 });
+
+test('C3 sandbox payment provider defaults disabled and production configuration fails closed', () => {
+  const base = { NODE_ENV: 'test', BETTER_AUTH_SECRET: 'test-secret' };
+  assert.equal(loadWebConfig(base).PAYMENT_PROVIDER_MODE, 'disabled');
+  assert.throws(() => loadWebConfig({
+    ...base,
+    NODE_ENV: 'production',
+    PAYMENT_PROVIDER_MODE: 'sandbox',
+    SANDBOX_PAYMENT_SECRET: 'sandbox-secret-at-least-thirty-two-characters',
+  }), /PAYMENT_PROVIDER_MODE/);
+});

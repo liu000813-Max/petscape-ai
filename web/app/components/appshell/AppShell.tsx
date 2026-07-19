@@ -34,6 +34,9 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
             <Link className="psx-navitem" href="/checkout">
               配送确认
             </Link>
+            <Link className="psx-navitem" href="/payments">
+              沙箱支付
+            </Link>
             {user.isAdmin ? <Link className="psx-navitem" href="/admin/reviews">审核台</Link> : null}
           </nav>
         </div>

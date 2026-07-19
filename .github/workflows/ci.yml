@@ -101,6 +101,19 @@ jobs:
         env:
           DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
 
+      - name: Generate ephemeral sandbox payment test secret
+        shell: bash
+        run: |
+          C3_TEST_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$C3_TEST_SECRET"
+          echo "SANDBOX_PAYMENT_SECRET=$C3_TEST_SECRET" >> "$GITHUB_ENV"
+
+      - name: Configure sandbox payment trust in ephemeral CI Postgres
+        run: pnpm --filter @petscape/server run db:configure:sandbox-payment-test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+
       - name: Test (packages/server)
         # db/auth 集成测试对上方 CI 本地 PostgreSQL 真跑；assets 的 OSS 部分因
         # 无云凭证保持 skip（纪律：云凭证不进 CI，RDS 仍在内网不可达）。
@@ -168,6 +181,20 @@ jobs:
         with:
           name: wp-c5-1-browser-evidence
           path: web/test-results/c5-delivery-addresses/
+          if-no-files-found: warn
+
+      - name: Test C3 sandbox payment flow (real Next + PostgreSQL + Chromium)
+        working-directory: web
+        run: node --test tests/e2e-payments.test.mjs
+        env:
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+
+      - name: Upload C3 browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-c3-1-browser-evidence
+          path: web/test-results/c3-payments/
           if-no-files-found: warn
 
       - name: Prisma validate (packages/server)

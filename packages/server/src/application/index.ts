@@ -119,3 +119,25 @@ export {
   listDeliveryAddresses,
   saveDeliveryAddress,
 } from './delivery-addresses.ts';
+export {
+  PaymentConflictError,
+  PaymentEligibilityError,
+  createPaymentIntent,
+  getPaymentIntent,
+  ingestPaymentEvent,
+  listPaymentIntents,
+  reconcilePaymentIntent,
+  retryPaymentIntent,
+  simulateSandboxPaymentAction,
+} from './payments.ts';
+export {
+  PaymentProviderDisabledError,
+  PaymentProviderSignatureError,
+  type PaymentProviderPort,
+} from './payment-provider.ts';
+export {
+  createPrismaSandboxPaymentStateStore,
+  createSandboxPaymentProvider,
+  type SandboxPaymentProvider,
+  type SandboxPaymentStateStore,
+} from './sandbox-payment-provider.ts';

@@ -1,0 +1,395 @@
+import { createHash } from 'node:crypto';
+import {
+  CreatePaymentIntentSchema,
+  PaymentIntentResponseSchema,
+  ProviderEventSchema,
+  RetryPaymentIntentSchema,
+  type CreatePaymentIntent,
+  type PaymentIntentResponse,
+  type ProviderEvent,
+  type RetryPaymentIntent,
+} from '../contracts/payments.ts';
+import { NotFoundError } from '../domain/index.ts';
+import type { PrismaClient } from '../infra/db/index.ts';
+import { DeliveryAddressEligibilityError, getConfirmedDeliveryAddressInput } from './delivery-addresses.ts';
+import { PaymentProviderDisabledError, type PaymentProviderPort } from './payment-provider.ts';
+
+export class PaymentConflictError extends Error {
+  constructor(message: string) { super(message); this.name = 'PaymentConflictError'; }
+}
+export class PaymentEligibilityError extends Error {
+  constructor(message: string) { super(message); this.name = 'PaymentEligibilityError'; }
+}
+
+function errorCode(error: unknown, code: string) {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === code;
+}
+
+function isSerializationFailure(error: unknown) {
+  return errorCode(error, 'P2034') || errorCode(error, '40001') ||
+    (error instanceof Error && /40001|could not serialize/i.test(error.message));
+}
+
+function fingerprint(value: unknown) {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+async function requireTrustedProvider(prisma: PrismaClient, provider: PaymentProviderPort) {
+  const trusted = await prisma.paymentProviderTrust.findUnique({ where: { provider: provider.name } });
+  if (!trusted || !trusted.sandboxOnly || trusted.verificationKeyHash !== provider.verificationKeyHash) {
+    throw new PaymentProviderDisabledError('支付 provider 与数据库可信配置不匹配');
+  }
+}
+
+type IntentWithAttempts = Awaited<ReturnType<PrismaClient['paymentIntent']['findUniqueOrThrow']>> & {
+  attempts: Array<{
+    id: string; attemptNo: number; provider: string; providerPaymentId: string; status: string;
+    failureCode: string | null; failureMessage: string | null; createdAt: Date; resolvedAt: Date | null;
+  }>;
+};
+
+function toResponse(row: IntentWithAttempts): PaymentIntentResponse {
+  return PaymentIntentResponseSchema.parse({
+    id: row.id,
+    quoteId: row.quoteId,
+    deliveryAddressId: row.deliveryAddressId,
+    deliveryAddressVersion: row.deliveryAddressVersion,
+    amountCent: row.amountCent,
+    currency: row.currency,
+    mode: row.mode,
+    provider: row.provider,
+    sandboxOnly: row.sandboxOnly,
+    status: row.status,
+    label: '沙箱支付（不会发生真实扣款或成交）',
+    attempts: row.attempts.map((attempt) => ({
+      id: attempt.id,
+      attemptNo: attempt.attemptNo,
+      provider: attempt.provider,
+      providerPaymentId: attempt.providerPaymentId,
+      status: attempt.status,
+      actionUrl: `/sandbox-pay/${attempt.id}`,
+      failureCode: attempt.failureCode,
+      failureMessage: attempt.failureMessage,
+      createdAt: attempt.createdAt.toISOString(),
+      resolvedAt: attempt.resolvedAt?.toISOString() ?? null,
+    })),
+    succeededAt: row.succeededAt?.toISOString() ?? null,
+    failedAt: row.failedAt?.toISOString() ?? null,
+    canceledAt: row.canceledAt?.toISOString() ?? null,
+    needsAttentionAt: row.needsAttentionAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  });
+}
+
+async function readIntent(prisma: PrismaClient, id: string) {
+  return prisma.paymentIntent.findUniqueOrThrow({
+    where: { id },
+    include: { attempts: { orderBy: { attemptNo: 'asc' } } },
+  }) as unknown as Promise<IntentWithAttempts>;
+}
+
+async function ensureAttempt(prisma: PrismaClient, provider: PaymentProviderPort, intentId: string, attemptNo: number) {
+  const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: intentId } });
+  const created = await provider.createPayment({
+    merchantPaymentId: `${intent.id}:${attemptNo}`,
+    amountCent: intent.amountCent,
+    currency: 'CNY',
+  });
+  const providerPayment = created.payment;
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw<Array<{ set_config: string }>>`
+        SELECT set_config('petscape.payment_attempt_proof', ${created.persistenceProof}, true)
+      `;
+      await tx.paymentAttempt.create({ data: {
+        paymentIntentId: intent.id,
+        attemptNo,
+        provider: provider.name,
+        providerPaymentId: providerPayment.providerPaymentId,
+        status: providerPayment.status,
+        providerObservedStatus: providerPayment.status,
+        providerObservedAt: new Date(providerPayment.updatedAt),
+      } });
+    });
+  } catch (error) {
+    if (!errorCode(error, 'P2002')) throw error;
+  }
+}
+
+export async function createPaymentIntent({ prisma, provider, ownerUserId, input: untrusted }: {
+  prisma: PrismaClient; provider: PaymentProviderPort; ownerUserId: string; input: CreatePaymentIntent;
+}): Promise<{ paymentIntent: PaymentIntentResponse; created: boolean }> {
+  await requireTrustedProvider(prisma, provider);
+  const input = CreatePaymentIntentSchema.parse(untrusted);
+  const existingByKey = await prisma.paymentIntent.findFirst({ where: { ownerUserId, idempotencyKey: input.idempotencyKey } });
+  if (existingByKey) {
+    if (existingByKey.quoteId !== input.quoteId) throw new PaymentConflictError('同一 idempotencyKey 不得跨 Quote 使用');
+    await ensureAttempt(prisma, provider, existingByKey.id, 1);
+    return { paymentIntent: toResponse(await readIntent(prisma, existingByKey.id)), created: false };
+  }
+
+  let createdId: string | null = null;
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "quote" WHERE "id"=${input.quoteId} AND "ownerUserId"=${ownerUserId} FOR UPDATE
+      `;
+      if (locked.length !== 1) throw new NotFoundError('Quote');
+      const raced = await tx.paymentIntent.findFirst({ where: { ownerUserId, idempotencyKey: input.idempotencyKey } });
+      if (raced) {
+        if (raced.quoteId !== input.quoteId) throw new PaymentConflictError('同一 idempotencyKey 不得跨 Quote 使用');
+        return { id: raced.id, created: false as const };
+      }
+      const quote = await tx.quote.findUniqueOrThrow({ where: { id: input.quoteId } });
+      if (quote.status !== 'accepted' || !quote.acceptedAt || !quote.sandboxOnly) {
+        throw new PaymentEligibilityError('只有已接受的沙箱 Quote 可以创建支付意图');
+      }
+      let address;
+      try {
+        address = await getConfirmedDeliveryAddressInput({ prisma: tx as PrismaClient, ownerUserId, quoteId: quote.id });
+      } catch (error) {
+        if (error instanceof DeliveryAddressEligibilityError) throw new PaymentEligibilityError(error.message);
+        throw error;
+      }
+      const row = await tx.paymentIntent.create({ data: {
+        ownerUserId,
+        quoteId: quote.id,
+        deliveryAddressId: address.addressId,
+        deliveryAddressVersion: address.version,
+        deliveryAddressSnapshot: address,
+        amountCent: quote.amountCent,
+        currency: quote.currency,
+        mode: 'sandbox_test',
+        provider: provider.name,
+        sandboxOnly: true,
+        status: 'requires_action',
+        idempotencyKey: input.idempotencyKey,
+        requestFingerprint: fingerprint({ quoteId: input.quoteId }),
+        verificationKeyHash: provider.verificationKeyHash,
+      } });
+      return { id: row.id, created: true as const };
+    }, { isolationLevel: 'Serializable' });
+    createdId = result.id;
+    await ensureAttempt(prisma, provider, result.id, 1);
+    return { paymentIntent: toResponse(await readIntent(prisma, result.id)), created: result.created };
+  } catch (error) {
+    if (errorCode(error, 'P2002')) {
+      const existing = await prisma.paymentIntent.findFirst({ where: { ownerUserId, OR: [{ idempotencyKey: input.idempotencyKey }, { quoteId: input.quoteId }] } });
+      if (existing && existing.quoteId === input.quoteId && existing.idempotencyKey === input.idempotencyKey) {
+        await ensureAttempt(prisma, provider, existing.id, 1);
+        return { paymentIntent: toResponse(await readIntent(prisma, existing.id)), created: false };
+      }
+      throw new PaymentConflictError('该 Quote 已有不同的支付意图');
+    }
+    if (createdId) throw new PaymentConflictError('支付渠道初始化失败，可使用同一幂等键重试');
+    throw error;
+  }
+}
+
+export async function listPaymentIntents({ prisma, ownerUserId }: { prisma: PrismaClient; ownerUserId: string }) {
+  const rows = await prisma.paymentIntent.findMany({
+    where: { ownerUserId }, include: { attempts: { orderBy: { attemptNo: 'asc' } } }, orderBy: { createdAt: 'desc' },
+  });
+  return rows.map((row) => toResponse(row as unknown as IntentWithAttempts));
+}
+
+export async function getPaymentIntent({ prisma, ownerUserId, paymentIntentId }: {
+  prisma: PrismaClient; ownerUserId: string; paymentIntentId: string;
+}) {
+  const row = await prisma.paymentIntent.findFirst({
+    where: { id: paymentIntentId, ownerUserId }, include: { attempts: { orderBy: { attemptNo: 'asc' } } },
+  });
+  if (!row) throw new NotFoundError('PaymentIntent');
+  return toResponse(row as unknown as IntentWithAttempts);
+}
+
+export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymentIntentId, input: untrusted }: {
+  prisma: PrismaClient; provider: PaymentProviderPort; ownerUserId: string; paymentIntentId: string; input: RetryPaymentIntent;
+}) {
+  await requireTrustedProvider(prisma, provider);
+  RetryPaymentIntentSchema.parse(untrusted);
+  for (let retryNo = 0; retryNo < 5; retryNo += 1) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const locked = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT "id" FROM "payment_intent" WHERE "id"=${paymentIntentId} AND "ownerUserId"=${ownerUserId} FOR UPDATE
+        `;
+        if (locked.length !== 1) throw new NotFoundError('PaymentIntent');
+        const row = await tx.paymentIntent.findUniqueOrThrow({ where: { id: paymentIntentId }, include: { attempts: true } });
+        if (row.status !== 'failed') throw new PaymentConflictError('只有 failed 支付意图可以重试');
+        const nextAttemptNo = Math.max(...row.attempts.map((attempt) => attempt.attemptNo)) + 1;
+        const created = await provider.createPayment({
+          merchantPaymentId: `${row.id}:${nextAttemptNo}`, amountCent: row.amountCent, currency: 'CNY',
+        });
+        const providerPayment = created.payment;
+        await tx.$queryRaw<Array<{ set_config: string }>>`
+          SELECT set_config('petscape.payment_attempt_proof', ${created.persistenceProof}, true)
+        `;
+        await tx.paymentAttempt.create({ data: {
+          paymentIntentId, attemptNo: nextAttemptNo, provider: provider.name,
+          providerPaymentId: providerPayment.providerPaymentId, status: providerPayment.status,
+          providerObservedStatus: providerPayment.status, providerObservedAt: new Date(providerPayment.updatedAt),
+        } });
+        await tx.paymentIntent.update({ where: { id: paymentIntentId }, data: {
+          status: 'requires_action', failedAt: null,
+        } });
+      }, { isolationLevel: 'Serializable' });
+      return toResponse(await readIntent(prisma, paymentIntentId));
+    } catch (error) {
+      if (isSerializationFailure(error) && retryNo < 4) continue;
+      if (isSerializationFailure(error)) throw new PaymentConflictError('支付重试发生并发冲突，请刷新后重试');
+      if (errorCode(error, 'P2002')) throw new PaymentConflictError('支付状态已变化');
+      throw error;
+    }
+  }
+  throw new PaymentConflictError('支付重试发生并发冲突，请刷新后重试');
+}
+
+function intentStateData(status: ProviderEvent['status'], occurredAt: Date) {
+  if (status === 'succeeded') return { status, succeededAt: occurredAt, failedAt: null, canceledAt: null, needsAttentionAt: null };
+  if (status === 'failed') return { status, succeededAt: null, failedAt: occurredAt, canceledAt: null, needsAttentionAt: null };
+  if (status === 'canceled') return { status, succeededAt: null, failedAt: null, canceledAt: occurredAt, needsAttentionAt: null };
+  return { status, succeededAt: null, failedAt: null, canceledAt: null, needsAttentionAt: null };
+}
+
+function canApplyAttemptStatus(current: string, next: ProviderEvent['status']) {
+  if (current === next) return true;
+  if (current === 'requires_action') return ['processing', 'succeeded', 'failed', 'canceled'].includes(next);
+  if (current === 'processing') return ['succeeded', 'failed', 'canceled'].includes(next);
+  return false;
+}
+
+async function applyVerifiedEvent(
+  prisma: PrismaClient,
+  event: ProviderEvent,
+  source: 'webhook' | 'sandbox_action' | 'query',
+  persistenceProof: string,
+) {
+  for (let attemptNo = 0; attemptNo < 5; attemptNo += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+      const duplicate = await tx.paymentEvent.findUnique({ where: { providerEventId: event.providerEventId } });
+      if (duplicate) return { duplicate: true as const, paymentIntentId: duplicate.paymentIntentId };
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "payment_attempt" WHERE "providerPaymentId"=${event.providerPaymentId} FOR UPDATE
+      `;
+      if (locked.length !== 1) throw new NotFoundError('PaymentAttempt');
+      const attempt = await tx.paymentAttempt.findUniqueOrThrow({ where: { providerPaymentId: event.providerPaymentId } });
+      const intent = await tx.paymentIntent.findUniqueOrThrow({ where: { id: attempt.paymentIntentId }, include: { attempts: true } });
+      const occurredAt = new Date(event.occurredAt);
+      let processingResult: 'applied' | 'ignored_stale' | 'needs_attention' = 'applied';
+      const moneyMismatch = event.amountCent !== intent.amountCent || event.currency !== intent.currency;
+      const intentTerminal = ['succeeded', 'canceled', 'needs_attention'].includes(intent.status);
+      const stale = intentTerminal || !canApplyAttemptStatus(attempt.status, event.status) ||
+        (attempt.lastEventAt !== null && occurredAt <= attempt.lastEventAt);
+      const latestNo = Math.max(...intent.attempts.map((item) => item.attemptNo));
+      if (moneyMismatch) processingResult = 'needs_attention';
+      else if (stale || attempt.attemptNo !== latestNo) processingResult = 'ignored_stale';
+
+      await tx.$queryRaw<Array<{ set_config: string }>>`
+        SELECT set_config('petscape.payment_event_proof', ${persistenceProof}, true)
+      `;
+
+      const storedEvent = await tx.paymentEvent.create({ data: {
+        paymentIntentId: intent.id,
+        paymentAttemptId: attempt.id,
+        provider: event.provider,
+        providerEventId: event.providerEventId,
+        providerPaymentId: event.providerPaymentId,
+        source,
+        providerStatus: event.status,
+        verified: true,
+        amountCent: event.amountCent,
+        currency: event.currency,
+        occurredAt,
+        sanitizedPayload: { status: event.status, failureCode: event.failureCode, failureMessage: event.failureMessage },
+        processingResult,
+        processedAt: new Date(),
+      } });
+
+      if (processingResult === 'needs_attention') {
+        if (intent.status !== 'succeeded') await tx.paymentIntent.update({ where: { id: intent.id }, data: {
+          status: 'needs_attention', succeededAt: null, failedAt: null, canceledAt: null, needsAttentionAt: occurredAt,
+          lastAppliedEventId: storedEvent.id,
+        } });
+      } else if (processingResult === 'applied') {
+        await tx.paymentAttempt.update({ where: { id: attempt.id }, data: {
+          status: event.status,
+          failureCode: event.status === 'failed' ? event.failureCode ?? 'provider_failed' : null,
+          failureMessage: event.status === 'failed' ? event.failureMessage ?? '支付失败' : null,
+          lastEventAt: occurredAt,
+          lastAppliedEventId: storedEvent.id,
+          resolvedAt: ['succeeded', 'failed', 'canceled'].includes(event.status) ? occurredAt : null,
+        } });
+        await tx.paymentIntent.update({ where: { id: intent.id }, data: {
+          ...intentStateData(event.status, occurredAt), lastAppliedEventId: storedEvent.id,
+        } });
+      }
+      return { duplicate: false as const, paymentIntentId: intent.id };
+      }, { isolationLevel: 'Serializable' });
+    } catch (error) {
+      if (errorCode(error, 'P2002')) {
+        const duplicate = await prisma.paymentEvent.findUnique({ where: { providerEventId: event.providerEventId } });
+        if (duplicate) return { duplicate: true as const, paymentIntentId: duplicate.paymentIntentId };
+      }
+      if (isSerializationFailure(error) && attemptNo < 4) continue;
+      if (isSerializationFailure(error)) throw new PaymentConflictError('支付事件并发处理失败，请重试');
+      throw error;
+    }
+  }
+  throw new PaymentConflictError('支付事件并发处理失败，请重试');
+}
+
+export async function ingestPaymentEvent({ prisma, provider, rawBody, signature, source = 'webhook' }: {
+  prisma: PrismaClient; provider: PaymentProviderPort; rawBody: string; signature: string | null; source?: 'webhook' | 'sandbox_action';
+}) {
+  await requireTrustedProvider(prisma, provider);
+  const verified = await provider.verifyEvent(rawBody, signature);
+  const event = ProviderEventSchema.parse(verified.event);
+  return applyVerifiedEvent(prisma, event, source, verified.persistenceProof);
+}
+
+export async function reconcilePaymentIntent({ prisma, provider, ownerUserId, paymentIntentId }: {
+  prisma: PrismaClient; provider: PaymentProviderPort; ownerUserId: string; paymentIntentId: string;
+}) {
+  await requireTrustedProvider(prisma, provider);
+  const current = await getPaymentIntent({ prisma, ownerUserId, paymentIntentId });
+  const attempt = current.attempts.at(-1);
+  if (!attempt) throw new PaymentEligibilityError('支付意图缺少渠道尝试');
+  const verified = await provider.queryPayment(attempt.providerPaymentId);
+  const queried = verified.payment;
+  const event = ProviderEventSchema.parse({
+    provider: provider.name,
+    providerEventId: `query:${queried.providerPaymentId}:${queried.status}:${queried.updatedAt}`,
+    providerPaymentId: queried.providerPaymentId,
+    status: queried.status,
+    amountCent: queried.amountCent,
+    currency: queried.currency,
+    occurredAt: queried.updatedAt,
+    failureCode: queried.status === 'failed' ? 'sandbox_declined' : null,
+    failureMessage: queried.status === 'failed' ? '沙箱支付失败' : null,
+  });
+  await applyVerifiedEvent(prisma, event, 'query', verified.persistenceProof);
+  return getPaymentIntent({ prisma, ownerUserId, paymentIntentId });
+}
+
+export async function simulateSandboxPaymentAction({ prisma, provider, ownerUserId, attemptId, result }: {
+  prisma: PrismaClient;
+  provider: PaymentProviderPort & { simulate(providerPaymentId: string, status: ProviderEvent['status']): Promise<{ rawBody: string; signature: string }> };
+  ownerUserId: string;
+  attemptId: string;
+  result: 'processing' | 'succeeded' | 'failed';
+}) {
+  await requireTrustedProvider(prisma, provider);
+  const attempt = await prisma.paymentAttempt.findFirst({
+    where: { id: attemptId, paymentIntent: { ownerUserId } },
+    select: { providerPaymentId: true },
+  });
+  if (!attempt) throw new NotFoundError('PaymentAttempt');
+  const simulated = await provider.simulate(attempt.providerPaymentId, result);
+  const applied = await ingestPaymentEvent({
+    prisma, provider, rawBody: simulated.rawBody, signature: simulated.signature, source: 'sandbox_action',
+  });
+  return getPaymentIntent({ prisma, ownerUserId, paymentIntentId: applied.paymentIntentId });
+}
