@@ -13,6 +13,7 @@ import {
 import { NotFoundError } from '../domain/index.ts';
 import type { PrismaClient, PrismaInputJsonValue } from '../infra/db/index.ts';
 import type { PaymentProviderPort } from './payment-provider.ts';
+import { isSerializableTransactionConflict } from './transaction-retry.ts';
 
 export const ORDER_RECOVERY_JOB_TYPE = 'order_recovery';
 
@@ -22,11 +23,6 @@ export class OrderConflictError extends Error {
 
 function errorCode(error: unknown, code: string) {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === code;
-}
-
-function isSerializationFailure(error: unknown) {
-  return errorCode(error, 'P2034') || errorCode(error, '40001') ||
-    (error instanceof Error && /40001|could not serialize/i.test(error.message));
 }
 
 type OrderRow = Awaited<ReturnType<PrismaClient['order']['findUniqueOrThrow']>> & {
@@ -155,7 +151,7 @@ export async function ensureOrderForSucceededPayment({ prisma, paymentIntentId }
       if (!result.id) return { order: null, created: false };
       return { order: toResponse(await readOrder(prisma, result.id)), created: result.created };
     } catch (error) {
-      if (isSerializationFailure(error) && retryNo < 4) continue;
+      if (isSerializableTransactionConflict(error) && retryNo < 4) continue;
       if (errorCode(error, 'P2002')) {
         const existing = await prisma.order.findUnique({ where: { paymentIntentId } });
         if (existing) return { order: toResponse(await readOrder(prisma, existing.id)), created: false };

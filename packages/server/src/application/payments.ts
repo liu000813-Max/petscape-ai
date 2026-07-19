@@ -15,6 +15,7 @@ import { DeliveryAddressEligibilityError, getConfirmedDeliveryAddressInput } fro
 import { PaymentProviderDisabledError, type PaymentProviderPort } from './payment-provider.ts';
 import { ORDER_RECOVERY_JOB_TYPE, ensureOrderForSucceededPayment } from './orders.ts';
 import { createJob } from '../infra/jobs/index.ts';
+import { isSerializableTransactionConflict, withSerializableTransactionRetry } from './transaction-retry.ts';
 
 export class PaymentConflictError extends Error {
   constructor(message: string) { super(message); this.name = 'PaymentConflictError'; }
@@ -25,11 +26,6 @@ export class PaymentEligibilityError extends Error {
 
 function errorCode(error: unknown, code: string) {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === code;
-}
-
-function isSerializationFailure(error: unknown) {
-  return errorCode(error, 'P2034') || errorCode(error, '40001') ||
-    (error instanceof Error && /40001|could not serialize/i.test(error.message));
 }
 
 function fingerprint(value: unknown) {
@@ -133,7 +129,7 @@ export async function createPaymentIntent({ prisma, provider, ownerUserId, input
 
   let createdId: string | null = null;
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await withSerializableTransactionRetry(() => prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "quote" WHERE "id"=${input.quoteId} AND "ownerUserId"=${ownerUserId} FOR UPDATE
       `;
@@ -171,7 +167,7 @@ export async function createPaymentIntent({ prisma, provider, ownerUserId, input
         verificationKeyHash: provider.verificationKeyHash,
       } });
       return { id: row.id, created: true as const };
-    }, { isolationLevel: 'Serializable' });
+    }, { isolationLevel: 'Serializable' }));
     createdId = result.id;
     await ensureAttempt(prisma, provider, result.id, 1);
     return { paymentIntent: toResponse(await readIntent(prisma, result.id)), created: result.created };
@@ -239,8 +235,8 @@ export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymen
       }, { isolationLevel: 'Serializable' });
       return toResponse(await readIntent(prisma, paymentIntentId));
     } catch (error) {
-      if (isSerializationFailure(error) && retryNo < 4) continue;
-      if (isSerializationFailure(error)) throw new PaymentConflictError('支付重试发生并发冲突，请刷新后重试');
+      if (isSerializableTransactionConflict(error) && retryNo < 4) continue;
+      if (isSerializableTransactionConflict(error)) throw new PaymentConflictError('支付重试发生并发冲突，请刷新后重试');
       if (errorCode(error, 'P2002')) throw new PaymentConflictError('支付状态已变化');
       throw error;
     }
@@ -344,8 +340,8 @@ async function applyVerifiedEvent(
         const duplicate = await prisma.paymentEvent.findUnique({ where: { providerEventId: event.providerEventId } });
         if (duplicate) return { duplicate: true as const, paymentIntentId: duplicate.paymentIntentId };
       }
-      if (isSerializationFailure(error) && attemptNo < 4) continue;
-      if (isSerializationFailure(error)) throw new PaymentConflictError('支付事件并发处理失败，请重试');
+      if (isSerializableTransactionConflict(error) && attemptNo < 4) continue;
+      if (isSerializableTransactionConflict(error)) throw new PaymentConflictError('支付事件并发处理失败，请重试');
       throw error;
     }
   }
