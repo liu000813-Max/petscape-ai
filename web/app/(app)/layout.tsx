@@ -3,10 +3,12 @@
 import { redirect } from 'next/navigation';
 import { getSessionUser, maskPhone } from '../lib/auth/session';
 import { AppShell } from '../components/appshell/AppShell';
+import { getWebServerContext } from '../lib/server-context';
 
 export default async function AppAreaLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser();
   if (!user) redirect('/login');
+  const role = await getWebServerContext().prisma.user.findUnique({ where: { id: user.id }, select: { role: true } });
 
-  return <AppShell user={{ phoneMasked: maskPhone(user.phoneNumber) }}>{children}</AppShell>;
+  return <AppShell user={{ phoneMasked: maskPhone(user.phoneNumber), isAdmin: role?.role === 'admin' }}>{children}</AppShell>;
 }

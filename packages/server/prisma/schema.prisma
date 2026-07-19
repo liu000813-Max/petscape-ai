@@ -35,15 +35,16 @@ model BasecampProbe {
 // ---- Better Auth 核心表（手写，字段集参考 tracer/auth-tracer） ----
 
 model User {
-  id            String   @id
+  id            String  @id
   name          String?
-  email         String?  @unique
-  emailVerified Boolean  @default(false)
+  email         String? @unique
+  emailVerified Boolean @default(false)
   image         String?
 
   // phone-number plugin fields（WP-3.1 起启用手机号 OTP 登录时消费）。
-  phoneNumber         String?  @unique
-  phoneNumberVerified Boolean  @default(false)
+  phoneNumber         String? @unique
+  phoneNumberVerified Boolean @default(false)
+  role                String  @default("user")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -52,10 +53,13 @@ model User {
   accounts Account[]
 
   // WP-3.2：Prisma 要求关系双向声明（Project.owner / Asset.owner 的反向字段）。
-  projects Project[]
-  assets   Asset[]
-  pets     Pet[]
+  projects              Project[]
+  assets                Asset[]
+  pets                  Pet[]
   customizationRequests CustomizationRequest[]
+  roleChangesAsTarget   RoleChangeAudit[]      @relation("RoleChangeTarget")
+  roleChangesAsActor    RoleChangeAudit[]      @relation("RoleChangeActor")
+  reviewedCheckRuns     CheckRun[]
 
   @@map("user")
 }
@@ -238,13 +242,13 @@ enum AssetStatus {
 }
 
 model Asset {
-  id          String      @id @default(cuid())
+  id          String   @id @default(cuid())
   ownerUserId String
-  owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  owner       User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   // Asset 的权限根永远是 ownerUserId。projectId 只是可选业务引用：Pet 封面等资产
   // 在 Project 创建前即可存在，删除 Project 也不应删除用户仍拥有的二进制资源。
   projectId   String?
-  project     Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   // 资产种类（WP-3.2 只产生 upload_raw；生成/切片产物种类留给后续包）。
   kind String
@@ -299,7 +303,7 @@ model Pet {
   breed             String?
   sizeLevel         Int?
   lifeStage         PetLifeStage?
-  behaviorTraits    String[]       @default([])
+  behaviorTraits    String[]        @default([])
   environmentNotes  String?
   specialNeeds      String?
 
@@ -387,6 +391,7 @@ model CustomizationRequest {
   supersedesRequestId String?               @unique
   supersedesRequest   CustomizationRequest? @relation("CustomizationRequestSupersession", fields: [supersedesRequestId], references: [id], onDelete: Restrict)
   supersededByRequest CustomizationRequest? @relation("CustomizationRequestSupersession")
+  checkRun            CheckRun?
 
   submittedAt DateTime
   canceledAt  DateTime?
@@ -396,4 +401,48 @@ model CustomizationRequest {
   @@index([ownerUserId, createdAt])
   @@index([sceneConfirmationId])
   @@map("customization_request")
+}
+
+// ---- WP-B6-0：窄用途角色授予审计 + 人工可信审核 ----
+model RoleChangeAudit {
+  id           String   @id @default(cuid())
+  targetUserId String
+  targetUser   User     @relation("RoleChangeTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+  actorUserId  String?
+  actorUser    User?    @relation("RoleChangeActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  previousRole String
+  newRole      String
+  source       String
+  reason       String
+  createdAt    DateTime @default(now())
+
+  @@index([targetUserId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("role_change_audit")
+}
+
+model CheckRun {
+  id        String               @id @default(cuid())
+  requestId String               @unique
+  request   CustomizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+
+  requestSnapshot       Json
+  status                String
+  result                String?
+  issues                Json
+  evidence              Json
+  adjustmentSuggestions Json
+  note                  String?
+
+  reviewerUserId   String?
+  reviewer         User?     @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+  checklistVersion String
+  ruleVersion      String
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([reviewerUserId, status])
+  @@map("check_run")
 }

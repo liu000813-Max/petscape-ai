@@ -73,3 +73,16 @@ export {
   getCustomizationRequest,
   listCustomizationRequests,
 } from './customization-requests.ts';
+export {
+  AdminRequiredError,
+  CheckRunConflictError,
+  bootstrapFirstAdmin,
+  changeUserRole,
+  completeCheckRun,
+  createCheckRun,
+  getApprovedCheckRunInput,
+  listAdminCheckRuns,
+  listAdminReviewCandidates,
+  listOwnerCheckRuns,
+  startCheckRun,
+} from './check-runs.ts';

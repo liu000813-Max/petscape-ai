@@ -6,6 +6,7 @@ import './app-ui.css';
 
 export interface ShellUser {
   phoneMasked: string;
+  isAdmin: boolean;
 }
 
 export function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
             <Link className="psx-navitem" href="/requests">
               定制申请
             </Link>
+            {user.isAdmin ? <Link className="psx-navitem" href="/admin/reviews">审核台</Link> : null}
           </nav>
         </div>
         <Link className="psx-account-pill" href="/account">

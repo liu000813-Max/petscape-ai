@@ -154,10 +154,14 @@ export async function createCustomizationRequest({
                 id: parsed.supersedesRequestId,
                 ownerUserId,
               },
+              include: { checkRun: { select: { status: true } } },
             });
             if (!previous) throw new NotFoundError('CustomizationRequest');
             if (previous.status !== 'submitted') {
               throw new CustomizationRequestConflictError('旧申请已被替代，不能再次重提');
+            }
+            if (previous.checkRun?.status === 'queued' || previous.checkRun?.status === 'in_review') {
+              throw new CustomizationRequestConflictError('旧申请正在审核，完成审核后才能重提');
             }
           }
 

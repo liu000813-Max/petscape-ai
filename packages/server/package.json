@@ -16,6 +16,7 @@
     "./contracts/scenes": "./src/contracts/scenes.ts",
     "./contracts/commerce-estimates": "./src/contracts/commerce-estimates.ts",
     "./contracts/customization-requests": "./src/contracts/customization-requests.ts",
+    "./contracts/check-runs": "./src/contracts/check-runs.ts",
     "./worker-api": "./src/worker-api.ts"
   },
   "scripts": {
@@ -24,7 +25,8 @@
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",
-    "db:migrate:deploy": "prisma migrate deploy"
+    "db:migrate:deploy": "prisma migrate deploy",
+    "admin:bootstrap": "node scripts/bootstrap-admin.mjs"
   },
   "dependencies": {
     "@alicloud/dm20151123": "1.10.2",

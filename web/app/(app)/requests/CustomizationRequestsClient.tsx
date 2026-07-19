@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ClipboardList, RefreshCcw, Send } from 'lucide-react';
 import type { CustomizationRequestResponse } from '@petscape/server/contracts/customization-requests';
+import type { CheckRunResponse } from '@petscape/server/contracts/check-runs';
 
 type FormState = {
   contactName: string;
@@ -24,6 +25,8 @@ const statusLabel: Record<CustomizationRequestResponse['status'], string> = {
   superseded: '已被新版本替代',
   canceled: '已取消',
 };
+const reviewLabel = { queued: '等待审核', in_review: '审核中', completed: '审核完成' } as const;
+const reviewResultLabel = { approved: '审核通过', rejected: '审核拒绝', uncertain: '审核不确定' } as const;
 
 class RequestApiError extends Error {
   constructor(message: string) {
@@ -57,6 +60,7 @@ export function CustomizationRequestsClient({
   sandboxSceneConfirmationId: string;
 }) {
   const [requests, setRequests] = useState<CustomizationRequestResponse[]>([]);
+  const [checkRuns, setCheckRuns] = useState<CheckRunResponse[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [supersedesRequestId, setSupersedesRequestId] = useState<string | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState(nextIdempotencyKey);
@@ -66,19 +70,22 @@ export function CustomizationRequestsClient({
   const [notice, setNotice] = useState<string | null>(null);
 
   async function loadRequests() {
-    const data = await api<{ requests: CustomizationRequestResponse[] }>(
-      '/api/v1/commerce/customization-requests',
-    );
-    setRequests(data.requests);
+    const [requestData, checkData] = await Promise.all([
+      api<{ requests: CustomizationRequestResponse[] }>('/api/v1/commerce/customization-requests'),
+      api<{ checkRuns: CheckRunResponse[] }>('/api/v1/commerce/check-runs'),
+    ]);
+    setRequests(requestData.requests);
+    setCheckRuns(checkData.checkRuns);
   }
 
   useEffect(() => {
     let active = true;
-    api<{ requests: CustomizationRequestResponse[] }>(
-      '/api/v1/commerce/customization-requests',
-    )
-      .then((data) => {
-        if (active) setRequests(data.requests);
+    Promise.all([
+      api<{ requests: CustomizationRequestResponse[] }>('/api/v1/commerce/customization-requests'),
+      api<{ checkRuns: CheckRunResponse[] }>('/api/v1/commerce/check-runs'),
+    ])
+      .then(([requestData, checkData]) => {
+        if (active) { setRequests(requestData.requests); setCheckRuns(checkData.checkRuns); }
       })
       .catch((caught: unknown) => {
         if (active) setError(caught instanceof Error ? caught.message : '申请读取失败');
@@ -257,6 +264,16 @@ export function CustomizationRequestsClient({
                     <div><dt>确认记录</dt><dd>{request.sceneConfirmation.sceneConfirmationId}</dd></div>
                     <div><dt>尺寸</dt><dd>{request.sceneConfirmation.dimensionsMm.x} × {request.sceneConfirmation.dimensionsMm.y} × {request.sceneConfirmation.dimensionsMm.z} mm</dd></div>
                   </dl>
+                  {(() => {
+                    const review = checkRuns.find((checkRun) => checkRun.requestId === request.id);
+                    if (!review) return <div className="psx-review-chip">尚未进入审核</div>;
+                    return <div className={`psx-review-box is-${review.result ?? review.status}`}>
+                      <strong>{review.result ? reviewResultLabel[review.result] : reviewLabel[review.status]}</strong>
+                      {review.issues.length > 0 ? <span>问题：{review.issues.join('；')}</span> : null}
+                      {review.adjustmentSuggestions.length > 0 ? <span>建议：{review.adjustmentSuggestions.join('；')}</span> : null}
+                      {review.note ? <span>{review.note}</span> : null}
+                    </div>;
+                  })()}
                   {request.status === 'submitted' ? (
                     <button type="button" onClick={() => beginResubmission(request)}>
                       <RefreshCcw size={14} /> 修改并重提

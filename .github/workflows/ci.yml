@@ -129,6 +129,20 @@ jobs:
           path: web/test-results/c1-requests/
           if-no-files-found: warn
 
+      - name: Test B6 admin review flow (real Next + PostgreSQL + Chromium)
+        working-directory: web
+        run: node --test tests/e2e-check-runs.test.mjs
+        env:
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+
+      - name: Upload B6 browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-b6-0-browser-evidence
+          path: web/test-results/b6-reviews/
+          if-no-files-found: warn
+
       - name: Prisma validate (packages/server)
         run: pnpm --filter @petscape/server exec prisma validate
 
