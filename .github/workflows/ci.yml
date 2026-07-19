@@ -145,3 +145,61 @@ jobs:
           name: wp-b45-0-touch-evidence
           path: web/test-results/r3f-spike-touch.png
           if-no-files-found: warn
+
+  viewer-model-e2e:
+    name: viewer-model-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: petscape_viewer
+          POSTGRES_PASSWORD: petscape_viewer
+          POSTGRES_DB: petscape_viewer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U petscape_viewer"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://petscape_viewer:petscape_viewer@localhost:5432/petscape_viewer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+
+      - name: Activate pnpm via packageManager
+        run: corepack prepare --activate
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client and apply migrations
+        run: |
+          pnpm --filter @petscape/server run db:generate
+          pnpm --filter @petscape/server run db:migrate:deploy
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run authenticated model confirmation flow
+        working-directory: web
+        run: node --test tests/e2e-viewer-model.test.mjs
+
+      - name: Upload model confirmation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-b4-1-model-confirmation-evidence
+          path: web/test-results/viewer-model-confirmation.png
+          if-no-files-found: warn

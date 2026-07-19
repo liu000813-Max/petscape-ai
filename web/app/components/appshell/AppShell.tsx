@@ -21,6 +21,9 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
             <Link className="psx-navitem" href="/pets">
               宠物档案
             </Link>
+            <Link className="psx-navitem" href="/viewer">
+              3D 工作台
+            </Link>
           </nav>
         </div>
         <Link className="psx-account-pill" href="/account">

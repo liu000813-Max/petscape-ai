@@ -1,0 +1,414 @@
+'use client';
+
+import { Canvas, useThree } from '@react-three/fiber';
+import { ContactShadows, GizmoHelper, GizmoViewport, OrbitControls } from '@react-three/drei';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getViewerAsset } from '../../lib/viewer/catalog';
+import {
+  TARGET_INSPECTION_ASSETS,
+  confirmInspectionModel,
+  createModelInspectionState,
+  markInspectionLoadError,
+  markInspectionLoadReady,
+  retryInspectionLoad,
+  selectInspectionAsset,
+  setInspectionUniformScale,
+  type InspectionLoadStatus,
+} from '../../lib/viewer/model-inspection';
+import './viewer.css';
+
+function disposeScene(scene: THREE.Object3D) {
+  const geometries = new Set<THREE.BufferGeometry>();
+  const materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>();
+  scene.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    geometries.add(child.geometry);
+    const childMaterials = Array.isArray(child.material) ? child.material : [child.material];
+    childMaterials.forEach((material) => {
+      materials.add(material);
+      Object.values(material).forEach((value) => {
+        if (value instanceof THREE.Texture) textures.add(value);
+      });
+    });
+  });
+  textures.forEach((texture) => texture.dispose());
+  materials.forEach((material) => material.dispose());
+  geometries.forEach((geometry) => geometry.dispose());
+}
+
+function CameraReset({ token }: { token: number }) {
+  const { camera, controls } = useThree();
+  useEffect(() => {
+    camera.position.set(430, 280, 430);
+    camera.updateProjectionMatrix();
+    if (controls && 'target' in controls) {
+      const orbit = controls as unknown as { target: THREE.Vector3; update: () => void };
+      orbit.target.set(0, 60, 0);
+      orbit.update();
+    }
+  }, [camera, controls, token]);
+  return null;
+}
+
+function InspectionModel({
+  url,
+  uniformScale,
+  requestId,
+  onLoad,
+}: {
+  url: string;
+  uniformScale: number;
+  requestId: number;
+  onLoad: (status: InspectionLoadStatus, requestId: number, detail?: string) => void;
+}) {
+  const [scene, setScene] = useState<THREE.Group | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    let ownedScene: THREE.Group | null = null;
+    onLoad('loading', requestId);
+
+    async function load() {
+      try {
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const bytes = await response.arrayBuffer();
+        if (!active) return;
+        const loader = new GLTFLoader();
+        const gltf = await loader.parseAsync(bytes, url.slice(0, url.lastIndexOf('/') + 1));
+        ownedScene = gltf.scene;
+        ownedScene.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        if (!active) {
+          disposeScene(ownedScene);
+          ownedScene = null;
+          return;
+        }
+        setScene(ownedScene);
+        onLoad('ready', requestId);
+      } catch (error) {
+        if (!active || controller.signal.aborted) return;
+        onLoad('error', requestId, error instanceof Error ? error.message : '未知加载错误');
+      }
+    }
+
+    void load();
+    return () => {
+      active = false;
+      controller.abort();
+      if (ownedScene) disposeScene(ownedScene);
+    };
+  }, [onLoad, requestId, url]);
+
+  if (!scene) return null;
+  return <primitive object={scene} scale={uniformScale} />;
+}
+
+function InspectionCanvas({
+  url,
+  uniformScale,
+  requestId,
+  resetToken,
+  onLoad,
+}: {
+  url: string;
+  uniformScale: number;
+  requestId: number;
+  resetToken: number;
+  onLoad: (status: InspectionLoadStatus, requestId: number, detail?: string) => void;
+}) {
+  return (
+    <Canvas shadows camera={{ position: [430, 280, 430], fov: 38, near: 1, far: 3000 }} dpr={[1, 1.75]}>
+      <color attach="background" args={['#f7f7f5']} />
+      <ambientLight intensity={1.8} />
+      <directionalLight position={[260, 420, 180]} intensity={2.4} castShadow />
+      <InspectionModel url={url} uniformScale={uniformScale} requestId={requestId} onLoad={onLoad} />
+      <ContactShadows position={[0, -1, 0]} opacity={0.24} scale={650} blur={2.8} far={400} />
+      <gridHelper args={[650, 13, '#d8d7d2', '#e8e7e2']} position={[0, -0.5, 0]} />
+      <OrbitControls makeDefault enableDamping minDistance={180} maxDistance={900} target={[0, 60, 0]} />
+      <CameraReset token={resetToken} />
+      <GizmoHelper alignment="top-right" margin={[78, 78]}>
+        <GizmoViewport axisColors={['#b94848', '#4b8c65', '#4d6ea9']} labelColor="white" />
+      </GizmoHelper>
+    </Canvas>
+  );
+}
+
+function formatBounds(bounds: { x: number; y: number; z: number }) {
+  return `${bounds.x.toFixed(1)} × ${bounds.y.toFixed(1)} × ${bounds.z.toFixed(1)} mm`;
+}
+
+type ViewerProject = {
+  id: string;
+  title: string | null;
+  status: string;
+  updatedAt: string;
+};
+
+function projectName(project: ViewerProject) {
+  return project.title?.trim() || '未命名项目';
+}
+
+export function ModelInspectionClient({ initialProjectId }: { initialProjectId?: string }) {
+  const [state, setState] = useState(() => createModelInspectionState('cheese-lounge-bed'));
+  const [resetToken, setResetToken] = useState(0);
+  const [projects, setProjects] = useState<ViewerProject[]>([]);
+  const [selectedProject, setSelectedProject] = useState<ViewerProject | null>(null);
+  const [projectStatus, setProjectStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [projectError, setProjectError] = useState('');
+  const [projectReloadToken, setProjectReloadToken] = useState(0);
+  const [newProjectTitle, setNewProjectTitle] = useState('我的 3D 场景');
+  const [creatingProject, setCreatingProject] = useState(false);
+  const asset = useMemo(() => getViewerAsset(state.assetKey), [state.assetKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadProjects() {
+      setProjectStatus('loading');
+      setProjectError('');
+      try {
+        const response = await fetch('/api/v1/projects', { cache: 'no-store', signal: controller.signal });
+        if (!response.ok) throw new Error(`项目读取失败 · HTTP ${response.status}`);
+        const payload = (await response.json()) as { projects?: ViewerProject[] };
+        const nextProjects = Array.isArray(payload.projects) ? payload.projects : [];
+        setProjects(nextProjects);
+        if (initialProjectId) {
+          const explicitProject = nextProjects.find((project) => project.id === initialProjectId);
+          if (!explicitProject) throw new Error('链接中的项目不存在或无权访问');
+          setSelectedProject(explicitProject);
+        }
+        setProjectStatus('ready');
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setProjectStatus('error');
+        setProjectError(error instanceof Error ? error.message : '项目读取失败');
+      }
+    }
+    void loadProjects();
+    return () => controller.abort();
+  }, [initialProjectId, projectReloadToken]);
+
+  const chooseProject = useCallback((project: ViewerProject) => {
+    setSelectedProject(project);
+    setState(createModelInspectionState('cheese-lounge-bed'));
+    window.history.replaceState(null, '', `/viewer?projectId=${encodeURIComponent(project.id)}`);
+  }, []);
+
+  const createProject = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const title = newProjectTitle.trim();
+    if (!title || creatingProject) return;
+    setCreatingProject(true);
+    setProjectError('');
+    try {
+      const response = await fetch('/api/v1/projects', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      if (!response.ok) throw new Error(`项目创建失败 · HTTP ${response.status}`);
+      const project = (await response.json()) as ViewerProject;
+      setProjects((current) => [project, ...current]);
+      chooseProject(project);
+    } catch (error) {
+      setProjectError(error instanceof Error ? error.message : '项目创建失败');
+    } finally {
+      setCreatingProject(false);
+    }
+  }, [chooseProject, creatingProject, newProjectTitle]);
+
+  const handleLoad = useCallback(
+    (status: InspectionLoadStatus, requestId: number, detail?: string) => {
+      if (status === 'ready') setState((current) => markInspectionLoadReady(current, requestId));
+      if (status === 'error') {
+        setState((current) => markInspectionLoadError(current, requestId, detail ?? '模型加载失败'));
+      }
+    },
+    [],
+  );
+
+  if (!selectedProject) {
+    return (
+      <section className="viewer-project-gate" aria-labelledby="viewer-project-title">
+        <div className="viewer-project-card">
+          <span className="viewer-eyebrow">3D 工作台入口</span>
+          <h1 id="viewer-project-title">先选择一个明确项目</h1>
+          <p>工作台不会替你静默创建项目。选择已有项目，或明确创建一个新项目后再开始检视模型。</p>
+
+          {projectStatus === 'loading' ? <div className="viewer-project-status" role="status">正在读取你的项目…</div> : null}
+          {projectStatus === 'error' ? (
+            <div className="viewer-project-status is-error" role="alert">
+              <span>{projectError}</span>
+              <button type="button" onClick={() => setProjectReloadToken((token) => token + 1)}>重试</button>
+            </div>
+          ) : null}
+          {projectStatus === 'ready' ? (
+            <div className="viewer-project-list" aria-label="已有项目">
+              {projects.length === 0 ? <p>还没有正式项目。请在下方明确创建一个。</p> : null}
+              {projects.map((project) => (
+                <button type="button" key={project.id} onClick={() => chooseProject(project)}>
+                  <span><strong>{projectName(project)}</strong><small>{project.id}</small></span>
+                  <i aria-hidden="true">→</i>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <form className="viewer-project-create" onSubmit={createProject}>
+            <label htmlFor="viewer-project-name">创建新项目</label>
+            <div>
+              <input id="viewer-project-name" value={newProjectTitle} onChange={(event) => setNewProjectTitle(event.target.value)} maxLength={80} />
+              <button type="submit" disabled={!newProjectTitle.trim() || creatingProject}>{creatingProject ? '创建中…' : '创建并进入'}</button>
+            </div>
+          </form>
+          <p className="viewer-boundary">测试模型全部来自 temporary catalog，仅限 sandbox；AI 生成链尚未接入。</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (state.stage === 'scene_editing') {
+    const latest = state.confirmations.at(-1)!;
+    return (
+      <section className="viewer-placeholder" aria-labelledby="scene-placeholder-title">
+        <div className="viewer-placeholder-card">
+          <span className="viewer-eyebrow">阶段 2 · 场景确认</span>
+          <h1 id="scene-placeholder-title">模型版本已冻结，准备进入场景</h1>
+          <p>
+            已生成第 {state.confirmations.length} 份内存 ModelConfirmation。场景摆放将在下一工作包接入；当前确认历史不会被新选择覆盖。
+          </p>
+          <dl>
+            <div><dt>项目</dt><dd>{projectName(selectedProject)}</dd></div>
+            <div><dt>资产</dt><dd>{latest.modelRef.assetKey}</dd></div>
+            <div><dt>最终尺寸</dt><dd>{formatBounds(latest.finalBoundsMm)}</dd></div>
+            <div><dt>校验</dt><dd>{latest.modelRef.checksum.slice(0, 14)}…</dd></div>
+            <div><dt>确认时间</dt><dd>{new Date(latest.confirmedAt).toLocaleString('zh-CN')}</dd></div>
+          </dl>
+          <button type="button" onClick={() => setState((current) => selectInspectionAsset(current, current.assetKey))}>
+            返回并新建另一份确认
+          </button>
+          <p className="viewer-boundary">内存占位 · 尚未写入数据库 · 不代表可制造、宠物安全或可报价</p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="viewer-workbench" aria-label="3D 模型单品检视">
+      <header className="viewer-topbar">
+        <div className="viewer-steps" aria-label="工作台阶段">
+          <span className="viewer-step is-current"><i>1</i>单品检视与模型确认</span>
+          <span className="viewer-step-line" />
+          <span className="viewer-step"><i>2</i>完整场景确认</span>
+        </div>
+        <div className="viewer-topbar-context">
+          <button
+            type="button"
+            className="viewer-project-pill"
+            onClick={() => {
+              setSelectedProject(null);
+              window.history.replaceState(null, '', '/viewer');
+            }}
+          >
+            项目 · {projectName(selectedProject)} <span>更换</span>
+          </button>
+          <span className="viewer-sandbox">temporary catalog · sandbox only</span>
+        </div>
+      </header>
+
+      <div className="viewer-grid">
+        <aside className="viewer-rail" aria-label="测试模型">
+          <div>
+            <span className="viewer-eyebrow">测试模型</span>
+            <h1>选择一个目标物品</h1>
+            <p>固定归一化 GLB，用于验证检视和阶段交接。</p>
+          </div>
+          <div className="viewer-model-list">
+            {TARGET_INSPECTION_ASSETS.map((candidate) => (
+              <button
+                type="button"
+                className={candidate.assetKey === state.assetKey ? 'is-selected' : ''}
+                aria-pressed={candidate.assetKey === state.assetKey}
+                key={candidate.assetKey}
+                onClick={() => setState((current) => selectInspectionAsset(current, candidate.assetKey))}
+              >
+                <strong>{candidate.label}</strong>
+                <span>{formatBounds(candidate.sourceBoundsMm)}</span>
+              </button>
+            ))}
+          </div>
+          <p className="viewer-ai-note">AI 生成链尚未接入</p>
+        </aside>
+
+        <div className="viewer-stage">
+          <InspectionCanvas
+            key={`${state.assetKey}-${state.loadRequestId}`}
+            url={asset.publicPath}
+            uniformScale={state.uniformScale}
+            requestId={state.loadRequestId}
+            resetToken={resetToken}
+            onLoad={handleLoad}
+          />
+          <div className="viewer-stage-name"><span />{asset.label}<small>{asset.assetKey}</small></div>
+          <div className="viewer-final-chip">最终 {formatBounds(state.finalBoundsMm)}</div>
+          <div className="viewer-toolbar">
+            <span>拖动旋转 · 滚轮缩放视角</span>
+            <button type="button" onClick={() => setResetToken((token) => token + 1)}>回到原点</button>
+          </div>
+          {state.loadStatus !== 'ready' ? (
+            <div className="viewer-overlay" role={state.loadStatus === 'error' ? 'alert' : 'status'}>
+              {state.loadStatus === 'loading' ? (
+                <><span className="viewer-spinner" /><strong>正在加载 {asset.label}</strong><p>切换模型会取消旧请求</p></>
+              ) : (
+                <><span className="viewer-error-mark">!</span><strong>模型加载失败</strong><p>{state.loadError}</p><button type="button" onClick={() => setState(retryInspectionLoad)}>重试</button></>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <aside className="viewer-panel" aria-label="尺寸与确认">
+          <div className="viewer-card">
+            <h2>尺寸与比例</h2>
+            <div className="viewer-dimension-row"><span>原始尺寸</span><strong>{formatBounds(asset.sourceBoundsMm)}</strong><small>来源：冻结 meta 包围盒</small></div>
+            <div className="viewer-dimension-row"><span>最终尺寸</span><strong>{formatBounds(state.finalBoundsMm)}</strong><small>仅预览交互值，不是制造推荐</small></div>
+            <label className="viewer-scale">
+              <span>统一比例 <output>{Math.round(state.uniformScale * 100)}%</output></span>
+              <input
+                aria-label="统一比例"
+                type="range"
+                min="0.5"
+                max="1.5"
+                step="0.01"
+                value={state.uniformScale}
+                onChange={(event) => setState((current) => setInspectionUniformScale(current, Number(event.target.value)))}
+              />
+              <small>等比缩放三轴；不支持单轴拉伸</small>
+            </label>
+          </div>
+
+          <div className="viewer-editorial-space" aria-hidden="true" />
+
+          <div className="viewer-confirm-block">
+            <p>确认只表示愿意用此模型继续摆放，不表示可制造、适合宠物使用或已经报价。</p>
+            <button
+              type="button"
+              disabled={state.loadStatus !== 'ready'}
+              onClick={() => setState((current) => confirmInspectionModel(current, new Date().toISOString()))}
+            >
+              确认此模型，进入场景 <span aria-hidden="true">→</span>
+            </button>
+            <small>temporary catalog · sandbox only · checksum 已冻结</small>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
