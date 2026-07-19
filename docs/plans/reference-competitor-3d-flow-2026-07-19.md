@@ -1,6 +1,7 @@
 # 竞品参考:嘉立创 3D 打印下单流程与 3D Viewer(2026-07-19)
 
-- 来源:用户 2026-07-17 录屏《3D置景 3D编辑器预览需求以及电商模块参考.mp4》(5'38",含旁白),2026-07-19 结构化分析并经用户逐项确认。
+- 来源:用户 2026-07-17 录屏《3D置景 3D编辑器预览需求以及电商模块参考.mp4》(5'38",含旁白),分析时位于用户桌面根目录;2026-07-19 结构化分析并经用户逐项确认。
+- 素材处置:Viewer 关键帧 6 张已入库(`assets/reference-competitor-3d-flow/`,见第二节索引);电商流程有意只留文字拆解(理由见第二节末);旁白字幕稿**不入库**——机器转录尾部有幻觉、质量不足以当正本,关键句已逐条提炼进"旁白定调"表,需逐字回溯时看原视频。
 - 竞品身份:**嘉立创(JLC)**——团队 leader Max 指认的**制造供应商**,其官网被明确要求"借鉴逻辑与下单流程"。涉及三个站点:
   - `jlcfa.com`(嘉立创FA·整机智造:上传→解析→参数表格→自动报价→一键提交)
   - `jlc-3dp.cn` / `model.jlc-3dp.cn`(嘉立创3D打印:散件下单 + 「好物集市」预设商品商城)
@@ -33,6 +34,19 @@
 ## 二、3D Viewer 交互与视觉清单
 
 载体两处:①整机智造表格行内"预览"→ 右侧抽屉式侧栏;②独立站 `3d-viewer.jlc.com`(全屏,功能全集,另有格式转换/上传预览/小程序入口)。
+
+### 图像 reference(`assets/reference-competitor-3d-flow/`)
+
+| 截图 | 看什么 |
+|---|---|
+| [viewer-01-sidebar-full-toolbar.jpg](assets/reference-competitor-3d-flow/viewer-01-sidebar-full-toolbar.jpg) | 侧栏抽屉形态:表格上下文 + 右侧 Viewer + 完整胶囊工具栏 + 视角立方体 |
+| [viewer-02-measurement-labels.jpg](assets/reference-competitor-3d-flow/viewer-02-measurement-labels.jpg) | 测量:逐轴尺寸气泡直接贴在模型上 |
+| [viewer-03-model-properties-weight.jpg](assets/reference-competitor-3d-flow/viewer-03-model-properties-weight.jpg) | Model properties 面板:体积/包围盒/材料密度下拉→重量,数值带一键复制 |
+| [viewer-04-drag-mode-autocolor.jpg](assets/reference-competitor-3d-flow/viewer-04-drag-mode-autocolor.jpg) | Drag 全屏模式:"Press Esc to exit"+"Hold and drag to move model"提示、Single reset/Reset all;自动上色(金色)效果 |
+| [viewer-05-shadow-rendering.jpg](assets/reference-competitor-3d-flow/viewer-05-shadow-rendering.jpg) | 视觉质感:米白底、哑光灰模、方向光拉长软阴影 |
+| [viewer-06-standalone-full-tools.jpg](assets/reference-competitor-3d-flow/viewer-06-standalone-full-tools.jpg) | 独立站两行完整工具栏(功能全集的密度上限,反面参考:我们要更少工具更大留白) |
+
+电商流程部分**有意不留截图**:参考的是流程逻辑与状态机(已由第一节拆解表固化),嘉立创的工程蓝表格 UI 不适配我们的视觉基准,不进视觉语料以免被后续设计误引用。
 
 ### 工具全集(视频可见)
 
