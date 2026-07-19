@@ -78,6 +78,45 @@ export class OssStorage {
   }
 
   /**
+   * Worker 读取 HEAD 已确认的不可变对象：If-Match 绑定 ETag，流式累计并在超过
+   * maxBytes 前中止，最后再核对精确字节数，避免 HEAD→GET 替换竞态与整包内存 DoS。
+   */
+  async getVerifiedBuffer({
+    key,
+    etag,
+    expectedBytes,
+    maxBytes,
+  }: {
+    key: string;
+    etag: string;
+    expectedBytes: number;
+    maxBytes: number;
+  }): Promise<Buffer> {
+    const result = await this.client.getStream(key, { headers: { 'If-Match': etag } });
+    if (!result.stream) throw new Error('OSS 未返回对象读取流');
+    const chunks: Buffer[] = [];
+    let total = 0;
+    try {
+      for await (const chunk of result.stream as AsyncIterable<Buffer | string>) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        total += buffer.byteLength;
+        if (total > maxBytes) {
+          result.stream.destroy(new Error('OSS 对象超过 worker 网格读取上限'));
+          throw new Error('OSS 对象超过 worker 网格读取上限');
+        }
+        chunks.push(buffer);
+      }
+    } catch (error) {
+      result.stream.destroy();
+      throw error;
+    }
+    if (total !== expectedBytes) {
+      throw new Error(`OSS 对象读取长度不一致: expected=${expectedBytes}, actual=${total}`);
+    }
+    return Buffer.concat(chunks, total);
+  }
+
+  /**
    * HEAD 校验对象是否存在及其大小（confirmAssetUpload 用例据此核对客户端声明的大小）。
    * 对象不存在时返回 `{ exists: false }`，不抛错（调用方按业务语义处理，不是异常路径）。
    */

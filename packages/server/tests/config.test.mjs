@@ -60,6 +60,8 @@ test('全部必需键提供时 loadWorkerConfig 校验通过（含供应商 key 
   assert.equal(config.NODE_ENV, 'production');
   assert.equal(config.FAL_KEY, 'fal-test-key');
   assert.equal(config.UV_BIN, '/usr/local/bin/uv');
+  assert.equal(config.WORKER_JOB_TYPES, 'sample.echo,mesh_analysis');
+  assert.equal(config.MESH_ANALYZER_PYTHON_BIN, 'python3');
 });
 
 test('非法枚举值（NODE_ENV 不在允许集合内）报错含键名', () => {
@@ -85,6 +87,7 @@ test('web schema 不包含 worker 专属键（切片器路径与生成供应商 
 test('worker schema 包含专属键，且 web/worker 都含 common 键', () => {
   assert.ok('UV_BIN' in workerConfigSchema.shape);
   assert.ok('PRUSASLICER_BIN' in workerConfigSchema.shape);
+  assert.ok('MESH_ANALYZER_PYTHON_BIN' in workerConfigSchema.shape);
   assert.ok('NODE_ENV' in webConfigSchema.shape);
   assert.ok('NODE_ENV' in workerConfigSchema.shape);
   assert.ok('DATABASE_URL' in webConfigSchema.shape);

@@ -313,3 +313,44 @@ model Pet {
   @@index([coverAssetId])
   @@map("pet")
 }
+
+// ---- WP-B7-1：材料目录与版本化定价规则（append-only） ----
+// 首版只 seed 不可售的沙箱材料/规则。更新参数必须新增版本，禁止原地改写；
+// migration 以 PostgreSQL trigger 在数据库层拒绝 UPDATE/DELETE。
+model Material {
+  id                     String   @id
+  versionCode            String   @unique
+  displayName            String
+  materialKind           String
+  colorName              String
+  densityMilligramPerCm3 Int
+  unitPriceCentPerGram   Int
+  currency               String
+  isSellable             Boolean  @default(false)
+  sandboxOnly            Boolean  @default(true)
+  createdAt              DateTime @default(now())
+
+  pricingRules PricingRule[]
+
+  @@map("material")
+}
+
+model PricingRule {
+  id             String   @id
+  versionCode    String   @unique
+  materialId     String
+  material       Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  formulaVersion String
+  baseFeeCent    Int
+  multiplier     Decimal  @db.Decimal(8, 4)
+  floorPriceCent Int
+  currency       String
+  taxMode        String
+  roundingMode   String
+  isSellable     Boolean  @default(false)
+  sandboxOnly    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@index([materialId])
+  @@map("pricing_rule")
+}

@@ -37,6 +37,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY worker worker
 COPY packages/server packages/server
+COPY web/public/mockup-assets/mock-model.stl web/public/mockup-assets/mock-model.stl
 
 RUN pnpm --filter @petscape/server exec prisma generate
 
@@ -45,12 +46,23 @@ FROM base AS run
 WORKDIR /workspace
 ENV NODE_ENV=production
 
+# WP-B7-1: pinned server-side mesh analyzer runtime. Dependencies are baked into
+# the image; production jobs never download Python packages at request time.
+COPY --from=ghcr.io/astral-sh/uv:0.8.12 /uv /usr/local/bin/uv
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
+RUN uv python install 3.12.11 \
+  && uv venv /opt/mesh-venv --python 3.12.11 \
+  && uv pip install --python /opt/mesh-venv/bin/python trimesh==4.12.2 numpy==2.5.1 \
+  && chmod -R a+rX /opt/uv-python /opt/mesh-venv
+ENV MESH_ANALYZER_PYTHON_BIN=/opt/mesh-venv/bin/python
+
 RUN addgroup --system --gid 1001 worker \
   && adduser --system --uid 1001 worker
 
 COPY --from=build --chown=worker:worker /workspace/node_modules ./node_modules
 COPY --from=build --chown=worker:worker /workspace/worker ./worker
 COPY --from=build --chown=worker:worker /workspace/packages/server ./packages/server
+COPY --from=build --chown=worker:worker /workspace/web/public/mockup-assets/mock-model.stl ./web/public/mockup-assets/mock-model.stl
 COPY --from=build --chown=worker:worker /workspace/pnpm-workspace.yaml /workspace/package.json ./
 
 USER worker

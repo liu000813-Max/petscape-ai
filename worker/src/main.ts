@@ -29,6 +29,7 @@ import {
 } from '@petscape/server/worker-api';
 import { RetryableError, type JobHandler } from './handlers/types.ts';
 import { sampleEchoHandler } from './handlers/sampleEcho.ts';
+import { meshAnalysisHandler } from './handlers/meshAnalysis.ts';
 
 // 本地开发约定：worker/package.json 的 dev/start 脚本用
 // `--env-file=../.env` 指向仓库根目录 `.env`；部署环境由 Compose 直接注入，
@@ -85,6 +86,7 @@ logInfo('worker.config', {
 
 const handlers: Record<string, JobHandler> = {
   'sample.echo': sampleEchoHandler,
+  mesh_analysis: meshAnalysisHandler,
 };
 
 /**
@@ -169,7 +171,11 @@ async function runJob(job: JobRecord): Promise<void> {
         reportProgress: (progress) => {
           latestProgress = progress;
         },
-        server: { prisma, oss },
+        server: {
+          prisma,
+          oss,
+          meshAnalyzerPythonBin: config.MESH_ANALYZER_PYTHON_BIN,
+        },
       },
     );
 
@@ -209,11 +215,19 @@ async function runJob(job: JobRecord): Promise<void> {
     }
     const errorClass = error instanceof RetryableError ? 'retryable' : 'permanent';
     const message = error instanceof Error ? error.message : String(error);
+    const domainErrorCode =
+      error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+        ? error.code
+        : undefined;
     const outcome = await failJob({
       jobId: job.id,
       workerId,
       errorClass,
-      errorDetail: { message, stack: error instanceof Error ? error.stack : undefined },
+      errorDetail: {
+        ...(domainErrorCode ? { code: domainErrorCode } : {}),
+        message,
+        stack: error instanceof Error ? error.stack : undefined,
+      },
     });
     // WP-3.5：failed 事件的 errorClass 字段即"任务失败计数"的日志聚合口径
     // （spec 明确指示不引指标系统，failed 事件自带 errorClass 供后续聚合）。

@@ -173,6 +173,44 @@ export async function createJob(
   }
 }
 
+/**
+ * 重开已耗尽的 retryable job。单条条件 UPDATE 保证并发重开只有一个获胜；
+ * attemptCount 保持单调，避免与历史 JobAttempt(jobId, attemptNo) 唯一键冲突，
+ * 并清掉上一代易变状态。targetVersion 递增阻止旧 worker 迟到完成。
+ */
+export async function reopenRetryableJob(
+  client: JobDbClient,
+  jobId: string,
+  additionalAttempts = 3,
+): Promise<boolean> {
+  if (!Number.isInteger(additionalAttempts) || additionalAttempts <= 0) {
+    throw new Error('additionalAttempts 必须是正整数');
+  }
+  const now = new Date();
+  const affected = await client.$executeRawUnsafe(
+    `UPDATE "job"
+     SET status = 'pending',
+         "maxAttempts" = "maxAttempts" + $2,
+         "targetVersion" = "targetVersion" + 1,
+         "leaseOwner" = NULL,
+         "leaseExpiresAt" = NULL,
+         progress = NULL,
+         "errorClass" = NULL,
+         "errorDetail" = NULL,
+         "resultRef" = NULL,
+         "startedAt" = NULL,
+         "finishedAt" = NULL,
+         "updatedAt" = $3
+     WHERE id = $1
+       AND status = 'failed'
+       AND "errorClass" = 'retryable'`,
+    jobId,
+    additionalAttempts,
+    now,
+  );
+  return affected > 0;
+}
+
 function isUniqueConstraintError(error: unknown): boolean {
   return (
     typeof error === 'object' &&

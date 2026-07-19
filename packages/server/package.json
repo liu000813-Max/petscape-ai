@@ -14,6 +14,7 @@
     "./contracts/scene-confirmation-commerce": "./src/contracts/scene-confirmation-commerce.ts",
     "./contracts/scene-confirmation-commerce.fixture": "./src/contracts/scene-confirmation-commerce.fixture.ts",
     "./contracts/scenes": "./src/contracts/scenes.ts",
+    "./contracts/commerce-estimates": "./src/contracts/commerce-estimates.ts",
     "./worker-api": "./src/worker-api.ts"
   },
   "scripts": {

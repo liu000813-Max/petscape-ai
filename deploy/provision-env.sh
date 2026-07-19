@@ -90,6 +90,11 @@ trap 'rm -f "$WEB_ENV_TMP" "$WORKER_ENV_TMP"' EXIT
   emit_key TRIPO_API_KEY_2
   emit_key UV_BIN
   emit_key PRUSASLICER_BIN
+  emit_key MESH_ANALYZER_PYTHON_BIN
+  emit_key WORKER_JOB_TYPES
+  emit_key WORKER_POLL_INTERVAL_MS
+  emit_key WORKER_LEASE_SECONDS
+  emit_key WORKER_RECOVER_ORPHANS_INTERVAL_MS
 } > "$WORKER_ENV_TMP"
 
 ssh "root@${ECS_HOST}" "mkdir -p ${REMOTE_DIR}"

@@ -54,3 +54,16 @@ export type {
 } from './jobs.ts';
 
 export { NotFoundError } from '../domain/index.ts';
+
+// WP-B7-1：服务端网格分析任务 + 沙箱 Estimate。
+export {
+  createSandboxEstimateJob,
+  getSandboxEstimate,
+  buildMeshAnalysisIdempotencyKey,
+  resolveSandboxSceneConfirmation,
+  MESH_ANALYSIS_JOB_TYPE,
+} from './commerce-estimates.ts';
+export {
+  B7_SANDBOX_SCENE_CONFIRMATION_ID,
+  b7SandboxSceneConfirmationFixture,
+} from './commerce-sandbox-fixtures.ts';

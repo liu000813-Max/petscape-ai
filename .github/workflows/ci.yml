@@ -48,6 +48,11 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      - name: Setup uv for real mesh analyzer tests
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.8.12'
+
       # Prisma client is a generated artifact (gitignored) that packages/server's
       # own type-check depends on; must run before tsc. See packages/server/src/generated/.
       - name: Prisma generate (packages/server)
@@ -93,6 +98,9 @@ jobs:
 
       - name: Prisma validate (packages/server)
         run: pnpm --filter @petscape/server exec prisma validate
+
+      - name: Build worker image (mesh analyzer runtime)
+        run: docker build -f deploy/worker.Dockerfile -t petscape-worker-ci:${{ github.sha }} .
 
   viewer-touch-e2e:
     name: viewer-touch-e2e

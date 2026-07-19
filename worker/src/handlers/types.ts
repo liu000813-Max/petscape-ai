@@ -23,7 +23,11 @@ export interface JobHandlerContext {
    *  不由 handler 直接调用 heartbeat（心跳节奏统一由主循环掌握，见 main.ts）。 */
   reportProgress(progress: unknown): void;
   /** 已装配好的 { prisma, oss }（WP-3.4：产物落地 Asset + 上传 OSS 需要）。 */
-  server: { prisma: import('@petscape/server/worker-api').PrismaClient; oss: import('@petscape/server/worker-api').OssStorage };
+  server: {
+    prisma: import('@petscape/server/worker-api').PrismaClient;
+    oss: import('@petscape/server/worker-api').OssStorage;
+    meshAnalyzerPythonBin: string;
+  };
 }
 
 /**
