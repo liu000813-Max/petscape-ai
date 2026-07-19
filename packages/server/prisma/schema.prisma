@@ -55,6 +55,7 @@ model User {
   projects Project[]
   assets   Asset[]
   pets     Pet[]
+  customizationRequests CustomizationRequest[]
 
   @@map("user")
 }
@@ -353,4 +354,46 @@ model PricingRule {
 
   @@index([materialId])
   @@map("pricing_rule")
+}
+
+// ---- WP-C1-1：定制申请不可变版本 ----
+// 客户端只提交 SceneConfirmation 引用与用户可编辑说明；场景、产品、材料和
+// sandbox/live 资格由服务端解析后冻结。重提创建新行并把旧 submitted 行标为
+// superseded，禁止原地覆盖历史输入。
+model CustomizationRequest {
+  id          String @id @default(cuid())
+  ownerUserId String
+  owner       User   @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+
+  sceneConfirmationId String
+  projectId           String
+  targetInstanceId    String
+  sceneConfirmation   Json
+
+  productCode     String
+  materialName    String
+  materialVersion String
+  sandboxOnly     Boolean
+
+  contactName            String
+  contactPhone           String
+  usageDescription       String
+  additionalRequirements String?
+
+  status             String
+  idempotencyKey     String
+  requestFingerprint String
+
+  supersedesRequestId String?               @unique
+  supersedesRequest   CustomizationRequest? @relation("CustomizationRequestSupersession", fields: [supersedesRequestId], references: [id], onDelete: Restrict)
+  supersededByRequest CustomizationRequest? @relation("CustomizationRequestSupersession")
+
+  submittedAt DateTime
+  canceledAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([ownerUserId, idempotencyKey], map: "customization_request_owner_idempotency_key")
+  @@index([ownerUserId, createdAt])
+  @@index([sceneConfirmationId])
+  @@map("customization_request")
 }

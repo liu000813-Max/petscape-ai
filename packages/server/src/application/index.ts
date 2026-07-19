@@ -67,3 +67,9 @@ export {
   B7_SANDBOX_SCENE_CONFIRMATION_ID,
   b7SandboxSceneConfirmationFixture,
 } from './commerce-sandbox-fixtures.ts';
+export {
+  CustomizationRequestConflictError,
+  createCustomizationRequest,
+  getCustomizationRequest,
+  listCustomizationRequests,
+} from './customization-requests.ts';

@@ -33,6 +33,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Whitespace check (PR range)
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [[ -n "$PR_BASE_SHA" ]]; then
+            git diff --check "$PR_BASE_SHA...HEAD"
+          else
+            git diff-tree --check --no-commit-id --root -r HEAD
+          fi
 
       - name: Enable corepack
         run: corepack enable
@@ -79,6 +92,9 @@ jobs:
       - name: Test (web)
         run: pnpm --filter web run test
 
+      - name: Build web (production Next)
+        run: pnpm --filter web run build
+
       # 对一次性 PG 执行全部 migration：既为集成测试建表，
       # 也让 migration 文件本身每次 CI 都被真实执行验证。
       - name: Prisma migrate deploy (CI Postgres)
@@ -95,6 +111,23 @@ jobs:
           DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
           # 统一配置入口（infra/config）要求 NODE_ENV 为合法枚举值；GHA 默认不设。
           NODE_ENV: test
+
+      - name: Install Playwright Chromium (C1 browser flow)
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Test C1 request flow (real Next + PostgreSQL + Chromium)
+        working-directory: web
+        run: node --test tests/e2e-customization-requests.test.mjs
+        env:
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+
+      - name: Upload C1 browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-c1-1-browser-evidence
+          path: web/test-results/c1-requests/
+          if-no-files-found: warn
 
       - name: Prisma validate (packages/server)
         run: pnpm --filter @petscape/server exec prisma validate
