@@ -1,6 +1,6 @@
 # C 线执行文档：报价、支付与订单骨架（B7 输入 + C1-C5 首版）
 
-状态：v6（2026-07-19，批次 2 执行中；§3.1 明确确认记录绑定层，migration 槽位缩至生产 DB 临界区，WP-OPS-1 提前到 B6-0 后）。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
+状态：v6 沙箱实现链已合入 `main`，关账证据待收口（2026-07-20 校准）。WP-SEAM-0、B7-1、C1-1、B6-0、OPS-1、C2-1、C5-1、C3-1、C4-1 均有对应合并提交；本文保留沙箱交易边界和验收要求，不表示真实支付、真实订单或履约已经完成。生产行为是否完整通过，仍以 exact SHA 的数据库、API 和浏览器证据为准。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
 
 目标：先做出可验证的**沙箱交易骨架**，再在真实材料、定价、审核和支付渠道全部就绪后开放真实成交：
 
