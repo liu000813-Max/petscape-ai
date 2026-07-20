@@ -679,6 +679,7 @@ model PaymentIntent {
   provider    String
   sandboxOnly Boolean
   status      String
+  attentionCode String?
 
   idempotencyKey       String
   requestFingerprint   String

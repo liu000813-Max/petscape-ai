@@ -9,6 +9,9 @@ const moneySchema = z.number().int().positive().max(2_147_483_647);
 export const PaymentIntentStatusSchema = z.enum([
   'requires_action', 'processing', 'succeeded', 'failed', 'canceled', 'needs_attention',
 ]);
+export const PaymentAttentionCodeSchema = z.enum([
+  'amount_mismatch', 'stale_succeeded_attempt', 'provider_state_conflict', 'unspecified',
+]);
 export const PaymentAttemptStatusSchema = z.enum([
   'requires_action', 'processing', 'succeeded', 'failed', 'canceled',
 ]);
@@ -49,6 +52,7 @@ export const PaymentIntentResponseSchema = z.strictObject({
   provider: idSchema,
   sandboxOnly: z.literal(true),
   status: PaymentIntentStatusSchema,
+  attentionCode: PaymentAttentionCodeSchema.nullable(),
   label: z.literal('沙箱支付（不会发生真实扣款或成交）'),
   attempts: z.array(PaymentAttemptResponseSchema),
   succeededAt: z.iso.datetime().nullable(),
@@ -61,6 +65,14 @@ export const PaymentIntentResponseSchema = z.strictObject({
 
 export const PaymentIntentListResponseSchema = z.strictObject({
   paymentIntents: z.array(PaymentIntentResponseSchema),
+});
+
+export const AdminPaymentAttentionItemSchema = z.strictObject({
+  ownerUserId: idSchema,
+  paymentIntent: PaymentIntentResponseSchema,
+});
+export const AdminPaymentAttentionListResponseSchema = z.strictObject({
+  items: z.array(AdminPaymentAttentionItemSchema),
 });
 
 export const SandboxPaymentActionSchema = z.strictObject({
@@ -80,7 +92,7 @@ export const ProviderEventSchema = z.strictObject({
 });
 
 export const PaymentApiErrorSchema = z.strictObject({
-  error: z.enum(['unauthorized', 'invalid_json', 'invalid_request', 'not_found', 'conflict', 'provider_disabled', 'invalid_signature']),
+  error: z.enum(['unauthorized', 'forbidden', 'invalid_json', 'invalid_request', 'not_found', 'conflict', 'provider_disabled', 'invalid_signature']),
   detail: z.string().optional(),
   issues: z.array(z.strictObject({
     path: z.array(z.union([z.string(), z.number()])),
@@ -92,4 +104,5 @@ export type CreatePaymentIntent = z.infer<typeof CreatePaymentIntentSchema>;
 export type RetryPaymentIntent = z.infer<typeof RetryPaymentIntentSchema>;
 export type PaymentIntentResponse = z.infer<typeof PaymentIntentResponseSchema>;
 export type PaymentAttemptResponse = z.infer<typeof PaymentAttemptResponseSchema>;
+export type AdminPaymentAttentionItem = z.infer<typeof AdminPaymentAttentionItemSchema>;
 export type ProviderEvent = z.infer<typeof ProviderEventSchema>;

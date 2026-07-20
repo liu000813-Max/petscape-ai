@@ -8,6 +8,7 @@ if (!databaseUrl) {
 } else {
   const { createPrismaClient } = await import('../src/infra/db/index.ts');
   const {
+    AdminRequiredError,
     B7_SANDBOX_SCENE_CONFIRMATION_ID,
     NotFoundError,
     PaymentConflictError,
@@ -25,6 +26,7 @@ if (!databaseUrl) {
     createSandboxEstimateJob,
     createSandboxPaymentProvider,
     createPrismaSandboxPaymentStateStore,
+    listAdminPaymentAttention,
     ingestPaymentEvent,
     reconcilePaymentIntent,
     retryPaymentIntent,
@@ -106,6 +108,7 @@ if (!databaseUrl) {
     assert.equal(result.paymentIntent.amountCent, quote.amountCent);
     assert.equal(result.paymentIntent.currency, 'CNY');
     assert.equal(result.paymentIntent.status, 'requires_action');
+    assert.equal(result.paymentIntent.attentionCode, null);
     assert.equal(result.paymentIntent.attempts.length, 1);
   });
 
@@ -158,7 +161,17 @@ if (!databaseUrl) {
     assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } })).status, 'requires_action');
     const amountMismatch = await provider.simulate(attempt.providerPaymentId, 'succeeded', { amountCent: quote.amountCent - 100 });
     await ingestPaymentEvent({ prisma, provider, rawBody: amountMismatch.rawBody, signature: amountMismatch.signature });
-    assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } })).status, 'needs_attention');
+    const attention = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } });
+    assert.equal(attention.status, 'needs_attention');
+    assert.equal(attention.attentionCode, 'amount_mismatch');
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: created.paymentIntent.id } }), 0);
+    const adminQueue = await listAdminPaymentAttention({ prisma, actorUserId: adminId });
+    assert.equal(adminQueue.some((item) => item.paymentIntent.id === created.paymentIntent.id &&
+      item.paymentIntent.attentionCode === 'amount_mismatch'), true);
+    await assert.rejects(
+      () => listAdminPaymentAttention({ prisma, actorUserId: owner }),
+      (error) => error instanceof AdminRequiredError,
+    );
   });
 
   test('a verified amount mismatch after failure is ledgered and escalates to needs_attention', async () => {
@@ -172,6 +185,121 @@ if (!databaseUrl) {
     await ingestPaymentEvent({ prisma, provider, rawBody: mismatch.rawBody, signature: mismatch.signature });
     assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } })).status, 'needs_attention');
     assert.equal((await prisma.paymentEvent.findUniqueOrThrow({ where: { providerEventId: mismatch.event.providerEventId } })).processingResult, 'needs_attention');
+  });
+
+  test('a trusted late success from an older attempt needs attention and never creates an order', async () => {
+    const quote = await makeQuote(owner, 'late-old-success', { accepted: true, confirmedAddress: true });
+    const created = await createPaymentIntent({ prisma, provider, ownerUserId: owner,
+      input: { quoteId: quote.id, idempotencyKey: 'c3-late-old-success-payment' } });
+    const oldAttempt = created.paymentIntent.attempts[0];
+    const failed = await provider.simulate(oldAttempt.providerPaymentId, 'failed');
+    await ingestPaymentEvent({ prisma, provider, rawBody: failed.rawBody, signature: failed.signature });
+    const retried = await retryPaymentIntent({ prisma, provider, ownerUserId: owner, paymentIntentId: created.paymentIntent.id,
+      input: { expectedStatus: 'failed' } });
+    assert.equal(retried.status, 'requires_action');
+    assert.equal(retried.attempts.length, 2);
+
+    const lateSuccess = await provider.simulate(oldAttempt.providerPaymentId, 'succeeded', {
+      occurredAt: new Date(Date.now() + 1_000),
+    });
+    await ingestPaymentEvent({ prisma, provider, rawBody: lateSuccess.rawBody, signature: lateSuccess.signature });
+
+    const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } });
+    const event = await prisma.paymentEvent.findUniqueOrThrow({ where: { providerEventId: lateSuccess.event.providerEventId } });
+    assert.equal(intent.status, 'needs_attention');
+    assert.equal(intent.attentionCode, 'stale_succeeded_attempt');
+    assert.equal(event.processingResult, 'needs_attention');
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: created.paymentIntent.id } }), 0);
+    assert.equal(await prisma.job.count({ where: { type: 'order_recovery', idempotencyKey: created.paymentIntent.id } }), 0);
+  });
+
+  test('an older success blocks a pending order recovery after the newer attempt already succeeded', async () => {
+    const quote = await makeQuote(owner, 'late-old-success-after-new', { accepted: true, confirmedAddress: true });
+    const created = await createPaymentIntent({ prisma, provider, ownerUserId: owner,
+      input: { quoteId: quote.id, idempotencyKey: 'c3-late-old-success-after-new-payment' } });
+    const oldAttempt = created.paymentIntent.attempts[0];
+    const failed = await provider.simulate(oldAttempt.providerPaymentId, 'failed');
+    await ingestPaymentEvent({ prisma, provider, rawBody: failed.rawBody, signature: failed.signature });
+    const retried = await retryPaymentIntent({ prisma, provider, ownerUserId: owner, paymentIntentId: created.paymentIntent.id,
+      input: { expectedStatus: 'failed' } });
+    const latestSuccess = await provider.simulate(retried.attempts[1].providerPaymentId, 'succeeded');
+
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION payment_recovery_fail_order_once() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'injected payment recovery order interruption'; END; $$ LANGUAGE plpgsql`);
+    await prisma.$executeRawUnsafe(`CREATE TRIGGER a_payment_recovery_fail_order_once BEFORE INSERT ON "order" FOR EACH ROW EXECUTE FUNCTION payment_recovery_fail_order_once()`);
+    try {
+      await assert.rejects(
+        () => ingestPaymentEvent({ prisma, provider, rawBody: latestSuccess.rawBody, signature: latestSuccess.signature }),
+        /injected payment recovery order interruption/i,
+      );
+    } finally {
+      await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS a_payment_recovery_fail_order_once ON "order"`);
+      await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS payment_recovery_fail_order_once()`);
+    }
+    assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } })).status, 'succeeded');
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: created.paymentIntent.id } }), 0);
+
+    const lateSuccess = await provider.simulate(oldAttempt.providerPaymentId, 'succeeded', {
+      occurredAt: new Date(Date.now() + 1_000),
+    });
+    await ingestPaymentEvent({ prisma, provider, rawBody: lateSuccess.rawBody, signature: lateSuccess.signature });
+
+    const attention = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } });
+    assert.equal(attention.status, 'needs_attention');
+    assert.equal(attention.attentionCode, 'stale_succeeded_attempt');
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: created.paymentIntent.id } }), 0);
+  });
+
+  test('late failed and canceled events from an older attempt stay in the ledger without replacing the latest attempt', async () => {
+    const quote = await makeQuote(owner, 'late-old-terminal', { accepted: true, confirmedAddress: true });
+    const created = await createPaymentIntent({ prisma, provider, ownerUserId: owner,
+      input: { quoteId: quote.id, idempotencyKey: 'c3-late-old-terminal-payment' } });
+    const oldAttempt = created.paymentIntent.attempts[0];
+    const firstFailure = await provider.simulate(oldAttempt.providerPaymentId, 'failed');
+    await ingestPaymentEvent({ prisma, provider, rawBody: firstFailure.rawBody, signature: firstFailure.signature });
+    const retried = await retryPaymentIntent({ prisma, provider, ownerUserId: owner, paymentIntentId: created.paymentIntent.id,
+      input: { expectedStatus: 'failed' } });
+    const latestAttempt = retried.attempts[1];
+
+    const lateCanceled = await provider.simulate(oldAttempt.providerPaymentId, 'canceled', {
+      occurredAt: new Date(Date.now() + 1_000),
+    });
+    await ingestPaymentEvent({ prisma, provider, rawBody: lateCanceled.rawBody, signature: lateCanceled.signature });
+    const lateFailed = await provider.simulate(oldAttempt.providerPaymentId, 'failed', {
+      occurredAt: new Date(Date.now() + 2_000),
+    });
+    await ingestPaymentEvent({ prisma, provider, rawBody: lateFailed.rawBody, signature: lateFailed.signature });
+
+    const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } });
+    const attempts = await prisma.paymentAttempt.findMany({
+      where: { paymentIntentId: created.paymentIntent.id }, orderBy: { attemptNo: 'asc' },
+    });
+    const staleEvents = await prisma.paymentEvent.findMany({
+      where: { providerEventId: { in: [lateCanceled.event.providerEventId, lateFailed.event.providerEventId] } },
+    });
+    assert.equal(intent.status, 'requires_action');
+    assert.equal(intent.attentionCode, null);
+    assert.equal(attempts[0].status, 'failed');
+    assert.equal(attempts[1].id, latestAttempt.id);
+    assert.equal(attempts[1].status, 'requires_action');
+    assert.deepEqual(staleEvents.map((event) => event.processingResult).sort(), ['ignored_stale', 'ignored_stale']);
+  });
+
+  test('a latest attempt success that conflicts with its terminal state needs attention', async () => {
+    const quote = await makeQuote(owner, 'provider-conflict', { accepted: true, confirmedAddress: true });
+    const created = await createPaymentIntent({ prisma, provider, ownerUserId: owner,
+      input: { quoteId: quote.id, idempotencyKey: 'c3-provider-conflict-payment' } });
+    const attempt = created.paymentIntent.attempts[0];
+    const failed = await provider.simulate(attempt.providerPaymentId, 'failed');
+    await ingestPaymentEvent({ prisma, provider, rawBody: failed.rawBody, signature: failed.signature });
+    const conflictingSuccess = await provider.simulate(attempt.providerPaymentId, 'succeeded', {
+      occurredAt: new Date(Date.now() + 1_000),
+    });
+    await ingestPaymentEvent({ prisma, provider, rawBody: conflictingSuccess.rawBody, signature: conflictingSuccess.signature });
+
+    const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } });
+    assert.equal(intent.status, 'needs_attention');
+    assert.equal(intent.attentionCode, 'provider_state_conflict');
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: created.paymentIntent.id } }), 0);
   });
 
   test('failed payments retry with a new attempt and active query recovers a lost success event', async () => {
@@ -283,6 +411,12 @@ if (!databaseUrl) {
     await assert.rejects(
       () => prisma.paymentIntent.update({ where: { id: first.paymentIntent.id }, data: { status: 'succeeded', succeededAt: new Date() } }),
       /trusted provider event/i,
+    );
+    await assert.rejects(
+      () => prisma.paymentIntent.update({ where: { id: first.paymentIntent.id }, data: {
+        status: 'needs_attention', attentionCode: 'provider_state_conflict', needsAttentionAt: new Date(),
+      } }),
+      /fresh trusted provider event/i,
     );
     await assert.rejects(
       () => prisma.paymentAttempt.update({ where: { id: firstAttempt.id }, data: { status: 'processing' } }),
