@@ -84,7 +84,8 @@ export const AdminPaymentAttentionItemSchema = z.strictObject({
     attemptCount: z.number().int().nonnegative(),
     maxAttempts: z.number().int().positive(),
     errorClass: z.enum(['retryable', 'permanent', 'canceled', 'manual']).nullable(),
-    errorDetail: z.unknown().nullable(),
+    errorCode: idSchema.nullable(),
+    errorSummary: z.string().trim().min(1).max(120).nullable(),
     updatedAt: z.iso.datetime(),
   }).nullable(),
 });

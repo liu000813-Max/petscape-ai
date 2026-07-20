@@ -89,6 +89,27 @@ test('admin attention queue is read-only response data with the same payment con
   assert.equal(value.items[0].recoveryJob, null);
 });
 
+test('admin recovery job summary exposes stable diagnostics but never raw error detail or stack', () => {
+  const now = new Date().toISOString();
+  const paymentIntent = {
+    id: 'pi-failed-recovery', quoteId: 'quote-1', deliveryAddressId: 'address-1', deliveryAddressVersion: 1,
+    amountCent: 33000, currency: 'CNY', mode: 'sandbox_test', provider: 'sandbox', sandboxOnly: true,
+    status: 'succeeded', attentionCode: null, recoveryAction: 'contact_support', orderRecoveryStatus: 'failed',
+    label: '沙箱支付（不会发生真实扣款或成交）', attempts: [], succeededAt: now, failedAt: null,
+    canceledAt: null, needsAttentionAt: null, createdAt: now, updatedAt: now,
+  };
+  const recoveryJob = {
+    id: 'job-1', status: 'failed', attemptCount: 5, maxAttempts: 5, errorClass: 'retryable',
+    errorCode: 'order_recovery_failed', errorSummary: '订单补单失败，请按 Job ID 查询受控日志', updatedAt: now,
+  };
+  const value = AdminPaymentAttentionListResponseSchema.parse({ items: [{ ownerUserId: 'user-1', paymentIntent, recoveryJob }] });
+  assert.equal(value.items[0].recoveryJob.errorCode, 'order_recovery_failed');
+  assert.equal('errorDetail' in value.items[0].recoveryJob, false);
+  assert.throws(() => AdminPaymentAttentionListResponseSchema.parse({
+    items: [{ ownerUserId: 'user-1', paymentIntent, recoveryJob: { ...recoveryJob, errorDetail: { stack: 'secret' } } }],
+  }));
+});
+
 test('payment response exposes one server-derived recovery action and order recovery state', () => {
   const now = new Date().toISOString();
   const base = {

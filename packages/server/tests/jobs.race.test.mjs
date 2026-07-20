@@ -184,6 +184,33 @@ if (!databaseUrl) {
     assert.notEqual(after.status, 'succeeded', '旧 worker 的 completeJob 不应把任务写成 succeeded');
   });
 
+  test('租约已过期但尚未被重领时，原 worker 也不能 complete 或 fail', async () => {
+    const type = 'race-expired-direct-write';
+    const owner = ownerPrefix('expired-direct-write');
+    const completeCandidate = (await createJob(prisma, {
+      type, ownerUserId: owner, input: {}, idempotencyKey: 'expired-complete', targetVersion: 1,
+    })).job;
+    const failCandidate = (await createJob(prisma, {
+      type, ownerUserId: owner, input: {}, idempotencyKey: 'expired-fail', targetVersion: 1,
+    })).job;
+
+    await claimNextJob({ workerId: 'worker-expired', types: [type], leaseSeconds: 30 });
+    await claimNextJob({ workerId: 'worker-expired', types: [type], leaseSeconds: 30 });
+    await prisma.job.updateMany({
+      where: { id: { in: [completeCandidate.id, failCandidate.id] } },
+      data: { leaseExpiresAt: new Date(Date.now() - 60_000) },
+    });
+
+    assert.equal(await completeJob({
+      jobId: completeCandidate.id, workerId: 'worker-expired', targetVersion: 1, resultRef: { stale: true },
+    }), 'lost_lease');
+    assert.equal(await failJob({
+      jobId: failCandidate.id, workerId: 'worker-expired', errorClass: 'retryable', errorDetail: { code: 'late' },
+    }), 'lost_lease');
+    const rows = await prisma.job.findMany({ where: { id: { in: [completeCandidate.id, failCandidate.id] } } });
+    assert.ok(rows.every((row) => row.status === 'running'));
+  });
+
   // ---------------------------------------------------------------------
   // 用例 4（ADR-4）：供应商已完成但本地未落库 —— 有 vendorTaskId 的过期 job，
   // recoverOrphans 置 needs_vendor_check 不重新入队。
@@ -351,6 +378,37 @@ if (!databaseUrl) {
 
     const after = await prisma.job.findUniqueOrThrow({ where: { id: job.id } });
     assert.equal(after.status, 'failed');
+  });
+
+  test('pending job 达到 maxAttempts 后不得再次被认领', async () => {
+    const type = 'race-exhausted-pending';
+    const owner = ownerPrefix('exhausted-pending');
+    const { job } = await createJob(prisma, {
+      type, ownerUserId: owner, input: {}, idempotencyKey: 'fixture1', maxAttempts: 1,
+    });
+    await prisma.job.update({ where: { id: job.id }, data: { attemptCount: 1 } });
+
+    assert.equal(await claimNextJob({ workerId: 'worker-a', types: [type], leaseSeconds: 30 }), null);
+    assert.equal((await prisma.job.findUniqueOrThrow({ where: { id: job.id } })).status, 'pending');
+  });
+
+  test('worker 在最后一次尝试中崩溃后，孤儿恢复留下 durable failed 且不能再认领', async () => {
+    const type = 'race-crash-exhausted';
+    const owner = ownerPrefix('crash-exhausted');
+    const { job } = await createJob(prisma, {
+      type, ownerUserId: owner, input: {}, idempotencyKey: 'crash-exhausted-1', maxAttempts: 1,
+    });
+    const claimed = await claimNextJob({ workerId: 'worker-crashed', types: [type], leaseSeconds: 30 });
+    assert.equal(claimed.id, job.id);
+    await prisma.job.update({ where: { id: job.id }, data: { leaseExpiresAt: new Date(Date.now() - 60_000) } });
+
+    const recovered = await recoverOrphans({ now: new Date() });
+    assert.equal(recovered.find((item) => item.jobId === job.id)?.action, 'failed_exhausted');
+    const stored = await prisma.job.findUniqueOrThrow({ where: { id: job.id } });
+    assert.equal(stored.status, 'failed');
+    assert.equal(stored.errorClass, 'retryable');
+    assert.equal(stored.errorDetail.code, 'lease_expired_max_attempts');
+    assert.equal(await claimNextJob({ workerId: 'worker-next', types: [type], leaseSeconds: 30 }), null);
   });
 
   test('ADR-7: permanent 错误直接 failJob 返回 failed（不消耗重试）', async () => {

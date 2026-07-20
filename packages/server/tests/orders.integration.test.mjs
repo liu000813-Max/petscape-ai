@@ -177,7 +177,10 @@ if (!databaseUrl) {
     assert.ok(item);
     assert.equal(item.recoveryJob.status, 'failed');
     assert.equal(item.recoveryJob.errorClass, 'retryable');
-    assert.equal(item.recoveryJob.errorDetail.code, 'order_insert_failed');
+    assert.equal(item.recoveryJob.errorCode, 'order_insert_failed');
+    assert.equal(item.recoveryJob.errorSummary, '订单补单失败，请按 Job ID 查询受控日志');
+    assert.equal('errorDetail' in item.recoveryJob, false);
+    assert.equal(JSON.stringify(item).includes('injected durable recovery failure'), false);
   });
 
   test('order reads are owner-scoped and server snapshots are immutable', async () => {

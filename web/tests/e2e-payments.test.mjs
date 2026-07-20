@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -348,6 +349,9 @@ test('accepts a quote, confirms checkout, retries sandbox payment, and hands suc
     const adminItem = page.locator('article', { hasText: recoveryIntent.body.id });
     await adminItem.getByText('补单失败').first().waitFor();
     await adminItem.getByText('retryable').waitFor();
+    await adminItem.getByText('order_insert_failed').waitFor();
+    await adminItem.getByText('订单补单失败，请按 Job ID 查询受控日志').waitFor();
+    assert.equal(await adminItem.getByText('e2e injected durable recovery failure').count(), 0);
     await page.screenshot({ path: `${DIR}/payment-recovery-admin-job-failed.png`, fullPage: true });
   } finally {
     await context.close();
@@ -422,6 +426,63 @@ test('reconciles a canceled payment before letting the user pay again', async ()
       where: { paymentIntentId: created.body.id, source: 'query' },
     }), 1);
     await page.screenshot({ path: `${DIR}/payment-recovery-canceled-retry.png`, fullPage: true });
+  } finally {
+    await context.close();
+  }
+});
+
+test('reuses one Quote-scoped idempotency key and recovers a zero-attempt payment initialization', async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  try {
+    await login(page, PHONES[0]);
+    const me = await api(page, '/api/me');
+    const quote = await eligibleFixture(me.body.userId, 'stable-browser-idempotency');
+    const submittedKeys = [];
+    await page.route('**/api/v1/commerce/payment-intents', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      submittedKeys.push(route.request().postDataJSON().idempotencyKey);
+      return route.continue();
+    });
+
+    await page.goto(`${BASE}/payments`);
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION e2e_block_payment_attempt_insert() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'e2e injected provider persistence failure'; END; $$ LANGUAGE plpgsql`);
+    await prisma.$executeRawUnsafe(`CREATE TRIGGER a_e2e_block_payment_attempt_insert BEFORE INSERT ON "payment_attempt" FOR EACH ROW EXECUTE FUNCTION e2e_block_payment_attempt_insert()`);
+    try {
+      await page.getByRole('button', { name: '创建沙箱支付' }).click();
+      await page.getByText('支付渠道初始化失败，可使用同一幂等键重试').waitFor();
+      await page.getByRole('button', { name: '恢复支付初始化' }).waitFor();
+      assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { quoteId: quote.id }, include: { attempts: true } })).attempts.length, 0);
+      await page.screenshot({ path: `${DIR}/payment-recovery-zero-attempt.png`, fullPage: true });
+    } finally {
+      await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS a_e2e_block_payment_attempt_insert ON "payment_attempt"`);
+      await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS e2e_block_payment_attempt_insert()`);
+    }
+    await page.getByRole('button', { name: '恢复支付初始化' }).click();
+    await page.getByText('沙箱支付意图已创建；金额和地址均来自服务端冻结快照。').waitFor();
+
+    assert.equal(submittedKeys.length, 2);
+    assert.equal(submittedKeys[0], submittedKeys[1]);
+    const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { quoteId: quote.id }, include: { attempts: true } });
+    assert.equal(intent.attempts.length, 1);
+    await page.screenshot({ path: `${DIR}/payment-recovery-stable-idempotency.png`, fullPage: true });
+
+    const event = {
+      provider: 'sandbox', providerEventId: `sandbox_evt_route_conflict_${Date.now()}`,
+      providerPaymentId: intent.attempts[0].providerPaymentId, status: 'processing', amountCent: intent.amountCent,
+      currency: 'CNY', occurredAt: new Date().toISOString(), failureCode: null, failureMessage: null,
+    };
+    const deliver = (payload) => {
+      const rawBody = JSON.stringify(payload);
+      const signature = createHmac('sha256', process.env.SANDBOX_PAYMENT_SECRET).update(rawBody).digest('hex');
+      return api(page, '/api/v1/commerce/payment-events/sandbox', {
+        method: 'POST', headers: { 'content-type': 'application/json', 'x-sandbox-signature': signature }, body: rawBody,
+      });
+    };
+    assert.equal((await deliver(event)).status, 200);
+    const conflict = await deliver({ ...event, status: 'failed', failureCode: 'reused-id', failureMessage: 'different payload' });
+    assert.equal(conflict.status, 409);
+    assert.equal(conflict.body.error, 'conflict');
   } finally {
     await context.close();
   }

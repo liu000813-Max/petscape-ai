@@ -64,7 +64,10 @@ await run('payment contract', [
   '--dir', 'packages/server', 'exec', 'node', '--test', 'tests/payments-contract.test.mjs',
 ]);
 await run('durable order recovery worker failure', [
-  '--dir', 'worker', 'exec', 'node', '--test', '--test-concurrency=1', 'tests/order-recovery-worker.test.mjs',
+  '--dir', 'worker', 'exec', 'node', '--test', '--test-concurrency=1', 'tests/*.test.mjs',
+]);
+await run('job lease and retry safety', [
+  '--dir', 'packages/server', 'exec', 'node', '--test', '--test-concurrency=1', 'tests/jobs.race.test.mjs',
 ]);
 await run('payment and order integration', [
   '--dir', 'packages/server', 'exec', 'node', '--test', '--test-concurrency=1',

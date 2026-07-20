@@ -33,6 +33,11 @@ function fingerprint(value: unknown) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+function sameInstant(left: Date, right: string) {
+  const parsed = new Date(right);
+  return !Number.isNaN(parsed.getTime()) && left.getTime() === parsed.getTime();
+}
+
 async function requireTrustedProvider(prisma: PrismaClient, provider: PaymentProviderPort) {
   const trusted = await prisma.paymentProviderTrust.findUnique({ where: { provider: provider.name } });
   if (!trusted || !trusted.sandboxOnly || trusted.verificationKeyHash !== provider.verificationKeyHash) {
@@ -125,16 +130,18 @@ function toResponse(row: IntentWithAttempts, recoveryJob: RecoveryJob | null): P
 }
 
 async function readIntent(prisma: PrismaClient, id: string) {
-  const row = await prisma.paymentIntent.findUniqueOrThrow({
-    where: { id },
-    include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
-  }) as unknown as IntentWithAttempts;
-  const recoveryJob = await prisma.job.findUnique({
-    where: { job_owner_type_idempotency_key: {
-      ownerUserId: row.ownerUserId, type: ORDER_RECOVERY_JOB_TYPE, idempotencyKey: row.id,
-    } },
-  }) as unknown as RecoveryJob | null;
-  return toResponse(row, recoveryJob);
+  return prisma.$transaction(async (tx) => {
+    const row = await tx.paymentIntent.findUniqueOrThrow({
+      where: { id },
+      include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
+    }) as unknown as IntentWithAttempts;
+    const recoveryJob = await tx.job.findUnique({
+      where: { job_owner_type_idempotency_key: {
+        ownerUserId: row.ownerUserId, type: ORDER_RECOVERY_JOB_TYPE, idempotencyKey: row.id,
+      } },
+    }) as unknown as RecoveryJob | null;
+    return toResponse(row, recoveryJob);
+  }, { isolationLevel: 'RepeatableRead' });
 }
 
 async function readRecoveryJobs(prisma: PrismaClient, rows: IntentWithAttempts[]) {
@@ -147,12 +154,28 @@ async function readRecoveryJobs(prisma: PrismaClient, rows: IntentWithAttempts[]
 
 async function ensureAttempt(prisma: PrismaClient, provider: PaymentProviderPort, intentId: string, attemptNo: number) {
   const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: intentId } });
+  const existing = await prisma.paymentAttempt.findUnique({
+    where: { paymentIntentId_attemptNo: { paymentIntentId: intent.id, attemptNo } },
+  });
+  if (existing) {
+    if (existing.provider !== provider.name) throw new PaymentConflictError('支付尝试的 provider 与当前可信 provider 不一致');
+    return;
+  }
   const created = await provider.createPayment({
     merchantPaymentId: `${intent.id}:${attemptNo}`,
     amountCent: intent.amountCent,
     currency: 'CNY',
   });
   const providerPayment = created.payment;
+  if (providerPayment.status !== 'requires_action') {
+    throw new PaymentConflictError('sandbox provider 创建支付时只允许返回 requires_action');
+  }
+  if (providerPayment.amountCent !== intent.amountCent || providerPayment.currency !== intent.currency) {
+    throw new PaymentConflictError('provider 创建支付返回的金额或币种不一致');
+  }
+  if (!providerPayment.providerPaymentId || Number.isNaN(new Date(providerPayment.updatedAt).getTime())) {
+    throw new PaymentConflictError('provider 创建支付返回的身份或时间非法');
+  }
   try {
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw<Array<{ set_config: string }>>`
@@ -170,6 +193,15 @@ async function ensureAttempt(prisma: PrismaClient, provider: PaymentProviderPort
     });
   } catch (error) {
     if (!errorCode(error, 'P2002')) throw error;
+    const raced = await prisma.paymentAttempt.findUnique({
+      where: { paymentIntentId_attemptNo: { paymentIntentId: intent.id, attemptNo } },
+    });
+    if (!raced || raced.provider !== provider.name ||
+        raced.providerPaymentId !== providerPayment.providerPaymentId ||
+        raced.status !== providerPayment.status || raced.providerObservedStatus !== providerPayment.status ||
+        !sameInstant(raced.providerObservedAt, providerPayment.updatedAt)) {
+      throw new PaymentConflictError('provider payment ID 或支付尝试唯一键发生身份冲突');
+    }
   }
 }
 
@@ -244,57 +276,78 @@ export async function createPaymentIntent({ prisma, provider, ownerUserId, input
 }
 
 export async function listPaymentIntents({ prisma, ownerUserId }: { prisma: PrismaClient; ownerUserId: string }) {
-  const rows = await prisma.paymentIntent.findMany({
-    where: { ownerUserId },
-    include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
-    orderBy: { createdAt: 'desc' },
-  }) as unknown as IntentWithAttempts[];
-  const jobs = await readRecoveryJobs(prisma, rows);
-  return rows.map((row) => toResponse(row, jobs.get(recoveryJobKey(row.ownerUserId, row.id)) ?? null));
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.paymentIntent.findMany({
+      where: { ownerUserId },
+      include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
+      orderBy: { createdAt: 'desc' },
+    }) as unknown as IntentWithAttempts[];
+    const jobs = await readRecoveryJobs(tx as PrismaClient, rows);
+    return rows.map((row) => toResponse(row, jobs.get(recoveryJobKey(row.ownerUserId, row.id)) ?? null));
+  }, { isolationLevel: 'RepeatableRead' });
+}
+
+function stableJobErrorCode(job: RecoveryJob) {
+  if (!job.errorDetail || typeof job.errorDetail !== 'object' || !('code' in job.errorDetail)) {
+    return job.status === 'failed' || job.status === 'needs_attention' ? 'order_recovery_failed' : null;
+  }
+  const code = (job.errorDetail as { code?: unknown }).code;
+  return typeof code === 'string' && /^[a-z0-9_.-]{1,80}$/i.test(code) ? code : 'order_recovery_failed';
+}
+
+function stableJobErrorSummary(job: RecoveryJob) {
+  if (job.status === 'failed') return '订单补单失败，请按 Job ID 查询受控日志';
+  if (job.status === 'needs_attention') return '订单补单需要人工检查，请按 Job ID 查询受控日志';
+  return null;
 }
 
 export async function listAdminPaymentAttention({ prisma, actorUserId }: { prisma: PrismaClient; actorUserId: string }) {
-  const actor = await prisma.user.findUnique({ where: { id: actorUserId }, select: { role: true } });
-  if (actor?.role !== 'admin') throw new AdminRequiredError();
-  const rows = await prisma.paymentIntent.findMany({
-    where: { OR: [
-      { status: 'needs_attention' },
-      { status: 'succeeded', order: { is: null } },
-    ] },
-    include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
-    orderBy: { updatedAt: 'desc' },
-  }) as unknown as IntentWithAttempts[];
-  const jobs = await readRecoveryJobs(prisma, rows);
-  return rows.map((row) => ({
-    ownerUserId: row.ownerUserId,
-    paymentIntent: toResponse(row, jobs.get(recoveryJobKey(row.ownerUserId, row.id)) ?? null),
-    recoveryJob: (() => {
-      const job = jobs.get(recoveryJobKey(row.ownerUserId, row.id));
-      return job ? {
-        id: job.id,
-        status: job.status,
-        attemptCount: job.attemptCount,
-        maxAttempts: job.maxAttempts,
-        errorClass: job.errorClass,
-        errorDetail: job.errorDetail ?? null,
-        updatedAt: job.updatedAt.toISOString(),
-      } : null;
-    })(),
-  }));
+  return prisma.$transaction(async (tx) => {
+    const actor = await tx.user.findUnique({ where: { id: actorUserId }, select: { role: true } });
+    if (actor?.role !== 'admin') throw new AdminRequiredError();
+    const rows = await tx.paymentIntent.findMany({
+      where: { OR: [
+        { status: 'needs_attention' },
+        { status: 'succeeded', order: { is: null } },
+      ] },
+      include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
+      orderBy: { updatedAt: 'desc' },
+    }) as unknown as IntentWithAttempts[];
+    const jobs = await readRecoveryJobs(tx as PrismaClient, rows);
+    return rows.map((row) => ({
+      ownerUserId: row.ownerUserId,
+      paymentIntent: toResponse(row, jobs.get(recoveryJobKey(row.ownerUserId, row.id)) ?? null),
+      recoveryJob: (() => {
+        const job = jobs.get(recoveryJobKey(row.ownerUserId, row.id));
+        return job ? {
+          id: job.id,
+          status: job.status,
+          attemptCount: job.attemptCount,
+          maxAttempts: job.maxAttempts,
+          errorClass: job.errorClass,
+          errorCode: stableJobErrorCode(job),
+          errorSummary: stableJobErrorSummary(job),
+          updatedAt: job.updatedAt.toISOString(),
+        } : null;
+      })(),
+    }));
+  }, { isolationLevel: 'RepeatableRead' });
 }
 
 export async function getPaymentIntent({ prisma, ownerUserId, paymentIntentId }: {
   prisma: PrismaClient; ownerUserId: string; paymentIntentId: string;
 }) {
-  const row = await prisma.paymentIntent.findFirst({
-    where: { id: paymentIntentId, ownerUserId },
-    include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
-  }) as unknown as IntentWithAttempts | null;
-  if (!row) throw new NotFoundError('PaymentIntent');
-  const recoveryJob = await prisma.job.findUnique({ where: { job_owner_type_idempotency_key: {
-    ownerUserId, type: ORDER_RECOVERY_JOB_TYPE, idempotencyKey: paymentIntentId,
-  } } }) as unknown as RecoveryJob | null;
-  return toResponse(row, recoveryJob);
+  return prisma.$transaction(async (tx) => {
+    const row = await tx.paymentIntent.findFirst({
+      where: { id: paymentIntentId, ownerUserId },
+      include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
+    }) as unknown as IntentWithAttempts | null;
+    if (!row) throw new NotFoundError('PaymentIntent');
+    const recoveryJob = await tx.job.findUnique({ where: { job_owner_type_idempotency_key: {
+      ownerUserId, type: ORDER_RECOVERY_JOB_TYPE, idempotencyKey: paymentIntentId,
+    } } }) as unknown as RecoveryJob | null;
+    return toResponse(row, recoveryJob);
+  }, { isolationLevel: 'RepeatableRead' });
 }
 
 export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymentIntentId, input: untrusted }: {
@@ -325,6 +378,11 @@ export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymen
           merchantPaymentId: `${row.id}:${nextAttemptNo}`, amountCent: row.amountCent, currency: 'CNY',
         });
         const providerPayment = created.payment;
+        if (providerPayment.status !== 'requires_action' || providerPayment.amountCent !== row.amountCent ||
+            providerPayment.currency !== row.currency || !providerPayment.providerPaymentId ||
+            Number.isNaN(new Date(providerPayment.updatedAt).getTime())) {
+          throw new PaymentConflictError('sandbox provider 创建重试支付时返回了不可信结果');
+        }
         await tx.$queryRaw<Array<{ set_config: string }>>`
           SELECT set_config('petscape.payment_attempt_proof', ${created.persistenceProof}, true)
         `;
@@ -362,6 +420,28 @@ function canApplyAttemptStatus(current: string, next: ProviderEvent['status']) {
   return false;
 }
 
+function eventPayload(event: ProviderEvent) {
+  return { status: event.status, failureCode: event.failureCode, failureMessage: event.failureMessage };
+}
+
+function duplicateEventMatches(
+  duplicate: {
+    provider: string; providerPaymentId: string; source: string; providerStatus: string;
+    amountCent: number; currency: string; occurredAt: Date; sanitizedPayload: unknown;
+  },
+  event: ProviderEvent,
+  source: 'webhook' | 'sandbox_action' | 'query',
+) {
+  const payload = duplicate.sanitizedPayload && typeof duplicate.sanitizedPayload === 'object'
+    ? duplicate.sanitizedPayload as { status?: unknown; failureCode?: unknown; failureMessage?: unknown }
+    : null;
+  return duplicate.provider === event.provider && duplicate.providerPaymentId === event.providerPaymentId &&
+    duplicate.source === source && duplicate.providerStatus === event.status && duplicate.amountCent === event.amountCent &&
+    duplicate.currency === event.currency && duplicate.occurredAt.getTime() === new Date(event.occurredAt).getTime() &&
+    payload !== null && payload.status === event.status && payload.failureCode === event.failureCode && payload.failureMessage === event.failureMessage &&
+    Object.keys(payload).length === 3;
+}
+
 async function applyVerifiedEvent(
   prisma: PrismaClient,
   event: ProviderEvent,
@@ -372,7 +452,12 @@ async function applyVerifiedEvent(
     try {
       return await prisma.$transaction(async (tx) => {
       const duplicate = await tx.paymentEvent.findUnique({ where: { providerEventId: event.providerEventId } });
-      if (duplicate) return { duplicate: true as const, paymentIntentId: duplicate.paymentIntentId };
+      if (duplicate) {
+        if (!duplicateEventMatches(duplicate, event, source)) {
+          throw new PaymentConflictError('provider event ID 已被不同身份或 payload 使用');
+        }
+        return { duplicate: true as const, paymentIntentId: duplicate.paymentIntentId };
+      }
       const locked = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "payment_attempt" WHERE "providerPaymentId"=${event.providerPaymentId} FOR UPDATE
       `;
@@ -421,7 +506,7 @@ async function applyVerifiedEvent(
         amountCent: event.amountCent,
         currency: event.currency,
         occurredAt,
-        sanitizedPayload: { status: event.status, failureCode: event.failureCode, failureMessage: event.failureMessage },
+        sanitizedPayload: eventPayload(event),
         processingResult,
         processedAt: new Date(),
       } });
@@ -458,7 +543,12 @@ async function applyVerifiedEvent(
     } catch (error) {
       if (errorCode(error, 'P2002')) {
         const duplicate = await prisma.paymentEvent.findUnique({ where: { providerEventId: event.providerEventId } });
-        if (duplicate) return { duplicate: true as const, paymentIntentId: duplicate.paymentIntentId };
+        if (duplicate) {
+          if (!duplicateEventMatches(duplicate, event, source)) {
+            throw new PaymentConflictError('provider event ID 已被不同身份或 payload 使用');
+          }
+          return { duplicate: true as const, paymentIntentId: duplicate.paymentIntentId };
+        }
       }
       if (isSerializableTransactionConflict(error) && attemptNo < 4) continue;
       if (isSerializableTransactionConflict(error)) throw new PaymentConflictError('支付事件并发处理失败，请重试');
@@ -474,6 +564,7 @@ export async function ingestPaymentEvent({ prisma, provider, rawBody, signature,
   await requireTrustedProvider(prisma, provider);
   const verified = await provider.verifyEvent(rawBody, signature);
   const event = ProviderEventSchema.parse(verified.event);
+  if (event.provider !== provider.name) throw new PaymentConflictError('支付事件 provider 与当前可信 provider 不一致');
   const applied = await applyVerifiedEvent(prisma, event, source, verified.persistenceProof);
   await ensureOrderForSucceededPayment({ prisma, paymentIntentId: applied.paymentIntentId });
   return applied;
@@ -488,9 +579,19 @@ export async function reconcilePaymentIntent({ prisma, provider, ownerUserId, pa
   for (const attempt of current.attempts) {
     const verified = await provider.queryPayment(attempt.providerPaymentId);
     const queried = verified.payment;
+    if (queried.providerPaymentId !== attempt.providerPaymentId) {
+      throw new PaymentConflictError('provider 查单结果与被查询的 payment ID 不一致');
+    }
     const event = ProviderEventSchema.parse({
       provider: provider.name,
-      providerEventId: `query:${queried.providerPaymentId}:${queried.status}:${queried.updatedAt}`,
+      providerEventId: `query:${fingerprint({
+        provider: provider.name,
+        providerPaymentId: queried.providerPaymentId,
+        status: queried.status,
+        amountCent: queried.amountCent,
+        currency: queried.currency,
+        updatedAt: queried.updatedAt,
+      })}`,
       providerPaymentId: queried.providerPaymentId,
       status: queried.status,
       amountCent: queried.amountCent,

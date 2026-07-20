@@ -129,7 +129,7 @@ jobs:
 
       - name: Test durable order recovery worker failure
         working-directory: worker
-        run: node --test --test-concurrency=1 tests/order-recovery-worker.test.mjs
+        run: node --test --test-concurrency=1 tests/*.test.mjs
         env:
           DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
 

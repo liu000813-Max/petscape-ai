@@ -57,7 +57,7 @@ export function AdminPaymentAttentionClient() {
       const code = paymentIntent.attentionCode ?? 'unspecified';
       return <article key={paymentIntent.id}>
         <header><strong>{paymentIntent.attentionCode ? reasonLabel[code] : recoveryLabel[paymentIntent.orderRecoveryStatus]}</strong><code>{paymentIntent.attentionCode ?? paymentIntent.orderRecoveryStatus}</code></header>
-        <dl><div><dt>PaymentIntent</dt><dd>{paymentIntent.id}</dd></div><div><dt>用户</dt><dd>{ownerUserId}</dd></div><div><dt>金额</dt><dd>¥{(paymentIntent.amountCent / 100).toFixed(2)}</dd></div><div><dt>补单状态</dt><dd>{recoveryLabel[paymentIntent.orderRecoveryStatus]}</dd></div><div><dt>Job</dt><dd>{recoveryJob ? `${recoveryJob.id} · ${recoveryJob.status}` : '无'}</dd></div>{recoveryJob?.errorClass ? <div><dt>错误分类</dt><dd>{recoveryJob.errorClass}</dd></div> : null}</dl>
+        <dl><div><dt>PaymentIntent</dt><dd>{paymentIntent.id}</dd></div><div><dt>用户</dt><dd>{ownerUserId}</dd></div><div><dt>金额</dt><dd>¥{(paymentIntent.amountCent / 100).toFixed(2)}</dd></div><div><dt>补单状态</dt><dd>{recoveryLabel[paymentIntent.orderRecoveryStatus]}</dd></div><div><dt>Job</dt><dd>{recoveryJob ? `${recoveryJob.id} · ${recoveryJob.status}` : '无'}</dd></div>{recoveryJob?.errorClass ? <div><dt>错误分类</dt><dd>{recoveryJob.errorClass}</dd></div> : null}{recoveryJob?.errorCode ? <div><dt>错误代码</dt><dd><code>{recoveryJob.errorCode}</code></dd></div> : null}{recoveryJob?.errorSummary ? <div><dt>错误摘要</dt><dd>{recoveryJob.errorSummary}</dd></div> : null}</dl>
       </article>;
     })}</div>}
   </div>;

@@ -156,6 +156,48 @@ if (!databaseUrl) {
     assert.equal(await prisma.paymentAttempt.count({ where: { paymentIntentId: persisted.id } }), 1);
   });
 
+  test('provider payment ID collisions are rejected instead of being mistaken for idempotent creation', async () => {
+    const firstQuote = await makeQuote(owner, 'provider-id-collision-first', { accepted: true, confirmedAddress: true });
+    const first = await createPaymentIntent({ prisma, provider, ownerUserId: owner,
+      input: { quoteId: firstQuote.id, idempotencyKey: 'c3-provider-id-collision-first' } });
+    const secondQuote = await makeQuote(owner, 'provider-id-collision-second', { accepted: true, confirmedAddress: true });
+    const collidingProvider = {
+      ...provider,
+      async createPayment(input) {
+        const created = await provider.createPayment(input);
+        return { ...created, payment: { ...created.payment, providerPaymentId: first.paymentIntent.attempts[0].providerPaymentId } };
+      },
+    };
+    await assert.rejects(
+      () => createPaymentIntent({ prisma, provider: collidingProvider, ownerUserId: owner,
+        input: { quoteId: secondQuote.id, idempotencyKey: 'c3-provider-id-collision-second' } }),
+      (error) => error instanceof PaymentConflictError,
+    );
+    const secondIntent = await prisma.paymentIntent.findUniqueOrThrow({ where: { quoteId: secondQuote.id } });
+    assert.equal(await prisma.paymentAttempt.count({ where: { paymentIntentId: secondIntent.id } }), 0);
+    assert.equal((await prisma.paymentAttempt.findUniqueOrThrow({ where: {
+      providerPaymentId: first.paymentIntent.attempts[0].providerPaymentId,
+    } })).paymentIntentId, first.paymentIntent.id);
+  });
+
+  test('sandbox attempt creation rejects synchronous provider terminal or processing states', async () => {
+    const quote = await makeQuote(owner, 'provider-create-processing', { accepted: true, confirmedAddress: true });
+    const processingProvider = {
+      ...provider,
+      async createPayment(input) {
+        const created = await provider.createPayment(input);
+        return { ...created, payment: { ...created.payment, status: 'processing' } };
+      },
+    };
+    await assert.rejects(
+      () => createPaymentIntent({ prisma, provider: processingProvider, ownerUserId: owner,
+        input: { quoteId: quote.id, idempotencyKey: 'c3-provider-create-processing' } }),
+      (error) => error instanceof PaymentConflictError,
+    );
+    const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { quoteId: quote.id } });
+    assert.equal(await prisma.paymentAttempt.count({ where: { paymentIntentId: intent.id } }), 0);
+  });
+
   test('signed success is credited once; duplicate and out-of-order events never regress it', async () => {
     const quote = await makeQuote(owner, 'events', { accepted: true, confirmedAddress: true });
     const created = await createPaymentIntent({ prisma, provider, ownerUserId: owner,
@@ -176,6 +218,28 @@ if (!databaseUrl) {
     const lateProcessing = await provider.simulate(attempt.providerPaymentId, 'processing', { occurredAt: new Date(Date.now() - 10_000) });
     await ingestPaymentEvent({ prisma, provider, rawBody: lateProcessing.rawBody, signature: lateProcessing.signature });
     assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } })).status, 'succeeded');
+  });
+
+  test('a reused provider event ID with different payload is rejected instead of silently deduplicated', async () => {
+    const quote = await makeQuote(owner, 'event-id-conflict', { accepted: true, confirmedAddress: true });
+    const created = await createPaymentIntent({ prisma, provider, ownerUserId: owner,
+      input: { quoteId: quote.id, idempotencyKey: 'c3-event-id-conflict-payment' } });
+    const attempt = created.paymentIntent.attempts[0];
+    const original = await provider.simulate(attempt.providerPaymentId, 'processing');
+    await ingestPaymentEvent({ prisma, provider, rawBody: original.rawBody, signature: original.signature });
+    const conflictingProvider = {
+      ...provider,
+      async verifyEvent() {
+        const verified = await provider.verifyEvent(original.rawBody, original.signature);
+        return { ...verified, event: { ...verified.event, status: 'failed', failureCode: 'reused-id', failureMessage: 'different payload' } };
+      },
+    };
+    await assert.rejects(
+      () => ingestPaymentEvent({ prisma, provider: conflictingProvider, rawBody: original.rawBody, signature: original.signature }),
+      (error) => error instanceof PaymentConflictError,
+    );
+    assert.equal(await prisma.paymentEvent.count({ where: { providerEventId: original.event.providerEventId } }), 1);
+    assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { id: created.paymentIntent.id } })).status, 'processing');
   });
 
   test('invalid signatures do not mutate state; signed amount mismatch needs attention', async () => {
@@ -451,6 +515,34 @@ if (!databaseUrl) {
     });
     assert.equal(reconciled.status, 'needs_attention');
     assert.equal(reconciled.attentionCode, 'amount_mismatch');
+  });
+
+  test('reconcile rejects a provider query response bound to another payment ID', async () => {
+    const firstQuote = await makeQuote(owner, 'query-identity-first', { accepted: true, confirmedAddress: true });
+    const first = await createPaymentIntent({ prisma, provider, ownerUserId: owner,
+      input: { quoteId: firstQuote.id, idempotencyKey: 'c3-query-identity-first' } });
+    const firstFailed = await provider.simulate(first.paymentIntent.attempts[0].providerPaymentId, 'failed');
+    await ingestPaymentEvent({ prisma, provider, rawBody: firstFailed.rawBody, signature: firstFailed.signature });
+    const secondQuote = await makeQuote(owner, 'query-identity-second', { accepted: true, confirmedAddress: true });
+    const second = await createPaymentIntent({ prisma, provider, ownerUserId: owner,
+      input: { quoteId: secondQuote.id, idempotencyKey: 'c3-query-identity-second' } });
+    const mismatchedQueryProvider = {
+      ...provider,
+      async queryPayment() {
+        return provider.queryPayment(second.paymentIntent.attempts[0].providerPaymentId);
+      },
+    };
+    const firstEventCount = await prisma.paymentEvent.count({ where: { paymentIntentId: first.paymentIntent.id } });
+    const secondEventCount = await prisma.paymentEvent.count({ where: { paymentIntentId: second.paymentIntent.id } });
+    await assert.rejects(
+      () => reconcilePaymentIntent({ prisma, provider: mismatchedQueryProvider, ownerUserId: owner,
+        paymentIntentId: first.paymentIntent.id }),
+      (error) => error instanceof PaymentConflictError,
+    );
+    assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { id: first.paymentIntent.id } })).status, 'failed');
+    assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { id: second.paymentIntent.id } })).status, 'requires_action');
+    assert.equal(await prisma.paymentEvent.count({ where: { paymentIntentId: first.paymentIntent.id } }), firstEventCount);
+    assert.equal(await prisma.paymentEvent.count({ where: { paymentIntentId: second.paymentIntent.id } }), secondEventCount);
   });
 
   test('database rejects money drift, eventless state changes, ledger rewrites and forged event ancestry', async () => {
