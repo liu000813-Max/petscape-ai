@@ -69,6 +69,9 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      - name: Validate active Markdown
+        run: pnpm validate:docs
+
       - name: Setup uv for real mesh analyzer tests
         uses: astral-sh/setup-uv@v7
         with:
@@ -122,6 +125,12 @@ jobs:
         run: pnpm --filter @petscape/server run db:configure:sandbox-payment-test
         env:
           NODE_ENV: test
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+
+      - name: Test durable order recovery worker failure
+        working-directory: worker
+        run: node --test --test-concurrency=1 tests/order-recovery-worker.test.mjs
+        env:
           DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
 
       - name: Test (packages/server)
