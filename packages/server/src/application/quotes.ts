@@ -15,6 +15,7 @@ import { MeshAnalysisJobInputSchema, MeshAnalysisResultSchema } from '../contrac
 import { SceneConfirmationCommerceInputSchema } from '../contracts/scene-confirmation-commerce.ts';
 import { calculateSandboxPrice, assertFormalPricingAllowed, PricingEligibilityError } from '../domain/pricing.ts';
 import { NotFoundError } from '../domain/index.ts';
+import { isSerializableTransactionConflict, withSerializableTransactionRetry } from './transaction-retry.ts';
 import type { PrismaClient } from '../infra/db/index.ts';
 
 const VALIDITY_MS = 7 * 86_400_000;
@@ -39,11 +40,6 @@ export class QuoteConflictError extends Error {
 
 function errorCode(error: unknown, code: string) {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === code;
-}
-
-function isSerializationFailure(error: unknown) {
-  if (errorCode(error, 'P2034') || errorCode(error, '40001')) return true;
-  return error instanceof Error && /(?:SQLSTATE\s*)?40001|could not serialize|write conflict/i.test(error.message);
 }
 
 type QuoteRecord = {
@@ -232,9 +228,9 @@ export async function createQuote({ prisma, ownerUserId, input: untrusted, now =
   if (existingByKey) return existingByKey;
   let attemptedFingerprint: string | null = null;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      return await prisma.$transaction(async (tx) => {
+  try {
+    return await withSerializableTransactionRetry(() =>
+      prisma.$transaction(async (tx) => {
         // Serialize quote creation against request cancellation/resubmission. Eligibility
         // is resolved only after this lock, inside the same transaction that inserts.
         const locked = await tx.$queryRaw<Array<{ id: string }>>`
@@ -300,33 +296,33 @@ export async function createQuote({ prisma, ownerUserId, input: untrusted, now =
           expiresAt: new Date(now.getTime() + VALIDITY_MS),
         } });
         return { quote: toResponse(row), created: true as const };
-      }, { isolationLevel: 'Serializable' });
-    } catch (error) {
-      if (errorCode(error, 'P2002')) {
-        const byKey = await readByIdempotencyKey(prisma, ownerUserId, input, now);
-        if (byKey) return byKey;
-        if (attemptedFingerprint) {
-          const byFingerprint = await readByFingerprint(
-            prisma,
-            ownerUserId,
-            attemptedFingerprint,
-            input.idempotencyKey,
-          );
-          if (byFingerprint) return byFingerprint;
-        }
-        const existingRequestQuote = await prisma.quote.findFirst({
-          where: { ownerUserId, requestId: input.requestId },
-          select: { id: true },
-        });
-        if (existingRequestQuote) {
-          throw new QuoteConflictError('同一申请已有 Quote；续价请提交新的申请版本');
-        }
+      }, { isolationLevel: 'Serializable' }));
+  } catch (error) {
+    if (errorCode(error, 'P2002')) {
+      const byKey = await readByIdempotencyKey(prisma, ownerUserId, input, now);
+      if (byKey) return byKey;
+      if (attemptedFingerprint) {
+        const byFingerprint = await readByFingerprint(
+          prisma,
+          ownerUserId,
+          attemptedFingerprint,
+          input.idempotencyKey,
+        );
+        if (byFingerprint) return byFingerprint;
       }
-      if (isSerializationFailure(error) && attempt < 2) continue;
-      throw error;
+      const existingRequestQuote = await prisma.quote.findFirst({
+        where: { ownerUserId, requestId: input.requestId },
+        select: { id: true },
+      });
+      if (existingRequestQuote) {
+        throw new QuoteConflictError('同一申请已有 Quote；续价请提交新的申请版本');
+      }
     }
+    if (isSerializableTransactionConflict(error)) {
+      throw new QuoteConflictError('Quote 并发创建冲突，请重试');
+    }
+    throw error;
   }
-  throw new QuoteConflictError('Quote 并发创建冲突，请重试');
 }
 
 async function expireOwnedQuotes(prisma: PrismaClient, ownerUserId: string, now: Date) {

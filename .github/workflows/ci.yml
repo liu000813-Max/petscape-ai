@@ -368,3 +368,15 @@ jobs:
           name: ui-polish-pack-a-browser-evidence
           path: web/test-results/ui-polish-pack-a/
           if-no-files-found: warn
+
+  # main 的 ruleset（main-ci-gate）以本 job 名为唯一必过检查上下文；
+  # CI 增减 job 时改这里的 needs 列表，不动 ruleset。
+  ci-gate:
+    name: ci-gate
+    runs-on: ubuntu-latest
+    needs: [quality-gates, viewer-touch-e2e, viewer-model-e2e]
+    if: always()
+    steps:
+      - name: Fail unless every needed job succeeded
+        run: |
+          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "false" ]
