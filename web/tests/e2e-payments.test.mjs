@@ -25,7 +25,7 @@ const PORT = process.env.E2E_C3_PORT ?? '3428';
 const BASE = `http://127.0.0.1:${PORT}`;
 const DIR = fileURLToPath(new URL('../test-results/c3-payments/', import.meta.url));
 const phoneSeed = Number(BigInt(Date.now()) % 100000000n);
-const defaultPhones = [0, 1, 2]
+const defaultPhones = [0, 1, 2, 3]
   .map((offset) => `137${String((phoneSeed + offset) % 100000000).padStart(8, '0')}`)
   .join(',');
 const PHONES = (process.env.E2E_C3_PHONES ?? defaultPhones).split(',');
@@ -266,7 +266,7 @@ test('accepts a quote, confirms checkout, retries sandbox payment, and hands suc
     await page.getByText(/当前状态：failed/).waitFor();
     await page.getByRole('link', { name: '返回支付结果' }).click();
     await page.getByRole('button', { name: '重试支付' }).click();
-    await page.getByText('已创建新的沙箱支付尝试。').waitFor();
+    await page.getByText('已查清全部渠道尝试，并创建新的沙箱支付尝试。').waitFor();
     await page.getByRole('link', { name: '进入沙箱支付页' }).click();
     await page.getByRole('button', { name: '模拟成功' }).click();
     await page.getByText(/当前状态：succeeded/).waitFor();
@@ -333,6 +333,39 @@ test('shows a machine-readable reason when an older payment attempt succeeds lat
     await page.getByText('stale_succeeded_attempt').waitFor();
     await page.screenshot({ path: `${DIR}/payment-recovery-stale-success-attention.png`, fullPage: true });
     assert.equal(await prisma.order.count({ where: { paymentIntentId: created.body.id } }), 0);
+  } finally {
+    await context.close();
+  }
+});
+
+test('reconciles a canceled payment before letting the user pay again', async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  try {
+    await login(page, PHONES[3]);
+    const me = await api(page, '/api/me');
+    const quote = await eligibleFixture(me.body.userId, 'canceled-retry');
+    const created = await api(page, '/api/v1/commerce/payment-intents', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ quoteId: quote.id, idempotencyKey: `payment-recovery-canceled-${crypto.randomUUID()}` }),
+    });
+    assert.equal(created.status, 201);
+    await page.goto(`${BASE}${created.body.attempts[0].actionUrl}`);
+    await page.getByRole('button', { name: '模拟取消' }).click();
+    await page.getByText(/当前状态：canceled/).waitFor();
+    await page.getByRole('link', { name: '返回支付结果' }).click();
+    await page.getByText('已取消', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '重新支付' }).click();
+    await page.getByText('已查清全部渠道尝试，并创建新的沙箱支付尝试。').waitFor();
+
+    const list = await api(page, '/api/v1/commerce/payment-intents');
+    const recovered = list.body.paymentIntents.find((item) => item.id === created.body.id);
+    assert.equal(recovered.status, 'requires_action');
+    assert.equal(recovered.attempts.length, 2);
+    assert.equal(await prisma.paymentEvent.count({
+      where: { paymentIntentId: created.body.id, source: 'query' },
+    }), 1);
+    await page.screenshot({ path: `${DIR}/payment-recovery-canceled-retry.png`, fullPage: true });
   } finally {
     await context.close();
   }
