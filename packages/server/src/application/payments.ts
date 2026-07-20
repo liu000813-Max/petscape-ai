@@ -33,11 +33,6 @@ function fingerprint(value: unknown) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
-function sameInstant(left: Date, right: string) {
-  const parsed = new Date(right);
-  return !Number.isNaN(parsed.getTime()) && left.getTime() === parsed.getTime();
-}
-
 async function requireTrustedProvider(prisma: PrismaClient, provider: PaymentProviderPort) {
   const trusted = await prisma.paymentProviderTrust.findUnique({ where: { provider: provider.name } });
   if (!trusted || !trusted.sandboxOnly || trusted.verificationKeyHash !== provider.verificationKeyHash) {
@@ -198,8 +193,7 @@ async function ensureAttempt(prisma: PrismaClient, provider: PaymentProviderPort
     });
     if (!raced || raced.provider !== provider.name ||
         raced.providerPaymentId !== providerPayment.providerPaymentId ||
-        raced.status !== providerPayment.status || raced.providerObservedStatus !== providerPayment.status ||
-        !sameInstant(raced.providerObservedAt, providerPayment.updatedAt)) {
+        raced.status !== providerPayment.status || raced.providerObservedStatus !== providerPayment.status) {
       throw new PaymentConflictError('provider payment ID 或支付尝试唯一键发生身份冲突');
     }
   }
