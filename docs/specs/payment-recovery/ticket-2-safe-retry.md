@@ -1,6 +1,6 @@
 # Ticket 2：安全重新支付
 
-- 状态：Blocked by Ticket 1
+- 状态：Ready
 - 前置：[支付异常恢复 Spec](README.md)、[Ticket 1](ticket-1-non-silent-anomalies.md)
 - 证据目录：`docs/evidence/payment-recovery/ticket-2/`
 
