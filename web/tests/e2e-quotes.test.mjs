@@ -19,7 +19,7 @@ import { createPrismaClient } from '../../packages/server/src/infra/db/index.ts'
 const webRoot = fileURLToPath(new URL('../', import.meta.url));
 const PORT = process.env.E2E_C2_PORT ?? '3423';
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-const EVIDENCE_DIR = fileURLToPath(new URL('../test-results/c2-quotes/', import.meta.url));
+const EVIDENCE_DIR = fileURLToPath(new URL('../test-results/ui-polish-pack-b/', import.meta.url));
 const OWNER_PHONE = '13700004231';
 
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL 未设置：C2 browser e2e 需要 PostgreSQL。');
@@ -86,12 +86,12 @@ async function browserApi(page, path, init = {}) {
 
 test.before(async () => {
   await mkdir(EVIDENCE_DIR, { recursive: true });
-  serverProcess = spawn('pnpm', ['exec', 'next', 'dev', '-H', '127.0.0.1', '-p', PORT], {
+  serverProcess = spawn('pnpm', ['exec', 'next', 'dev', '--webpack', '-H', '127.0.0.1', '-p', PORT], {
     cwd: webRoot,
     detached: process.platform !== 'win32',
     env: {
       ...process.env,
-      NODE_ENV: 'development', SMS_CHANNEL: 'log',
+      NODE_ENV: 'development', WATCHPACK_POLLING: 'true', SMS_CHANNEL: 'log',
       BETTER_AUTH_SECRET: 'c2-e2e-only-secret-at-least-thirty-two-characters', BETTER_AUTH_URL: BASE_URL,
       ALIBABA_CLOUD_ACCESS_KEY_ID: 'c2-unused', ALIBABA_CLOUD_ACCESS_KEY_SECRET: 'c2-unused-secret',
       ALIBABA_CLOUD_OSS_BUCKET: 'c2-unused-bucket', ALIBABA_CLOUD_OSS_ENDPOINT: 'oss-cn-hangzhou.aliyuncs.com',
@@ -102,7 +102,9 @@ test.before(async () => {
   serverProcess.stdout.on('data', (chunk) => { serverLog += chunk.toString(); });
   serverProcess.stderr.on('data', (chunk) => { serverLog += chunk.toString(); });
   await waitForServer();
-  browser = await chromium.launch();
+  browser = process.env.PLAYWRIGHT_WS_ENDPOINT
+    ? await chromium.connect(process.env.PLAYWRIGHT_WS_ENDPOINT)
+    : await chromium.launch();
 });
 
 test.after(async () => {
@@ -111,7 +113,7 @@ test.after(async () => {
   await stopServer(serverProcess);
 });
 
-test('approved request creates a server-priced sandbox quote and accepts without payment', async () => {
+test('approved request creates a server-priced sandbox quote and exposes the sandbox payment handoff', async () => {
   const anonymous = await browser.newPage();
   await anonymous.goto(`${BASE_URL}/quotes`);
   await anonymous.waitForURL(`${BASE_URL}/login`);
@@ -131,7 +133,7 @@ test('approved request creates a server-priced sandbox quote and accepts without
     await page.getByLabel('联系人').fill('C2 浏览器用户');
     await page.getByLabel('联系电话').fill('13800138000');
     await page.getByLabel('使用说明').fill('C2 沙箱报价浏览器验收。');
-    await page.getByRole('button', { name: '提交沙箱申请' }).click();
+    await page.getByRole('button', { name: '提交申请' }).click();
     await page.getByText('C2 浏览器用户 · 13800138000').waitFor();
     const requests = await browserApi(page, '/api/v1/commerce/customization-requests');
     const request = requests.body.requests.find((item) => item.contactName === 'C2 浏览器用户');
@@ -166,11 +168,10 @@ test('approved request creates a server-priced sandbox quote and accepts without
 
     await page.goto(`${BASE_URL}/quotes`);
     await page.getByText('沙箱 · 不可真实支付').waitFor();
-    await page.getByRole('button', { name: '生成沙箱测试报价' }).click();
-    await page.getByText('¥330.00').waitFor();
-    await page.getByText('沙箱测试报价（不可用于真实交易）').waitFor();
+    await page.getByRole('button', { name: '生成测试报价' }).click();
+    await page.locator('.psx-quote-money strong').filter({ hasText: '330' }).waitFor();
+    await page.getByText('向上取整到整元').waitFor();
     await page.getByText('沙箱交期未验证，不构成履约承诺').waitFor();
-    await page.getByText('支付入口仍关闭').count().then((count) => assert.equal(count, 0));
 
     const quotes = await browserApi(page, '/api/v1/commerce/quotes');
     assert.equal(quotes.status, 200);
@@ -186,11 +187,12 @@ test('approved request creates a server-priced sandbox quote and accepts without
     await page.screenshot({ path: `${EVIDENCE_DIR}/c2-active-sandbox-quote.png`, fullPage: true });
 
     await page.getByRole('button', { name: '接受测试报价' }).click();
-    await page.getByText('已接受沙箱测试报价；支付入口仍关闭。').waitFor();
+    await page.getByText('已接受测试报价。下一步确认配送地址，再创建沙箱支付意图。').waitFor();
     await page.getByText('已接受', { exact: true }).waitFor();
-    assert.equal(await page.getByRole('button', { name: /支付/ }).count(), 0);
+    await page.getByText('确认配送地址 → 创建支付意图 → 沙箱支付页').waitFor();
+    await page.getByRole('link', { name: '填写并确认配送地址' }).waitFor();
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: `${EVIDENCE_DIR}/c2-accepted-no-payment.png`, fullPage: true });
+    await page.screenshot({ path: `${EVIDENCE_DIR}/c2-accepted-payment-entry.png`, fullPage: true });
   } finally {
     await context.close();
   }

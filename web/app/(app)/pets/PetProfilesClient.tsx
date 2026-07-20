@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Camera, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { PetResponse } from '@petscape/server/contracts/pets';
 
 const SPECIES = [
@@ -104,13 +104,13 @@ function petSubtitle(pet: PetResponse) {
 export function PetProfilesClient() {
   const [pets, setPets] = useState<PetResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editorOpen, setEditorOpen] = useState(false);
   const [editingPet, setEditingPet] = useState<PetResponse | null>(null);
   const [form, setForm] = useState<PetForm>(emptyForm);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadPets() {
@@ -135,30 +135,18 @@ export function PetProfilesClient() {
     };
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (coverPreview?.startsWith('blob:')) URL.revokeObjectURL(coverPreview);
-    };
+  useEffect(() => () => {
+    if (coverPreview?.startsWith('blob:')) URL.revokeObjectURL(coverPreview);
   }, [coverPreview]);
-
-  useEffect(() => {
-    if (!editorOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [editorOpen]);
-
-  const title = useMemo(() => (editingPet ? `编辑 ${editingPet.name}` : '新建宠物档案'), [editingPet]);
 
   function openCreate() {
     setEditingPet(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm });
     setCoverFile(null);
     setCoverPreview(null);
     setError(null);
-    setEditorOpen(true);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function openEdit(pet: PetResponse) {
@@ -167,14 +155,16 @@ export function PetProfilesClient() {
     setCoverFile(null);
     setCoverPreview(pet.coverUrl);
     setError(null);
-    setEditorOpen(true);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function closeEditor() {
     if (saving) return;
-    setEditorOpen(false);
+    setShowForm(false);
     setCoverFile(null);
     setCoverPreview(null);
+    setError(null);
   }
 
   function chooseCover(file: File | undefined) {
@@ -201,9 +191,6 @@ export function PetProfilesClient() {
         body: JSON.stringify({ filename: file.name, mime: file.type, size: file.size }),
       },
     );
-    // ali-oss V4 URL 当前没有把 Content-Type 纳入签名。浏览器直接发送 File 会自动
-    // 附带该 header，导致 OSS 以不同 canonical headers 重算后 403；ArrayBuffer
-    // 不会自动注入 Content-Type，与服务端签名时的 headers 保持一致。
     const uploaded = await fetch(requested.uploadUrl, {
       method: 'PUT',
       body: await file.arrayBuffer(),
@@ -238,12 +225,11 @@ export function PetProfilesClient() {
             body: JSON.stringify(requestBody(form)),
           });
 
-      // 创建本体成功但后续 OSS 上传失败时，把编辑器切到该 Pet；用户再次保存会 PATCH
-      // 原记录并重试封面，不会因一次网络/CORS 故障重复创建同名档案。
       if (!editingPet) setEditingPet(pet);
       if (coverFile) await uploadCover(pet.id, coverFile);
       await loadPets();
-      setEditorOpen(false);
+      setShowForm(false);
+      setEditingPet(null);
       setCoverFile(null);
       setCoverPreview(null);
     } catch (caught) {
@@ -254,7 +240,7 @@ export function PetProfilesClient() {
   }
 
   async function removePet(pet: PetResponse) {
-    if (!window.confirm(`删除「${pet.name}」？档案会从列表隐藏，照片仍保留在你的资产中。`)) return;
+    if (!window.confirm(`删除“${pet.name}”？此操作不可撤销。`)) return;
     setError(null);
     try {
       await api(`/api/v1/pets/${pet.id}`, { method: 'DELETE' });
@@ -264,106 +250,95 @@ export function PetProfilesClient() {
     }
   }
 
+  if (showForm) {
+    return (
+      <div className="psx-page psx-pets-page psx-pet-form-page psx-fade-up">
+        <form className="psx-pet-page-form" onSubmit={savePet}>
+          <aside className="psx-pet-form-intro">
+            <div>
+              <span className="psx-dot-label">长期设计档案</span>
+              <h1 className="psx-page-title">{editingPet ? `编辑 ${editingPet.name}` : '新建宠物档案'}</h1>
+            </div>
+            <p>只记录长期稳定的信息。创建项目时，再补充当次的环境尺寸与参考照片。</p>
+            <button className="psx-pet-cover-picker" type="button" onClick={() => fileInputRef.current?.click()}>
+              {coverPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element -- 本地 blob 或私有 OSS 预览
+                <img src={coverPreview} alt="宠物封面预览" />
+              ) : <span className="psx-pet-cover-icon"><Camera size={19} /></span>}
+              <span><strong>{coverPreview ? '更换封面照片' : '添加一张封面照片'}</strong><small>选填 · JPG / PNG / WEBP · 之后随时可换</small></span>
+            </button>
+            <input ref={fileInputRef} className="psx-visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseCover(event.target.files?.[0])} aria-label="选择封面照片" />
+            <p className="psx-pet-form-note">名称是唯一必填项，其他资料都可以随时回来补。</p>
+          </aside>
+
+          <div className="psx-pet-form-fields">
+            <section className="psx-pet-field-group">
+              <span className="psx-pet-group-label">基 本 信 息</span>
+              <label className="psx-pet-field"><span>名称 *</span><input required maxLength={80} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：小椒" /></label>
+              <div className="psx-pet-chip-field"><span>物种</span><div className="psx-pet-chips">
+                {SPECIES.map(([value, label]) => <button type="button" key={value} aria-pressed={form.speciesCode === value} onClick={() => setForm({ ...form, speciesCode: form.speciesCode === value ? '' : value })}>{label}</button>)}
+              </div></div>
+              {form.speciesCode === 'other' ? <label className="psx-pet-field"><span>自定义物种 *</span><input required maxLength={120} value={form.customSpeciesName} onChange={(event) => setForm({ ...form, customSpeciesName: event.target.value })} placeholder="例如：刺猬" /></label> : null}
+              <label className="psx-pet-field is-half"><span>品种 <small>选填</small></span><input maxLength={120} value={form.breed} onChange={(event) => setForm({ ...form, breed: event.target.value })} placeholder="例如：花枝鼠" /></label>
+            </section>
+
+            <section className="psx-pet-field-group">
+              <span className="psx-pet-group-label">体 型 与 阶 段</span>
+              <div className="psx-pet-chip-field"><span>体型等级 <small>从迷你到大型的粗略分级</small></span><div className="psx-pet-chips">
+                {[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-pressed={form.sizeLevel === String(value)} onClick={() => setForm({ ...form, sizeLevel: form.sizeLevel === String(value) ? '' : String(value) })}>{value} 级</button>)}
+              </div></div>
+              <div className="psx-pet-chip-field"><span>生命阶段</span><div className="psx-pet-chips">
+                {LIFE_STAGES.map(([value, label]) => <button type="button" key={value} aria-pressed={form.lifeStage === value} onClick={() => setForm({ ...form, lifeStage: form.lifeStage === value ? '' : value })}>{label}</button>)}
+              </div></div>
+            </section>
+
+            <section className="psx-pet-field-group">
+              <span className="psx-pet-group-label">行 为 标 签</span>
+              <p className="psx-pet-group-hint">多选。这些标签会影响后续设计建议，比如胆小的宠物会优先考虑遮蔽结构。</p>
+              <div className="psx-pet-chips">{TRAITS.map((trait) => <button type="button" key={trait} aria-pressed={form.behaviorTraits.includes(trait)} onClick={() => toggleTrait(trait)}>{trait}</button>)}</div>
+            </section>
+
+            <section className="psx-pet-field-group">
+              <span className="psx-pet-group-label">备 注</span>
+              <label className="psx-pet-field"><span>环境备注 <small>选填</small></span><textarea maxLength={2000} rows={3} value={form.environmentNotes} onChange={(event) => setForm({ ...form, environmentNotes: event.target.value })} placeholder="例如：偏好攀爬、需要遮蔽空间" /></label>
+              <label className="psx-pet-field"><span>特殊需求 <small>选填</small></span><textarea maxLength={2000} rows={3} value={form.specialNeeds} onChange={(event) => setForm({ ...form, specialNeeds: event.target.value })} placeholder="仅记录会影响后续设计的长期信息" /></label>
+            </section>
+          </div>
+
+          <div className="psx-pet-sticky-actions">
+            <span>带 * 的是必填项 · 其余随时可补</span>
+            <div><button type="button" className="psx-btn-ghost" onClick={closeEditor}>取消</button><button type="submit" className="psx-btn-primary" disabled={saving}>{saving ? '正在保存…' : '保存档案'}</button></div>
+          </div>
+          {error ? <div className="psx-pets-alert psx-pet-form-error" role="alert">{error}</div> : null}
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="psx-page psx-pets-page psx-fade-up">
-      <div className="psx-pets-heading">
-        <div>
-          <span className="psx-dot-label">长期设计档案</span>
-          <h1 className="psx-page-title">宠物档案</h1>
-          <p>先记录稳定的宠物信息。创建项目时再补充当次环境尺寸与参考照片。</p>
-        </div>
-        <button className="psx-btn-ghost psx-pets-create" type="button" onClick={openCreate}>
-          <Plus size={17} /> 新建档案
-        </button>
-      </div>
-
-      {error && !editorOpen ? <div className="psx-pets-alert" role="alert">{error}</div> : null}
-
-      {loading ? (
-        <div className="psx-pets-empty">正在读取你的宠物档案…</div>
-      ) : pets.length === 0 ? (
-        <section className="psx-pets-empty psx-pets-empty-first">
-          <span className="psx-circle"><Plus size={18} /></span>
-          <h2>从第一只宠物开始</h2>
-          <p>名称是唯一必填项，其他资料可以随时补充。</p>
-          <button className="psx-btn-primary" type="button" onClick={openCreate}>创建宠物档案</button>
-        </section>
+      <header className="psx-pets-heading">
+        <div><span className="psx-dot-label">长期设计档案</span><h1 className="psx-page-title">宠物档案</h1><p>保存长期稳定的信息，让每次定制都从熟悉你的宠物开始。</p></div>
+        <button type="button" className="psx-btn-primary psx-pets-create" onClick={openCreate}><Plus size={17} />新建宠物档案</button>
+      </header>
+      {error ? <div className="psx-pets-alert" role="alert">{error}</div> : null}
+      {loading ? <div className="psx-pets-empty">正在读取宠物档案…</div> : pets.length === 0 ? (
+        <section className="psx-pets-empty-first"><span className="psx-dot-label">从第一只宠物开始</span><h2>还没有宠物档案</h2><p>先记录名称和几项长期信息。每次定制都会从这里出发。</p><button type="button" className="psx-btn-primary" onClick={openCreate}><Plus size={17} />新建宠物档案</button></section>
       ) : (
         <section className="psx-pet-grid" aria-label="宠物档案列表">
-          {pets.map((pet) => (
-            <article className="psx-pet-card" key={pet.id}>
-              <div className="psx-pet-cover">
-                {pet.coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- 私有 OSS 短签名 URL，无法由 Next image optimizer 稳定缓存
-                  <img src={pet.coverUrl} alt={`${pet.name} 的封面`} />
-                ) : (
-                  <div className="psx-pet-cover-empty"><Camera size={22} /><span>等待封面</span></div>
-                )}
-              </div>
-              <div className="psx-pet-card-body">
-                <div>
-                  <h2>{pet.name}</h2>
-                  <p>{petSubtitle(pet)}</p>
-                </div>
-                {pet.behaviorTraits.length > 0 ? (
-                  <div className="psx-pet-tags">{pet.behaviorTraits.slice(0, 3).map((trait) => <span key={trait}>{trait}</span>)}</div>
-                ) : null}
-                <div className="psx-pet-actions">
-                  <button type="button" onClick={() => openEdit(pet)}><Pencil size={14} /> 编辑</button>
-                  <button type="button" className="is-danger" onClick={() => removePet(pet)}><Trash2 size={14} /> 删除</button>
-                </div>
-              </div>
-            </article>
-          ))}
+          {pets.map((pet) => <article className="psx-pet-card" key={pet.id}>
+            <div className="psx-pet-cover">{pet.coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- 私有 OSS 签名 URL
+              <img src={pet.coverUrl} alt={`${pet.name} 的封面`} />
+            ) : <div className="psx-pet-cover-empty">{pet.name.slice(0, 1)}</div>}</div>
+            <div className="psx-pet-card-body"><div><h2>{pet.name}</h2><p>{petSubtitle(pet)}</p></div>
+              {pet.behaviorTraits.length > 0 ? <div className="psx-pet-tags">{pet.behaviorTraits.slice(0, 3).map((trait) => <span key={trait}>{trait}</span>)}</div> : null}
+              <div className="psx-pet-actions"><button type="button" onClick={() => openEdit(pet)}><Pencil size={14} />编辑</button><button type="button" className="is-danger" onClick={() => removePet(pet)}><Trash2 size={14} />删除</button></div>
+            </div>
+          </article>)}
+          <button className="psx-pet-new-tail" type="button" onClick={openCreate}><span><Plus size={20} /></span><strong>新建宠物档案</strong><small>为另一只宠物保存长期信息</small></button>
         </section>
       )}
-
-      {editorOpen ? (
-        <div className="psx-pet-editor-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeEditor();
-        }}>
-          <section className="psx-pet-editor" role="dialog" aria-modal="true" aria-labelledby="pet-editor-title">
-            <header>
-              <div><span className="psx-dot-label">宠物档案</span><h2 id="pet-editor-title">{title}</h2></div>
-              <button type="button" className="psx-pet-editor-close" onClick={closeEditor} aria-label="关闭编辑器"><X size={19} /></button>
-            </header>
-
-            <form onSubmit={savePet}>
-              <button className="psx-cover-picker" type="button" onClick={() => fileInputRef.current?.click()}>
-                {coverPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- 本地 blob 或私有 OSS 预览
-                  <img src={coverPreview} alt="宠物封面预览" />
-                ) : <span><Camera size={22} />添加一张封面照片</span>}
-              </button>
-              <input
-                ref={fileInputRef}
-                className="psx-visually-hidden"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(event) => chooseCover(event.target.files?.[0])}
-                aria-label="选择封面照片"
-              />
-
-              <div className="psx-pet-form-grid">
-                <label className="is-wide"><span>名称 *</span><input required maxLength={80} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：小椒" /></label>
-                <label><span>物种</span><select value={form.speciesCode} onChange={(event) => setForm({ ...form, speciesCode: event.target.value as PetForm['speciesCode'] })}><option value="">稍后补充</option>{SPECIES.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-                {form.speciesCode === 'other' ? <label><span>自定义物种 *</span><input required maxLength={120} value={form.customSpeciesName} onChange={(event) => setForm({ ...form, customSpeciesName: event.target.value })} /></label> : null}
-                <label><span>品种</span><input maxLength={120} value={form.breed} onChange={(event) => setForm({ ...form, breed: event.target.value })} placeholder="可选" /></label>
-                <label><span>体型等级</span><select value={form.sizeLevel} onChange={(event) => setForm({ ...form, sizeLevel: event.target.value })}><option value="">稍后补充</option>{[1, 2, 3, 4, 5].map((value) => <option value={value} key={value}>{value} 级</option>)}</select></label>
-                <label><span>生命阶段</span><select value={form.lifeStage} onChange={(event) => setForm({ ...form, lifeStage: event.target.value as PetForm['lifeStage'] })}><option value="">稍后补充</option>{LIFE_STAGES.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-              </div>
-
-              <fieldset className="psx-trait-fieldset"><legend>行为标签</legend><div>{TRAITS.map((trait) => <button type="button" key={trait} aria-pressed={form.behaviorTraits.includes(trait)} onClick={() => toggleTrait(trait)}>{trait}</button>)}</div></fieldset>
-
-              <label className="psx-textarea-field"><span>环境备注</span><textarea maxLength={2000} value={form.environmentNotes} onChange={(event) => setForm({ ...form, environmentNotes: event.target.value })} placeholder="例如：偏好攀爬、需要遮蔽空间" /></label>
-              <label className="psx-textarea-field"><span>特殊需求</span><textarea maxLength={2000} value={form.specialNeeds} onChange={(event) => setForm({ ...form, specialNeeds: event.target.value })} placeholder="仅记录会影响后续设计的长期信息" /></label>
-
-              {error ? <div className="psx-pets-alert" role="alert">{error}</div> : null}
-              <footer><button type="button" className="psx-btn-ghost" onClick={closeEditor}>取消</button><button type="submit" className="psx-btn-primary" disabled={saving}>{saving ? '正在保存…' : '保存档案'}</button></footer>
-            </form>
-          </section>
-        </div>
-      ) : null}
     </div>
   );
 }

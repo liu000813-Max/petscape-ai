@@ -126,7 +126,7 @@ test('ordinary user is forbidden; admin reviews; owner sees rejection and resubm
     await ownerPage.getByLabel('联系电话').fill('13800138000');
     await ownerPage.getByLabel('使用说明').fill('给成年仓鼠日常休息，等待人工可信审核。');
     await ownerPage.getByLabel(/补充要求/).fill('入口必须圆润。');
-    await ownerPage.getByRole('button', { name: '提交沙箱申请' }).click();
+    await ownerPage.getByRole('button', { name: '提交申请' }).click();
     await ownerPage.getByText('B6 浏览器申请人 · 13800138000').waitFor();
     const ownerRequests = await browserApi(ownerPage, '/api/v1/commerce/customization-requests');
     assert.equal(ownerRequests.status, 200);
@@ -187,14 +187,22 @@ test('ordinary user is forbidden; admin reviews; owner sees rejection and resubm
     await card.screenshot({ path: `${EVIDENCE_DIR}/b6-admin-rejected.png` });
 
     await ownerPage.reload();
-    await ownerPage.getByText('审核拒绝').waitFor();
-    await ownerPage.getByText('入口边缘加厚 2mm').waitFor();
+    const rejectedRequestCard = ownerPage.locator('article').filter({ hasText: '给成年仓鼠日常休息，等待人工可信审核。' });
+    await rejectedRequestCard.getByText('已提交', { exact: true }).waitFor();
+    await rejectedRequestCard.getByText('审核未通过', { exact: true }).waitFor();
+    await rejectedRequestCard.getByText('调整建议：入口边缘加厚 2mm', { exact: true }).waitFor();
     await ownerPage.waitForTimeout(1_000);
     await ownerPage.screenshot({ path: `${EVIDENCE_DIR}/b6-owner-review-result.png`, fullPage: true });
-    await ownerPage.getByRole('button', { name: '修改并重提' }).click();
+    await rejectedRequestCard.getByRole('button', { name: '修改并重提' }).click();
+    await ownerPage.getByRole('status').getByText('正在基于旧申请创建新版本；旧内容仍会留在历史里。', { exact: true }).waitFor();
+    await ownerPage.getByRole('button', { name: '取消重提' }).waitFor();
     await ownerPage.getByLabel('使用说明').fill('按审核建议调整后重新提交。');
     await ownerPage.getByRole('button', { name: '提交新版本' }).click();
-    await ownerPage.getByText('已被新版本替代').waitFor();
+    await rejectedRequestCard.getByText('已被新版本替代', { exact: true }).waitFor();
+    await rejectedRequestCard.getByText('旧内容已保留', { exact: true }).waitFor();
+    const resubmittedRequestCard = ownerPage.locator('article').filter({ hasText: '按审核建议调整后重新提交。' });
+    await resubmittedRequestCard.getByText('已提交', { exact: true }).waitFor();
+    await resubmittedRequestCard.getByText('等待审核', { exact: true }).waitFor();
 
     const audits = await prisma.roleChangeAudit.findMany({ where: { targetUserId: reviewerMe.body.userId } });
     assert.equal(audits.length, 1);

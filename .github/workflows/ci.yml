@@ -133,13 +133,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
 
-      - name: Upload C1 browser evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: wp-c1-1-browser-evidence
-          path: web/test-results/c1-requests/
-          if-no-files-found: warn
+      - name: Test Pack B pet profile flow (real Next + PostgreSQL + Chromium)
+        working-directory: web
+        run: node --test tests/e2e-pets.test.mjs
+        env:
+          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
 
       - name: Test B6 admin review flow (real Next + PostgreSQL + Chromium)
         working-directory: web
@@ -161,12 +159,12 @@ jobs:
         env:
           DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
 
-      - name: Upload C2 browser evidence
+      - name: Upload UI polish Pack B browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: wp-c2-1-browser-evidence
-          path: web/test-results/c2-quotes/
+          name: ui-polish-pack-b-browser-evidence
+          path: web/test-results/ui-polish-pack-b/
           if-no-files-found: warn
 
       - name: Test C5 delivery address flow (real Next + PostgreSQL + Chromium)
@@ -317,10 +315,6 @@ jobs:
       - name: Run authenticated model confirmation flow
         working-directory: web
         run: node --test tests/e2e-viewer-model.test.mjs
-
-      - name: Run mobile pet modal layout flow
-        working-directory: web
-        run: node --test tests/e2e-pets.test.mjs
 
       - name: Upload UI polish browser evidence
         if: always()

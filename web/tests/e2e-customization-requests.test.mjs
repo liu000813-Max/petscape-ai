@@ -11,7 +11,7 @@ import { B7_SANDBOX_SCENE_CONFIRMATION_ID } from '../../packages/server/src/appl
 const webRoot = fileURLToPath(new URL('../', import.meta.url));
 const PORT = process.env.E2E_C1_PORT ?? '3421';
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-const EVIDENCE_DIR = fileURLToPath(new URL('../test-results/c1-requests/', import.meta.url));
+const EVIDENCE_DIR = fileURLToPath(new URL('../test-results/ui-polish-pack-b/', import.meta.url));
 const PHONES = ['13700004211', '13700004212'];
 
 if (!process.env.DATABASE_URL) {
@@ -101,12 +101,13 @@ async function browserApi(page, path, init = {}) {
 
 test.before(async () => {
   await mkdir(EVIDENCE_DIR, { recursive: true });
-  serverProcess = spawn('pnpm', ['exec', 'next', 'dev', '-H', '127.0.0.1', '-p', PORT], {
+  serverProcess = spawn('pnpm', ['exec', 'next', 'dev', '--webpack', '-H', '127.0.0.1', '-p', PORT], {
     cwd: webRoot,
     detached: process.platform !== 'win32',
     env: {
       ...process.env,
       NODE_ENV: 'development',
+      WATCHPACK_POLLING: 'true',
       SMS_CHANNEL: 'log',
       BETTER_AUTH_SECRET: 'c1-e2e-only-secret-at-least-thirty-two-characters',
       BETTER_AUTH_URL: BASE_URL,
@@ -122,7 +123,9 @@ test.before(async () => {
   serverProcess.stdout.on('data', (chunk) => { serverLog += chunk.toString(); });
   serverProcess.stderr.on('data', (chunk) => { serverLog += chunk.toString(); });
   await waitForServerReady();
-  browser = await chromium.launch();
+  browser = process.env.PLAYWRIGHT_WS_ENDPOINT
+    ? await chromium.connect(process.env.PLAYWRIGHT_WS_ENDPOINT)
+    : await chromium.launch();
 });
 
 test.after(async () => {
@@ -152,9 +155,12 @@ test('anonymous is 401; owner submits and resubmits immutable sandbox history; o
     await pageA.getByLabel('联系电话').fill('13800138000');
     await pageA.getByLabel('使用说明').fill('给成年仓鼠在室内笼舍日常休息使用。');
     await pageA.getByLabel(/补充要求/).fill('入口边缘保持圆润。');
-    await pageA.getByRole('button', { name: '提交沙箱申请' }).click();
-    await pageA.getByText('沙箱申请已提交。它不会生成真实报价、支付或订单。').waitFor();
-    await pageA.getByText('C1 浏览器用户 · 13800138000').waitFor();
+    await pageA.getByRole('button', { name: '提交申请' }).click();
+    await pageA.getByText('申请已提交。它不会生成真实报价、支付或订单。').waitFor();
+    const firstRequestCard = pageA.locator('article').filter({ hasText: '给成年仓鼠在室内笼舍日常休息使用。' });
+    await firstRequestCard.getByText('C1 浏览器用户 · 13800138000', { exact: true }).waitFor();
+    await firstRequestCard.getByText('已提交', { exact: true }).waitFor();
+    await firstRequestCard.getByText('等待审核', { exact: true }).waitFor();
 
     const firstList = await browserApi(pageA, '/api/v1/commerce/customization-requests');
     assert.equal(firstList.status, 200);
@@ -165,11 +171,28 @@ test('anonymous is 401; owner submits and resubmits immutable sandbox history; o
     assert.equal(first.sceneConfirmation.sceneConfirmationId, B7_SANDBOX_SCENE_CONFIRMATION_ID);
     assert.equal(first.amountCent, undefined);
 
-    await pageA.getByRole('button', { name: '修改并重提' }).click();
+    await firstRequestCard.getByRole('button', { name: '修改并重提' }).click();
+    await pageA.getByRole('status').getByText('正在基于旧申请创建新版本；旧内容仍会留在历史里。', { exact: true }).waitFor();
+    await pageA.getByRole('button', { name: '取消重提' }).waitFor();
     await pageA.getByLabel('使用说明').fill('改为给老年仓鼠短时休息使用。');
     await pageA.getByRole('button', { name: '提交新版本' }).click();
-    await pageA.getByText('已被新版本替代').waitFor();
+    await firstRequestCard.getByText('已被新版本替代', { exact: true }).waitFor();
+    await firstRequestCard.getByText('旧内容已保留', { exact: true }).waitFor();
+    const secondRequestCard = pageA.locator('article').filter({ hasText: '改为给老年仓鼠短时休息使用。' });
+    await secondRequestCard.getByText('已提交', { exact: true }).waitFor();
+    await secondRequestCard.getByText('等待审核', { exact: true }).waitFor();
     await pageA.screenshot({ path: `${EVIDENCE_DIR}/c1-request-history-mobile.png`, fullPage: true });
+
+    const desktopContext = await browser.newContext({
+      storageState: await contextA.storageState(),
+      viewport: { width: 1280, height: 900 },
+    });
+    const desktopPage = await desktopContext.newPage();
+    await desktopPage.goto(`${BASE_URL}/requests`);
+    await desktopPage.getByRole('heading', { name: '定制申请' }).waitFor();
+    await desktopPage.getByText('已被新版本替代').waitFor();
+    await desktopPage.screenshot({ path: `${EVIDENCE_DIR}/requests-history-desktop.png`, fullPage: true });
+    await desktopContext.close();
 
     const secondList = await browserApi(pageA, '/api/v1/commerce/customization-requests');
     assert.equal(secondList.status, 200);
