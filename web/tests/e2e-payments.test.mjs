@@ -27,7 +27,7 @@ const PORT = process.env.E2E_C3_PORT ?? '3428';
 const BASE = `http://127.0.0.1:${PORT}`;
 const DIR = fileURLToPath(new URL('../test-results/c3-payments/', import.meta.url));
 const phoneSeed = Number(BigInt(Date.now()) % 100000000n);
-const defaultPhones = [0, 1, 2, 3]
+const defaultPhones = [0, 1, 2, 3, 4]
   .map((offset) => `137${String((phoneSeed + offset) % 100000000).padStart(8, '0')}`)
   .join(',');
 const PHONES = (process.env.E2E_C3_PHONES ?? defaultPhones).split(',');
@@ -435,7 +435,7 @@ test('reuses one Quote-scoped idempotency key and recovers a zero-attempt paymen
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   try {
-    await login(page, PHONES[0]);
+    await login(page, PHONES[4]);
     const me = await api(page, '/api/me');
     const quote = await eligibleFixture(me.body.userId, 'stable-browser-idempotency');
     const submittedKeys = [];
