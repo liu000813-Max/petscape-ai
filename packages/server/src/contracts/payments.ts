@@ -12,6 +12,12 @@ export const PaymentIntentStatusSchema = z.enum([
 export const PaymentAttentionCodeSchema = z.enum([
   'amount_mismatch', 'stale_succeeded_attempt', 'provider_state_conflict', 'unspecified',
 ]);
+export const PaymentRecoveryActionSchema = z.enum([
+  'complete_payment', 'wait', 'retry_payment', 'view_order', 'contact_support',
+]);
+export const OrderRecoveryStatusSchema = z.enum([
+  'not_succeeded', 'recovering', 'order_created', 'failed', 'needs_attention',
+]);
 export const PaymentAttemptStatusSchema = z.enum([
   'requires_action', 'processing', 'succeeded', 'failed', 'canceled',
 ]);
@@ -53,6 +59,8 @@ export const PaymentIntentResponseSchema = z.strictObject({
   sandboxOnly: z.literal(true),
   status: PaymentIntentStatusSchema,
   attentionCode: PaymentAttentionCodeSchema.nullable(),
+  recoveryAction: PaymentRecoveryActionSchema,
+  orderRecoveryStatus: OrderRecoveryStatusSchema,
   label: z.literal('沙箱支付（不会发生真实扣款或成交）'),
   attempts: z.array(PaymentAttemptResponseSchema),
   succeededAt: z.iso.datetime().nullable(),
@@ -70,6 +78,15 @@ export const PaymentIntentListResponseSchema = z.strictObject({
 export const AdminPaymentAttentionItemSchema = z.strictObject({
   ownerUserId: idSchema,
   paymentIntent: PaymentIntentResponseSchema,
+  recoveryJob: z.strictObject({
+    id: idSchema,
+    status: z.enum(['pending', 'running', 'succeeded', 'failed', 'canceled', 'needs_attention']),
+    attemptCount: z.number().int().nonnegative(),
+    maxAttempts: z.number().int().positive(),
+    errorClass: z.enum(['retryable', 'permanent', 'canceled', 'manual']).nullable(),
+    errorDetail: z.unknown().nullable(),
+    updatedAt: z.iso.datetime(),
+  }).nullable(),
 });
 export const AdminPaymentAttentionListResponseSchema = z.strictObject({
   items: z.array(AdminPaymentAttentionItemSchema),

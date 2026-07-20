@@ -45,9 +45,50 @@ type IntentWithAttempts = Awaited<ReturnType<PrismaClient['paymentIntent']['find
     id: string; attemptNo: number; provider: string; providerPaymentId: string; status: string;
     failureCode: string | null; failureMessage: string | null; createdAt: Date; resolvedAt: Date | null;
   }>;
+  order: { id: string } | null;
 };
 
-function toResponse(row: IntentWithAttempts): PaymentIntentResponse {
+type RecoveryJob = {
+  id: string;
+  ownerUserId: string;
+  idempotencyKey: string;
+  status: string;
+  attemptCount: number;
+  maxAttempts: number;
+  errorClass: string | null;
+  errorDetail: unknown;
+  updatedAt: Date;
+};
+
+function recoveryJobKey(ownerUserId: string, paymentIntentId: string) {
+  return `${ownerUserId}:${paymentIntentId}`;
+}
+
+function deriveRecoveryState(row: IntentWithAttempts, job: RecoveryJob | null) {
+  if (row.status === 'needs_attention') {
+    return { recoveryAction: 'contact_support' as const, orderRecoveryStatus: 'needs_attention' as const };
+  }
+  if (row.order) return { recoveryAction: 'view_order' as const, orderRecoveryStatus: 'order_created' as const };
+  if (row.status !== 'succeeded') {
+    if (row.status === 'requires_action') {
+      return { recoveryAction: 'complete_payment' as const, orderRecoveryStatus: 'not_succeeded' as const };
+    }
+    if (row.status === 'failed' || row.status === 'canceled') {
+      return { recoveryAction: 'retry_payment' as const, orderRecoveryStatus: 'not_succeeded' as const };
+    }
+    return { recoveryAction: 'wait' as const, orderRecoveryStatus: 'not_succeeded' as const };
+  }
+  if (job?.status === 'pending' || job?.status === 'running') {
+    return { recoveryAction: 'wait' as const, orderRecoveryStatus: 'recovering' as const };
+  }
+  if (job?.status === 'failed') {
+    return { recoveryAction: 'contact_support' as const, orderRecoveryStatus: 'failed' as const };
+  }
+  return { recoveryAction: 'contact_support' as const, orderRecoveryStatus: 'needs_attention' as const };
+}
+
+function toResponse(row: IntentWithAttempts, recoveryJob: RecoveryJob | null): PaymentIntentResponse {
+  const recovery = deriveRecoveryState(row, recoveryJob);
   return PaymentIntentResponseSchema.parse({
     id: row.id,
     quoteId: row.quoteId,
@@ -60,6 +101,7 @@ function toResponse(row: IntentWithAttempts): PaymentIntentResponse {
     sandboxOnly: row.sandboxOnly,
     status: row.status,
     attentionCode: row.status === 'needs_attention' ? row.attentionCode ?? 'unspecified' : null,
+    ...recovery,
     label: '沙箱支付（不会发生真实扣款或成交）',
     attempts: row.attempts.map((attempt) => ({
       id: attempt.id,
@@ -83,10 +125,24 @@ function toResponse(row: IntentWithAttempts): PaymentIntentResponse {
 }
 
 async function readIntent(prisma: PrismaClient, id: string) {
-  return prisma.paymentIntent.findUniqueOrThrow({
+  const row = await prisma.paymentIntent.findUniqueOrThrow({
     where: { id },
-    include: { attempts: { orderBy: { attemptNo: 'asc' } } },
-  }) as unknown as Promise<IntentWithAttempts>;
+    include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
+  }) as unknown as IntentWithAttempts;
+  const recoveryJob = await prisma.job.findUnique({
+    where: { job_owner_type_idempotency_key: {
+      ownerUserId: row.ownerUserId, type: ORDER_RECOVERY_JOB_TYPE, idempotencyKey: row.id,
+    } },
+  }) as unknown as RecoveryJob | null;
+  return toResponse(row, recoveryJob);
+}
+
+async function readRecoveryJobs(prisma: PrismaClient, rows: IntentWithAttempts[]) {
+  if (rows.length === 0) return new Map<string, RecoveryJob>();
+  const jobs = await prisma.job.findMany({
+    where: { type: ORDER_RECOVERY_JOB_TYPE, idempotencyKey: { in: rows.map(({ id }) => id) } },
+  }) as unknown as RecoveryJob[];
+  return new Map(jobs.map((job) => [recoveryJobKey(job.ownerUserId, job.idempotencyKey), job]));
 }
 
 async function ensureAttempt(prisma: PrismaClient, provider: PaymentProviderPort, intentId: string, attemptNo: number) {
@@ -126,7 +182,7 @@ export async function createPaymentIntent({ prisma, provider, ownerUserId, input
   if (existingByKey) {
     if (existingByKey.quoteId !== input.quoteId) throw new PaymentConflictError('同一 idempotencyKey 不得跨 Quote 使用');
     await ensureAttempt(prisma, provider, existingByKey.id, 1);
-    return { paymentIntent: toResponse(await readIntent(prisma, existingByKey.id)), created: false };
+    return { paymentIntent: await readIntent(prisma, existingByKey.id), created: false };
   }
 
   let createdId: string | null = null;
@@ -172,13 +228,13 @@ export async function createPaymentIntent({ prisma, provider, ownerUserId, input
     }, { isolationLevel: 'Serializable' }));
     createdId = result.id;
     await ensureAttempt(prisma, provider, result.id, 1);
-    return { paymentIntent: toResponse(await readIntent(prisma, result.id)), created: result.created };
+    return { paymentIntent: await readIntent(prisma, result.id), created: result.created };
   } catch (error) {
     if (errorCode(error, 'P2002')) {
       const existing = await prisma.paymentIntent.findFirst({ where: { ownerUserId, OR: [{ idempotencyKey: input.idempotencyKey }, { quoteId: input.quoteId }] } });
       if (existing && existing.quoteId === input.quoteId && existing.idempotencyKey === input.idempotencyKey) {
         await ensureAttempt(prisma, provider, existing.id, 1);
-        return { paymentIntent: toResponse(await readIntent(prisma, existing.id)), created: false };
+        return { paymentIntent: await readIntent(prisma, existing.id), created: false };
       }
       throw new PaymentConflictError('该 Quote 已有不同的支付意图');
     }
@@ -189,22 +245,41 @@ export async function createPaymentIntent({ prisma, provider, ownerUserId, input
 
 export async function listPaymentIntents({ prisma, ownerUserId }: { prisma: PrismaClient; ownerUserId: string }) {
   const rows = await prisma.paymentIntent.findMany({
-    where: { ownerUserId }, include: { attempts: { orderBy: { attemptNo: 'asc' } } }, orderBy: { createdAt: 'desc' },
-  });
-  return rows.map((row) => toResponse(row as unknown as IntentWithAttempts));
+    where: { ownerUserId },
+    include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
+    orderBy: { createdAt: 'desc' },
+  }) as unknown as IntentWithAttempts[];
+  const jobs = await readRecoveryJobs(prisma, rows);
+  return rows.map((row) => toResponse(row, jobs.get(recoveryJobKey(row.ownerUserId, row.id)) ?? null));
 }
 
 export async function listAdminPaymentAttention({ prisma, actorUserId }: { prisma: PrismaClient; actorUserId: string }) {
   const actor = await prisma.user.findUnique({ where: { id: actorUserId }, select: { role: true } });
   if (actor?.role !== 'admin') throw new AdminRequiredError();
   const rows = await prisma.paymentIntent.findMany({
-    where: { status: 'needs_attention' },
-    include: { attempts: { orderBy: { attemptNo: 'asc' } } },
-    orderBy: [{ needsAttentionAt: 'desc' }, { updatedAt: 'desc' }],
-  });
+    where: { OR: [
+      { status: 'needs_attention' },
+      { status: 'succeeded', order: { is: null } },
+    ] },
+    include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
+    orderBy: { updatedAt: 'desc' },
+  }) as unknown as IntentWithAttempts[];
+  const jobs = await readRecoveryJobs(prisma, rows);
   return rows.map((row) => ({
     ownerUserId: row.ownerUserId,
-    paymentIntent: toResponse(row as unknown as IntentWithAttempts),
+    paymentIntent: toResponse(row, jobs.get(recoveryJobKey(row.ownerUserId, row.id)) ?? null),
+    recoveryJob: (() => {
+      const job = jobs.get(recoveryJobKey(row.ownerUserId, row.id));
+      return job ? {
+        id: job.id,
+        status: job.status,
+        attemptCount: job.attemptCount,
+        maxAttempts: job.maxAttempts,
+        errorClass: job.errorClass,
+        errorDetail: job.errorDetail ?? null,
+        updatedAt: job.updatedAt.toISOString(),
+      } : null;
+    })(),
   }));
 }
 
@@ -212,10 +287,14 @@ export async function getPaymentIntent({ prisma, ownerUserId, paymentIntentId }:
   prisma: PrismaClient; ownerUserId: string; paymentIntentId: string;
 }) {
   const row = await prisma.paymentIntent.findFirst({
-    where: { id: paymentIntentId, ownerUserId }, include: { attempts: { orderBy: { attemptNo: 'asc' } } },
-  });
+    where: { id: paymentIntentId, ownerUserId },
+    include: { attempts: { orderBy: { attemptNo: 'asc' } }, order: { select: { id: true } } },
+  }) as unknown as IntentWithAttempts | null;
   if (!row) throw new NotFoundError('PaymentIntent');
-  return toResponse(row as unknown as IntentWithAttempts);
+  const recoveryJob = await prisma.job.findUnique({ where: { job_owner_type_idempotency_key: {
+    ownerUserId, type: ORDER_RECOVERY_JOB_TYPE, idempotencyKey: paymentIntentId,
+  } } }) as unknown as RecoveryJob | null;
+  return toResponse(row, recoveryJob);
 }
 
 export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymentIntentId, input: untrusted }: {
@@ -258,7 +337,7 @@ export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymen
           status: 'requires_action', attentionCode: null, failedAt: null, canceledAt: null,
         } });
       }, { isolationLevel: 'Serializable' });
-      return toResponse(await readIntent(prisma, paymentIntentId));
+      return readIntent(prisma, paymentIntentId);
     } catch (error) {
       if (isSerializableTransactionConflict(error) && retryNo < 4) continue;
       if (isSerializableTransactionConflict(error)) throw new PaymentConflictError('支付重试发生并发冲突，请刷新后重试');

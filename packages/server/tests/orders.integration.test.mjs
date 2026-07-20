@@ -25,6 +25,8 @@ if (!databaseUrl) {
     getOrder,
     ingestPaymentEvent,
     listOrders,
+    getPaymentIntent,
+    listAdminPaymentAttention,
     processOrderRecoveryJob,
     OrderConflictError,
     saveDeliveryAddress,
@@ -138,6 +140,44 @@ if (!databaseUrl) {
     const replayed = await ingestPaymentEvent({ prisma, provider, rawBody: signed.rawBody, signature: signed.signature });
     assert.equal(replayed.duplicate, true);
     assert.equal(await prisma.order.count({ where: { paymentIntentId: fixture.payment.id } }), 1);
+  });
+
+  test('order list reads never repair a missing order and payment API reports durable recovery progress', async () => {
+    const fixture = await makePayment('read-is-pure');
+    const signed = await successEvent(fixture.payment);
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION c4_test_block_order_insert() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'injected order interruption'; END; $$ LANGUAGE plpgsql`);
+    await prisma.$executeRawUnsafe(`CREATE TRIGGER a_c4_test_block_order_insert BEFORE INSERT ON "order" FOR EACH ROW EXECUTE FUNCTION c4_test_block_order_insert()`);
+    try {
+      await assert.rejects(() => ingestPaymentEvent({ prisma, provider, rawBody: signed.rawBody, signature: signed.signature }), /injected order interruption/i);
+    } finally {
+      await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS a_c4_test_block_order_insert ON "order"`);
+      await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS c4_test_block_order_insert()`);
+    }
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: fixture.payment.id } }), 0);
+    const before = await getPaymentIntent({ prisma, ownerUserId: owner, paymentIntentId: fixture.payment.id });
+    assert.equal(before.orderRecoveryStatus, 'recovering');
+    assert.equal(before.recoveryAction, 'wait');
+
+    await listOrders({ prisma, ownerUserId: owner });
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: fixture.payment.id } }), 0);
+
+    const recoveryJob = await prisma.job.findUniqueOrThrow({ where: { job_owner_type_idempotency_key: {
+      ownerUserId: owner, type: 'order_recovery', idempotencyKey: fixture.payment.id,
+    } } });
+    await prisma.job.update({ where: { id: recoveryJob.id }, data: {
+      status: 'failed', attemptCount: recoveryJob.maxAttempts, errorClass: 'retryable',
+      errorDetail: { code: 'order_insert_failed', message: 'injected durable recovery failure' }, finishedAt: new Date(),
+    } });
+    const failed = await getPaymentIntent({ prisma, ownerUserId: owner, paymentIntentId: fixture.payment.id });
+    assert.equal(failed.orderRecoveryStatus, 'failed');
+    assert.equal(failed.recoveryAction, 'contact_support');
+
+    const queue = await listAdminPaymentAttention({ prisma, actorUserId: adminId });
+    const item = queue.find(({ paymentIntent }) => paymentIntent.id === fixture.payment.id);
+    assert.ok(item);
+    assert.equal(item.recoveryJob.status, 'failed');
+    assert.equal(item.recoveryJob.errorClass, 'retryable');
+    assert.equal(item.recoveryJob.errorDetail.code, 'order_insert_failed');
   });
 
   test('order reads are owner-scoped and server snapshots are immutable', async () => {

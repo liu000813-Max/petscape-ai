@@ -19,7 +19,7 @@ PetScape 把原创宠物空间物品从想法推进到 3D 确认、制作与安�
 | 领域语义、数据库或 API 契约 | [领域词典](docs/context/glossary.md) → [schema](packages/server/prisma/schema.prisma) / [migrations](packages/server/prisma/migrations/) → [contracts](packages/server/src/contracts/) |
 | 原型吸收或旧路径退役 | [prototype retirement ledger](docs/governance/prototype-retirement-ledger.md)，再核对当前 consumer；不要从旧计划推断现状 |
 | 部署、迁移、回滚、云资源 | [ADR-0001](docs/decisions/0001-deployment-runtime.md) → [workflows](.github/workflows/) 与 [deploy](deploy/) → 对应 [运行 receipt](docs/operations/) |
-| 测试、行为验收、完成声明 | [工程约束](docs/governance/engineering-conventions.md) → [CI](.github/workflows/ci.yml) 与受影响包的脚本/目录级说明 → 对应行为证据 |
+| 测试、行为验收、完成声明 | [工程约束](docs/governance/engineering-conventions.md) → 根验证入口 `pnpm validate:payment-recovery` / `pnpm validate:docs` → [CI](.github/workflows/ci.yml) → 对应行为证据 |
 
 完整文档分流规则见 [docs/README.md](docs/README.md)。正式代码还应遵守目录级说明；改 `packages/server` 先读 [packages/server/CLAUDE.md](packages/server/CLAUDE.md)。
 

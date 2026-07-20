@@ -162,18 +162,7 @@ export async function ensureOrderForSucceededPayment({ prisma, paymentIntentId }
   throw new Error('订单并发恢复失败');
 }
 
-async function recoverOwnerOrders(prisma: PrismaClient, ownerUserId: string) {
-  const missing = await prisma.paymentIntent.findMany({
-    where: { ownerUserId, status: 'succeeded', order: null },
-    select: { id: true },
-    orderBy: { createdAt: 'asc' },
-    take: 10,
-  });
-  await Promise.allSettled(missing.map(({ id }) => ensureOrderForSucceededPayment({ prisma, paymentIntentId: id })));
-}
-
 export async function listOrders({ prisma, ownerUserId }: { prisma: PrismaClient; ownerUserId: string }) {
-  await recoverOwnerOrders(prisma, ownerUserId);
   const rows = await prisma.order.findMany({
     where: { ownerUserId },
     include: { history: { orderBy: { sequence: 'asc' } } },

@@ -9,6 +9,7 @@ import {
   B7_SANDBOX_SCENE_CONFIRMATION_ID,
   acceptQuote,
   bootstrapFirstAdmin,
+  changeUserRole,
   completeCheckRun,
   createCheckRun,
   createCustomizationRequest,
@@ -286,6 +287,8 @@ test('accepts a quote, confirms checkout, retries sandbox payment, and hands suc
     const list = await api(page, '/api/v1/commerce/payment-intents');
     const intent = list.body.paymentIntents.find((item) => item.quoteId === quote.id);
     assert.equal(intent.status, 'succeeded');
+    assert.equal(intent.orderRecoveryStatus, 'order_created');
+    assert.equal(intent.recoveryAction, 'view_order');
     assert.equal(intent.amountCent, quote.amountCent);
     assert.equal(intent.attempts.length, 2);
     assert.equal(await prisma.order.count({ where: { paymentIntentId: intent.id } }), 1);
@@ -293,6 +296,59 @@ test('accepts a quote, confirms checkout, retries sandbox payment, and hands suc
     await login(otherPage, PHONES[1]);
     const foreign = await api(otherPage, `/api/v1/commerce/payment-intents/${intent.id}`);
     assert.equal(foreign.status, 404);
+
+    const recoveryQuote = await eligibleFixture(me.body.userId, 'visible-order-recovery');
+    const recoveryIntent = await api(page, '/api/v1/commerce/payment-intents', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ quoteId: recoveryQuote.id, idempotencyKey: `payment-recovery-visible-${crypto.randomUUID()}` }),
+    });
+    assert.equal(recoveryIntent.status, 201);
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION e2e_block_order_insert() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'e2e injected order interruption'; END; $$ LANGUAGE plpgsql`);
+    await prisma.$executeRawUnsafe(`CREATE TRIGGER a_e2e_block_order_insert BEFORE INSERT ON "order" FOR EACH ROW EXECUTE FUNCTION e2e_block_order_insert()`);
+    try {
+      const interrupted = await api(page, `/api/v1/commerce/sandbox-payments/${recoveryIntent.body.attempts[0].id}/complete`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ result: 'succeeded' }),
+      });
+      assert.equal(interrupted.status, 500);
+    } finally {
+      await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS a_e2e_block_order_insert ON "order"`);
+      await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS e2e_block_order_insert()`);
+    }
+    await page.goto(`${BASE}/payments`);
+    await page.getByText('付款成功，正在补单').waitFor();
+    assert.equal((await api(page, '/api/v1/commerce/orders')).status, 200);
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: recoveryIntent.body.id } }), 0);
+    await page.screenshot({ path: `${DIR}/payment-recovery-order-recovering.png`, fullPage: true });
+
+    const recoveryJob = await prisma.job.findUniqueOrThrow({ where: { job_owner_type_idempotency_key: {
+      ownerUserId: me.body.userId, type: 'order_recovery', idempotencyKey: recoveryIntent.body.id,
+    } } });
+    await prisma.job.update({ where: { id: recoveryJob.id }, data: {
+      status: 'failed', attemptCount: recoveryJob.maxAttempts, errorClass: 'retryable',
+      errorDetail: { code: 'order_insert_failed', message: 'e2e injected durable recovery failure' }, finishedAt: new Date(),
+    } });
+    await page.reload();
+    await page.getByText('补单失败').waitFor();
+    await page.screenshot({ path: `${DIR}/payment-recovery-order-failed.png`, fullPage: true });
+    const failedIntent = (await api(page, `/api/v1/commerce/payment-intents/${recoveryIntent.body.id}`)).body;
+    assert.equal(failedIntent.orderRecoveryStatus, 'failed');
+    assert.equal(failedIntent.recoveryAction, 'contact_support');
+
+    const browserUser = await prisma.user.findUniqueOrThrow({ where: { id: me.body.userId }, select: { role: true } });
+    if (browserUser.role !== 'admin') {
+      const adminActor = await prisma.user.findFirstOrThrow({ where: { role: 'admin' }, select: { id: true } });
+      await changeUserRole({
+        prisma,
+        actorUserId: adminActor.id,
+        targetUserId: me.body.userId,
+        input: { role: 'admin', expectedRole: 'user', reason: 'payment recovery browser evidence' },
+      });
+    }
+    await page.goto(`${BASE}/admin/payments`);
+    const adminItem = page.locator('article', { hasText: recoveryIntent.body.id });
+    await adminItem.getByText('补单失败').first().waitFor();
+    await adminItem.getByText('retryable').waitFor();
+    await page.screenshot({ path: `${DIR}/payment-recovery-admin-job-failed.png`, fullPage: true });
   } finally {
     await context.close();
     await otherContext.close();
