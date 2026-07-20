@@ -68,6 +68,8 @@ jobs:
           build-args: |
             GIT_SHA=${{ needs.resolve.outputs.target_sha }}
           tags: ${{ secrets.ACR_REGISTRY }}/petscape/web:${{ needs.resolve.outputs.target_sha }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
 
       - name: Build & push worker image
         uses: docker/build-push-action@v6
@@ -77,6 +79,9 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ secrets.ACR_REGISTRY }}/petscape/worker:${{ needs.resolve.outputs.target_sha }}
+          # scope=worker 复用 ci.yml 在同一 SHA 上刚构建过的层缓存
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
 
   deploy:
     needs: [resolve, build-and-push]
