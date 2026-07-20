@@ -2,10 +2,26 @@
 
 本目录存放决策、执行材料和行为证据。产品与架构正本在仓库根：`PetScape-PRD.md` 负责产品承诺，`ARCHITECTURE.md` 负责系统边界与数据归属，`PRODUCT-MODULES.md` 负责能力地图与依赖。当前实现事实回到 schema、contracts、tests、CI 和运行证据，不由本索引复述。
 
+## 按任务读取
+
+| 要回答的问题 | 必读正本 | 继续核对 |
+|---|---|---|
+| 产品承诺什么，哪些仍待确认 | [PetScape-PRD.md](../PetScape-PRD.md) | [PRODUCT-MODULES.md](../PRODUCT-MODULES.md) 的能力与依赖 |
+| 系统如何分层，谁拥有数据 | [ARCHITECTURE.md](../ARCHITECTURE.md) | 相关 [ADR](decisions/) 与当前代码 |
+| 一个领域名词承诺什么 | [领域词典](context/glossary.md) | schema、contract 与调用方；词典不定义字段 |
+| 数据库目前实现了什么 | [Prisma schema](../packages/server/prisma/schema.prisma) | [migrations](../packages/server/prisma/migrations/)、集成测试和真实数据库 evidence |
+| API 或跨进程输入目前长什么样 | [Zod contracts](../packages/server/src/contracts/) | Route Handler、应用层、调用方和契约测试 |
+| 旧原型是否可以删除 | [prototype retirement ledger](governance/prototype-retirement-ledger.md) | 当前 import、路由、consumer 和行为回归证据 |
+| 如何部署、迁移或回滚 | [ADR-0001](decisions/0001-deployment-runtime.md) | [workflows](../.github/workflows/)、[deploy](../deploy/) 与对应运行 receipt |
+| 一项工作是否已经完成 | 当前 Spec/Ticket 的验收终点 | tests、CI、exact SHA、真实依赖行为与 `operations/` / `evidence/` receipt |
+
+只读最少的一组正本即可开始；需要证明当前状态时再下钻到实现和证据。会议、历史计划和归档只能解释来源，不能替代正本或当前行为。
+
 ## 子目录角色
 
 | 目录 | 角色 | 性质 |
 |---|---|---|
+| context/ | 少量稳定领域语义与跨模块上下文 | 语义入口；不复制字段、接口或进度 |
 | decisions/ | ADR：技术选型的决定、理由、放弃的备选、代价与验证条件 | 正本；修订注明日期，不删旧文 |
 | governance/ | 治理决策：Phase A 清单、目录结构方案、工程约定 | 决策记录 |
 | plans/ | 现有批次计划、工作包序列与 kickoff brief | 只有文件头明确标为 active 的计划才是当前执行入口；完成或部分完成后必须写回状态 |
