@@ -7,12 +7,15 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import {
   B7_SANDBOX_SCENE_CONFIRMATION_ID,
+  acceptQuote,
   bootstrapFirstAdmin,
   completeCheckRun,
   createCheckRun,
   createCustomizationRequest,
   createQuote,
   createSandboxEstimateJob,
+  confirmDeliveryAddress,
+  saveDeliveryAddress,
   startCheckRun,
 } from '../../packages/server/src/application/index.ts';
 import { createPrismaClient } from '../../packages/server/src/infra/db/index.ts';
@@ -22,7 +25,9 @@ const PORT = process.env.E2E_C3_PORT ?? '3428';
 const BASE = `http://127.0.0.1:${PORT}`;
 const DIR = fileURLToPath(new URL('../test-results/c3-payments/', import.meta.url));
 const phoneSeed = Number(BigInt(Date.now()) % 100000000n);
-const defaultPhones = `137${String(phoneSeed).padStart(8, '0')},137${String((phoneSeed + 1) % 100000000).padStart(8, '0')}`;
+const defaultPhones = [0, 1, 2]
+  .map((offset) => `137${String((phoneSeed + offset) % 100000000).padStart(8, '0')}`)
+  .join(',');
 const PHONES = (process.env.E2E_C3_PHONES ?? defaultPhones).split(',');
 
 if (!process.env.DATABASE_URL) throw new Error('C3 browser e2e 需要 PostgreSQL');
@@ -163,6 +168,25 @@ async function fixture(ownerUserId) {
   })).quote;
 }
 
+async function eligibleFixture(ownerUserId, key) {
+  let quote = await fixture(ownerUserId);
+  quote = await acceptQuote({ prisma, ownerUserId, quoteId: quote.id, input: { expectedStatus: 'active' } });
+  const saved = await saveDeliveryAddress({ prisma, ownerUserId, input: {
+    quoteId: quote.id,
+    recipientName: '支付恢复收件人',
+    mobile: '13800138000',
+    province: '浙江省',
+    city: '杭州市',
+    district: '余杭区',
+    detail: `支付恢复 ${key} 地址`,
+    postalCode: '311100',
+  } });
+  await confirmDeliveryAddress({
+    prisma, ownerUserId, addressId: saved.deliveryAddress.id, input: { expectedVersion: saved.deliveryAddress.version },
+  });
+  return quote;
+}
+
 test.before(async () => {
   await mkdir(DIR, { recursive: true });
   child = spawn('pnpm', ['exec', 'next', 'dev', '--webpack', '-H', '127.0.0.1', '-p', PORT], {
@@ -277,5 +301,44 @@ test('accepts a quote, confirms checkout, retries sandbox payment, and hands suc
   } finally {
     await context.close();
     await otherContext.close();
+  }
+});
+
+test('shows a machine-readable reason when an older payment attempt succeeds late', async () => {
+  assert.equal((await fetch(`${BASE}/api/v1/admin/payment-attention`)).status, 401);
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  try {
+    await login(page, PHONES[2]);
+    assert.equal((await api(page, '/api/v1/admin/payment-attention')).status, 403);
+    const me = await api(page, '/api/me');
+    const quote = await eligibleFixture(me.body.userId, 'late-success');
+    const created = await api(page, '/api/v1/commerce/payment-intents', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ quoteId: quote.id, idempotencyKey: `payment-recovery-${crypto.randomUUID()}` }),
+    });
+    assert.equal(created.status, 201);
+    const oldAttempt = created.body.attempts[0];
+    assert.ok(oldAttempt);
+    assert.equal((await api(page, `/api/v1/commerce/sandbox-payments/${oldAttempt.id}/complete`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ result: 'failed' }),
+    })).status, 200);
+    assert.equal((await api(page, `/api/v1/commerce/payment-intents/${created.body.id}/retry`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ expectedStatus: 'failed' }),
+    })).status, 200);
+    const late = await api(page, `/api/v1/commerce/sandbox-payments/${oldAttempt.id}/complete`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ result: 'succeeded' }),
+    });
+    assert.equal(late.status, 200);
+    assert.equal(late.body.status, 'needs_attention');
+    assert.equal(late.body.attentionCode, 'stale_succeeded_attempt');
+
+    await page.goto(`${BASE}/payments`);
+    await page.getByText('旧支付尝试迟到成功').waitFor();
+    await page.getByText('stale_succeeded_attempt').waitFor();
+    await page.screenshot({ path: `${DIR}/payment-recovery-stale-success-attention.png`, fullPage: true });
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: created.body.id } }), 0);
+  } finally {
+    await context.close();
   }
 });

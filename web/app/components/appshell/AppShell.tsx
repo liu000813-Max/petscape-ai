@@ -40,7 +40,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
             <Link className="psx-navitem" href="/orders">
               沙箱订单
             </Link>
-            {user.isAdmin ? <Link className="psx-navitem" href="/admin/reviews">审核台</Link> : null}
+            {user.isAdmin ? <><Link className="psx-navitem" href="/admin/reviews">审核台</Link><Link className="psx-navitem" href="/admin/payments">支付异常</Link></> : null}
           </nav>
         </div>
         <Link className="psx-account-pill" href="/account">

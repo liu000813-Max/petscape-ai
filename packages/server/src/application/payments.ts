@@ -16,6 +16,7 @@ import { PaymentProviderDisabledError, type PaymentProviderPort } from './paymen
 import { ORDER_RECOVERY_JOB_TYPE, ensureOrderForSucceededPayment } from './orders.ts';
 import { createJob } from '../infra/jobs/index.ts';
 import { isSerializableTransactionConflict, withSerializableTransactionRetry } from './transaction-retry.ts';
+import { AdminRequiredError } from './check-runs.ts';
 
 export class PaymentConflictError extends Error {
   constructor(message: string) { super(message); this.name = 'PaymentConflictError'; }
@@ -58,6 +59,7 @@ function toResponse(row: IntentWithAttempts): PaymentIntentResponse {
     provider: row.provider,
     sandboxOnly: row.sandboxOnly,
     status: row.status,
+    attentionCode: row.status === 'needs_attention' ? row.attentionCode ?? 'unspecified' : null,
     label: '沙箱支付（不会发生真实扣款或成交）',
     attempts: row.attempts.map((attempt) => ({
       id: attempt.id,
@@ -192,6 +194,20 @@ export async function listPaymentIntents({ prisma, ownerUserId }: { prisma: Pris
   return rows.map((row) => toResponse(row as unknown as IntentWithAttempts));
 }
 
+export async function listAdminPaymentAttention({ prisma, actorUserId }: { prisma: PrismaClient; actorUserId: string }) {
+  const actor = await prisma.user.findUnique({ where: { id: actorUserId }, select: { role: true } });
+  if (actor?.role !== 'admin') throw new AdminRequiredError();
+  const rows = await prisma.paymentIntent.findMany({
+    where: { status: 'needs_attention' },
+    include: { attempts: { orderBy: { attemptNo: 'asc' } } },
+    orderBy: [{ needsAttentionAt: 'desc' }, { updatedAt: 'desc' }],
+  });
+  return rows.map((row) => ({
+    ownerUserId: row.ownerUserId,
+    paymentIntent: toResponse(row as unknown as IntentWithAttempts),
+  }));
+}
+
 export async function getPaymentIntent({ prisma, ownerUserId, paymentIntentId }: {
   prisma: PrismaClient; ownerUserId: string; paymentIntentId: string;
 }) {
@@ -245,10 +261,10 @@ export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymen
 }
 
 function intentStateData(status: ProviderEvent['status'], occurredAt: Date) {
-  if (status === 'succeeded') return { status, succeededAt: occurredAt, failedAt: null, canceledAt: null, needsAttentionAt: null };
-  if (status === 'failed') return { status, succeededAt: null, failedAt: occurredAt, canceledAt: null, needsAttentionAt: null };
-  if (status === 'canceled') return { status, succeededAt: null, failedAt: null, canceledAt: occurredAt, needsAttentionAt: null };
-  return { status, succeededAt: null, failedAt: null, canceledAt: null, needsAttentionAt: null };
+  if (status === 'succeeded') return { status, attentionCode: null, succeededAt: occurredAt, failedAt: null, canceledAt: null, needsAttentionAt: null };
+  if (status === 'failed') return { status, attentionCode: null, succeededAt: null, failedAt: occurredAt, canceledAt: null, needsAttentionAt: null };
+  if (status === 'canceled') return { status, attentionCode: null, succeededAt: null, failedAt: null, canceledAt: occurredAt, needsAttentionAt: null };
+  return { status, attentionCode: null, succeededAt: null, failedAt: null, canceledAt: null, needsAttentionAt: null };
 }
 
 function canApplyAttemptStatus(current: string, next: ProviderEvent['status']) {
@@ -277,13 +293,23 @@ async function applyVerifiedEvent(
       const intent = await tx.paymentIntent.findUniqueOrThrow({ where: { id: attempt.paymentIntentId }, include: { attempts: true } });
       const occurredAt = new Date(event.occurredAt);
       let processingResult: 'applied' | 'ignored_stale' | 'needs_attention' = 'applied';
+      let attentionCode: 'amount_mismatch' | 'stale_succeeded_attempt' | 'provider_state_conflict' | null = null;
       const moneyMismatch = event.amountCent !== intent.amountCent || event.currency !== intent.currency;
       const intentTerminal = ['succeeded', 'canceled', 'needs_attention'].includes(intent.status);
       const stale = intentTerminal || !canApplyAttemptStatus(attempt.status, event.status) ||
         (attempt.lastEventAt !== null && occurredAt <= attempt.lastEventAt);
       const latestNo = Math.max(...intent.attempts.map((item) => item.attemptNo));
-      if (moneyMismatch) processingResult = 'needs_attention';
-      else if (stale || attempt.attemptNo !== latestNo) processingResult = 'ignored_stale';
+      if (moneyMismatch) {
+        processingResult = 'needs_attention';
+        attentionCode = 'amount_mismatch';
+      } else if (event.status === 'succeeded' && attempt.attemptNo !== latestNo) {
+        processingResult = 'needs_attention';
+        attentionCode = 'stale_succeeded_attempt';
+      } else if (event.status === 'succeeded' && intent.status !== 'succeeded' &&
+        (intentTerminal || !canApplyAttemptStatus(attempt.status, event.status))) {
+        processingResult = 'needs_attention';
+        attentionCode = 'provider_state_conflict';
+      } else if (stale || attempt.attemptNo !== latestNo) processingResult = 'ignored_stale';
 
       await tx.$queryRaw<Array<{ set_config: string }>>`
         SELECT set_config('petscape.payment_event_proof', ${persistenceProof}, true)
@@ -307,8 +333,8 @@ async function applyVerifiedEvent(
       } });
 
       if (processingResult === 'needs_attention') {
-        if (intent.status !== 'succeeded') await tx.paymentIntent.update({ where: { id: intent.id }, data: {
-          status: 'needs_attention', succeededAt: null, failedAt: null, canceledAt: null, needsAttentionAt: occurredAt,
+        await tx.paymentIntent.update({ where: { id: intent.id }, data: {
+          status: 'needs_attention', attentionCode, succeededAt: null, failedAt: null, canceledAt: null, needsAttentionAt: occurredAt,
           lastAppliedEventId: storedEvent.id,
         } });
       } else if (processingResult === 'applied') {

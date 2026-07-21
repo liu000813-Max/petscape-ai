@@ -1,6 +1,6 @@
 # Ticket 1：异常不静默
 
-- 状态：Ready
+- 状态：Done（实现 `2d6e82d18611e51e0e24412b6059c945fc3851fd`；[行为证据](../../evidence/payment-recovery/ticket-1/README.md)）
 - 前置：[支付异常恢复 Spec](README.md)
 - 证据目录：`docs/evidence/payment-recovery/ticket-1/`
 

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  AdminPaymentAttentionListResponseSchema,
   CreatePaymentIntentSchema,
   PaymentIntentResponseSchema,
   ProviderEventSchema,
@@ -35,14 +36,41 @@ test('payment response stays visibly sandbox and never calls itself an order', (
   const value = PaymentIntentResponseSchema.parse({
     id: 'pi-1', quoteId: 'quote-1', deliveryAddressId: 'address-1', deliveryAddressVersion: 2,
     amountCent: 33000, currency: 'CNY', mode: 'sandbox_test', provider: 'sandbox', sandboxOnly: true,
-    status: 'requires_action', label: '沙箱支付（不会发生真实扣款或成交）',
+    status: 'requires_action', attentionCode: null, label: '沙箱支付（不会发生真实扣款或成交）',
     attempts: [{ id: 'attempt-1', attemptNo: 1, provider: 'sandbox', providerPaymentId: 'sandbox-pi-1-1',
       status: 'requires_action', actionUrl: '/sandbox-pay/attempt-1', failureCode: null, failureMessage: null,
       createdAt: now, resolvedAt: null }],
     succeededAt: null, failedAt: null, canceledAt: null, needsAttentionAt: null, createdAt: now, updatedAt: now,
   });
   assert.equal(value.sandboxOnly, true);
+  assert.equal(value.attentionCode, null);
   assert.equal('orderId' in value, false);
+});
+
+test('payment response exposes stable machine-readable attention reasons', () => {
+  const now = new Date().toISOString();
+  const base = {
+    id: 'pi-attention', quoteId: 'quote-1', deliveryAddressId: 'address-1', deliveryAddressVersion: 1,
+    amountCent: 33000, currency: 'CNY', mode: 'sandbox_test', provider: 'sandbox', sandboxOnly: true,
+    status: 'needs_attention', label: '沙箱支付（不会发生真实扣款或成交）', attempts: [],
+    succeededAt: null, failedAt: null, canceledAt: null, needsAttentionAt: now, createdAt: now, updatedAt: now,
+  };
+  for (const attentionCode of ['amount_mismatch', 'stale_succeeded_attempt', 'provider_state_conflict', 'unspecified']) {
+    assert.equal(PaymentIntentResponseSchema.parse({ ...base, attentionCode }).attentionCode, attentionCode);
+  }
+  assert.throws(() => PaymentIntentResponseSchema.parse({ ...base, attentionCode: 'free-form-message' }));
+});
+
+test('admin attention queue is read-only response data with the same payment contract', () => {
+  const now = new Date().toISOString();
+  const paymentIntent = {
+    id: 'pi-attention', quoteId: 'quote-1', deliveryAddressId: 'address-1', deliveryAddressVersion: 1,
+    amountCent: 33000, currency: 'CNY', mode: 'sandbox_test', provider: 'sandbox', sandboxOnly: true,
+    status: 'needs_attention', attentionCode: 'amount_mismatch', label: '沙箱支付（不会发生真实扣款或成交）', attempts: [],
+    succeededAt: null, failedAt: null, canceledAt: null, needsAttentionAt: now, createdAt: now, updatedAt: now,
+  };
+  const value = AdminPaymentAttentionListResponseSchema.parse({ items: [{ ownerUserId: 'user-1', paymentIntent }] });
+  assert.equal(value.items[0].paymentIntent.attentionCode, 'amount_mismatch');
 });
 
 test('sandbox provider is fail-closed in production', () => {

@@ -169,7 +169,9 @@ if (!databaseUrl) {
       amountCent: fixture.quote.amountCent - 100,
     });
     await ingestPaymentEvent({ prisma, provider, rawBody: mismatch.rawBody, signature: mismatch.signature });
-    assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { id: fixture.payment.id } })).status, 'needs_attention');
+    const attention = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: fixture.payment.id } });
+    assert.equal(attention.status, 'needs_attention');
+    assert.equal(attention.attentionCode, 'amount_mismatch');
     assert.equal(await prisma.order.count({ where: { paymentIntentId: fixture.payment.id } }), 0);
     assert.equal(await prisma.job.count({ where: { type: 'order_recovery', idempotencyKey: fixture.payment.id } }), 0);
   });

@@ -125,6 +125,7 @@ export {
   createPaymentIntent,
   getPaymentIntent,
   ingestPaymentEvent,
+  listAdminPaymentAttention,
   listPaymentIntents,
   reconcilePaymentIntent,
   retryPaymentIntent,
