@@ -10,7 +10,8 @@
 
 | 部件 | 归属模块 | 退役条件 | 状态 |
 |---|---|---|---|
-| `app/api/project/route.ts` + `[id]/route.ts` | B1 设计项目 | landing 的项目创建/恢复切到 v1 项目 API | 在役 |
+| `app/api/project/route.ts`（POST 创建） | B1 设计项目 | landing 的项目创建切到 v1 项目 API | 已退役（WP-G1，文件已删除，唯一消费方 landing boot() 已切 `POST /api/v1/projects`） |
+| `app/api/project/[id]/route.ts`（GET） | B1 设计项目 | landing 不再用它做「项目身份」创建/恢复（WP-G1 已完成，改用 `GET /api/v1/projects/:id`）；仍是 vibe/avatar/avatar-slice 未迁段任务状态轮询的唯一入口（`EnvironmentPreviewSection`/`PetCreatorSection`/`ManufacturingSection`/`OrderFlowSection`/`RenderSection` 消费），G3/G5 迁走对应任务后才能整体退役 | 在役（角色收窄：从「项目身份源」降级为「未迁段任务状态轮询源」，惰性按 v1 projectId 建内存镜像，见 `lib/store/projects.ts#getOrCreateProject`） |
 | `app/api/project/[id]/upload/route.ts` | B2 空间设计 | 上传走 OSS 私有资产链（WP-3.2 已有基座） | 在役 |
 | `app/api/project/[id]/vibe/route.ts` + `app/api/vibe/rewrite/route.ts` | B2 空间设计 | vibe 生成迁任务表 + worker handler | 在役 |
 | `app/api/project/[id]/avatar/route.ts` | B4 3D 模型生成 | 3D 生成迁任务表 + worker handler | 在役 |
@@ -36,7 +37,7 @@
 
 | 部件 | 归属模块 | 退役条件 | 状态 |
 |---|---|---|---|
-| `app/page.jsx`（landing，唯一 active 页面；fetch 旧 `/api/project`） | A3（登录入口接入）+ B1（项目引导切 v1） | B1/B2 将项目和生成数据源切到正式链；landing 视觉零回归约束不随退役消失 | 吸收中（登录入口已接入，旧项目 API 仍在役） |
+| `app/page.jsx`（landing，唯一 active 页面） | A3（登录入口接入）+ B1（项目引导切 v1） | B2 将上传/生成数据源切到正式链；landing 视觉零回归约束不随退役消失 | 吸收中（登录入口已接入；项目创建/恢复与生成流程登录门禁已切 v1，WP-G1；brief 详情字段与 vibe/avatar 未迁段任务态仍读写旧 `app/api/project/[id]` GET/upload/vibe/avatar，G2/G3/G5 范围） |
 | `app/components/landing/`（22 文件，设计师像素定稿） | 各 B 模块 UI | 不整体退役；正式站 UI 以其视觉语言为基准延展 | 在役 |
 | `app/components/landing/PetCreatorSection.jsx`（匿名页内存档案表单） | A4（档案语义）+ B1/B2（旧项目入口） | A4 正式 `/pets` 已吸收长期档案语义；待 B1/B2 将 landing 切到正式 Pet/Project 数据流后删除旧表单状态 | 吸收中（A4 语义已吸收，旧入口仍在役） |
 | `app/components/PetViewer.tsx` + `app/components/SceneViewer.tsx` + `assetIndex.ts` | B5 尺寸与空间确认 | landing 不再消费这组旧组件；正式 Viewer 的存在本身不等于旧 consumer 已退出 | 吸收中（正式 Viewer 已落地，landing consumer 仍在役） |

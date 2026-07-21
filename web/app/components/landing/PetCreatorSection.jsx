@@ -51,6 +51,7 @@ export function PetCreatorSection({
   sectionRef,
   projectId,
   mockMode,
+  authenticated,
 }) {
   const selectedWearableItems = wearableItems.filter((item) => selectedWearables.includes(item.id));
   const wearableTotal = selectedWearableItems.reduce(
@@ -233,7 +234,23 @@ export function PetCreatorSection({
           color: rgba(255,255,255,0.7); font-size: 13px; pointer-events: none;
         }
         .pet-viewer-overlay--error { color: #ffb3b3; padding: 24px; text-align: center; }
+        .creator-auth-gate {
+          display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          margin: 0 0 18px; padding: 12px 18px; border-radius: 999px;
+          background: var(--soft); border: 1px solid var(--line);
+          color: rgba(0,0,0,0.72); font-size: 13px;
+        }
+        .creator-auth-gate a {
+          padding: 7px 16px; border-radius: 999px; background: #000; color: #fff;
+          font-size: 12.5px; font-weight: 500; text-decoration: none; white-space: nowrap;
+        }
       `}</style>
+      {authenticated === false && (
+        <div className="creator-auth-gate">
+          <span>登录后即可上传照片、生成专属宠物形象</span>
+          <a href="/login">登录</a>
+        </div>
+      )}
       <div className="creator-copy">
         <span className="eyebrow">创建专属宠物档案</span>
         <h2>上传你的爱宠照片和信息，同步赛博云宠，快来装扮你的爱宠吧。</h2>

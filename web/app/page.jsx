@@ -162,31 +162,51 @@ export default function App() {
   // 接驳层（批次0.5，主控维护）：projectId + mockMode 是后端批次的统一入口，App 此后冻结。
   const [projectId, setProjectId] = useState(null);
   const [mockMode, setMockMode] = useState(false);
+  // WP-G1：登录态门禁——生成流程（建项目/上传/生成）需要登录，landing 浏览本身不需要。
+  // null=探测中，false=未登录，true=已登录。
+  const [authenticated, setAuthenticated] = useState(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setMockMode(params.has('mock'));
     const existing = params.get('project');
+    const writeProjectParam = (id) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('project', id);
+      window.history.replaceState(null, '', url);
+    };
     const boot = async () => {
-      // demo 双轨：?project=<id> 恢复已有项目（预生成的第二轨），无效或缺省则新建。
+      // WP-G1：先探测登录态（既有 A1 会话端点）；未登录不建立项目，landing 仍可浏览。
+      const me = await fetch('/api/me');
+      if (!me.ok) {
+        setAuthenticated(false);
+        setProjectId(null);
+        return;
+      }
+      setAuthenticated(true);
+
+      // 项目身份走 v1（/api/v1/projects，Postgres 持久化，进程重启不丢）。
       if (existing) {
-        const res = await fetch(`/api/project/${existing}`);
+        const res = await fetch(`/api/v1/projects/${existing}`);
         if (res.ok) {
-          const proj = await res.json();
-          if (proj?.brief?.species && species.some((item) => item.id === proj.brief.species)) {
-            setSelectedSpeciesId(proj.brief.species);
-          }
-          if (proj?.brief?.petName) setPetName(proj.brief.petName);
-          if (proj?.brief?.petSize && !Number.isNaN(Number(proj.brief.petSize))) {
-            setPetSize(Number(proj.brief.petSize));
-          }
-          if (proj?.brief?.petPhotoUrl) setPetImageUrl(proj.brief.petPhotoUrl);
-          if (proj?.avatar?.status === 'done') setAvatarGenerated(true); // 舞台直接进 GLB 态
           setProjectId(existing);
+          // brief 详情字段（species/petName/petSize/petPhotoUrl）与 avatar 任务态仍是
+          // 未迁段状态（内存 store，见 §一.6），走旧 GET 兜底读取用于恢复表单展示。
+          const legacy = await fetch(`/api/project/${existing}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+          if (legacy?.brief?.species && species.some((item) => item.id === legacy.brief.species)) {
+            setSelectedSpeciesId(legacy.brief.species);
+          }
+          if (legacy?.brief?.petName) setPetName(legacy.brief.petName);
+          if (legacy?.brief?.petSize && !Number.isNaN(Number(legacy.brief.petSize))) {
+            setPetSize(Number(legacy.brief.petSize));
+          }
+          if (legacy?.brief?.petPhotoUrl) setPetImageUrl(legacy.brief.petPhotoUrl);
+          if (legacy?.avatar?.status === 'done') setAvatarGenerated(true); // 舞台直接进 GLB 态
           return;
         }
       }
-      const res = await fetch('/api/project', { method: 'POST' });
+      const res = await fetch('/api/v1/projects', { method: 'POST' });
       const project = await res.json();
+      writeProjectParam(project.id);
       setProjectId(project.id);
     };
     boot().catch(() => setProjectId(null));
@@ -238,5 +258,5 @@ export default function App() {
   const handlePetImageUpload = image => { if (petImageUrl?.startsWith('blob:')) URL.revokeObjectURL(petImageUrl); if (!image) { setPetImageUrl(''); return; } setPetImageUrl(typeof image === 'string' ? image : URL.createObjectURL(image)); setAvatarGenerated(false); };
   const handleGenerateAvatar = () => { setAvatarGenerated(true); setAvatarRotation(32); };
   // WP-A1 最小解冻：landing 右上角登录入口（唯一新增，样式见 components/login-entry.css）
-  return <main><section className="hero-shell"><Navbar onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} onLogoClick={scrollToTop} /><a className="psx-landing-login" href="/login"><span className="psx-landing-login-circle"><UserRound size={14} strokeWidth={2.25} /></span><span>登录</span></a><motion.div className="video-wrap" initial={false} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.8, ease }}><video className="hero-video" src="/assets/hero-mouse.mp4" poster="/assets/hero-mouse-poster.jpeg" autoPlay muted playsInline loop /></motion.div><HeroFooter onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} /><DetailDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} /></section><SpeciesShowcase selectedSpeciesId={selectedSpeciesId} onSelectSpecies={setSelectedSpeciesId} onAddPet={scrollToPetCreator} /><PetCreatorSection sectionRef={petCreatorRef} selectedSpecies={selectedSpecies} onSelectSpecies={setSelectedSpeciesId} petName={petName} onPetNameChange={setPetName} petAge={petAge} onPetAgeChange={setPetAge} petSize={petSize} onPetSizeChange={setPetSize} petImageUrl={petImageUrl} onPetImageUpload={handlePetImageUpload} avatarGenerated={avatarGenerated} onGenerateAvatar={handleGenerateAvatar} onAvatarGeneratedChange={setAvatarGenerated} avatarRotation={avatarRotation} onAvatarRotationChange={setAvatarRotation} selectedWearables={selectedWearables} onToggleWearable={toggleWearable} projectId={projectId} mockMode={mockMode} /><IntroSection projectId={projectId} petImageUrl={petImageUrl} onPetImageUpload={handlePetImageUpload} petName={petName} petAge={petAge} selectedSpecies={selectedSpecies} petSize={petSize} /><ModuleCommunitySection selectedIds={selectedIds} onAddSceneItem={addSceneItem} marketRef={moduleMarketRef} selectedSpeciesId={selectedSpeciesId} /><EnvironmentPreviewSection availableModules={availableModules} selectedIds={selectedIds} selectedModules={selectedModules} sceneItems={sceneItems} focusedInstanceId={focusedSceneInstanceId} onSceneItemsChange={updateSceneItems} onToggleModule={toggleSceneModule} onRemoveModule={removeSceneModule} projectId={projectId} mockMode={mockMode} /><UploadVibeSection projectId={projectId} mockMode={mockMode} petImageUrl={petImageUrl} selectedSpecies={selectedSpecies} /><RenderSection projectId={projectId} mockMode={mockMode} /><ScenePackSection selectedIds={selectedIds} onApplyScenePack={applyScenePack} /><ManufacturingSection projectId={projectId} mockMode={mockMode} petName={petName} petSize={petSize} selectedModules={selectedModules} /><MaterialSafetySection /><GiftSection /><OrderFlowSection projectId={projectId} petImageUrl={petImageUrl} avatarGenerated={avatarGenerated} selectedWearables={selectedWearables} selectedIds={selectedIds} /><FlipCards /></main>;
+  return <main><section className="hero-shell"><Navbar onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} onLogoClick={scrollToTop} /><a className="psx-landing-login" href="/login"><span className="psx-landing-login-circle"><UserRound size={14} strokeWidth={2.25} /></span><span>登录</span></a><motion.div className="video-wrap" initial={false} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.8, ease }}><video className="hero-video" src="/assets/hero-mouse.mp4" poster="/assets/hero-mouse-poster.jpeg" autoPlay muted playsInline loop /></motion.div><HeroFooter onOpen={() => setDrawerOpen(true)} onBrowseModules={scrollToModules} /><DetailDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} /></section><SpeciesShowcase selectedSpeciesId={selectedSpeciesId} onSelectSpecies={setSelectedSpeciesId} onAddPet={scrollToPetCreator} /><PetCreatorSection sectionRef={petCreatorRef} selectedSpecies={selectedSpecies} onSelectSpecies={setSelectedSpeciesId} petName={petName} onPetNameChange={setPetName} petAge={petAge} onPetAgeChange={setPetAge} petSize={petSize} onPetSizeChange={setPetSize} petImageUrl={petImageUrl} onPetImageUpload={handlePetImageUpload} avatarGenerated={avatarGenerated} onGenerateAvatar={handleGenerateAvatar} onAvatarGeneratedChange={setAvatarGenerated} avatarRotation={avatarRotation} onAvatarRotationChange={setAvatarRotation} selectedWearables={selectedWearables} onToggleWearable={toggleWearable} projectId={projectId} mockMode={mockMode} authenticated={authenticated} /><IntroSection projectId={projectId} petImageUrl={petImageUrl} onPetImageUpload={handlePetImageUpload} petName={petName} petAge={petAge} selectedSpecies={selectedSpecies} petSize={petSize} /><ModuleCommunitySection selectedIds={selectedIds} onAddSceneItem={addSceneItem} marketRef={moduleMarketRef} selectedSpeciesId={selectedSpeciesId} /><EnvironmentPreviewSection availableModules={availableModules} selectedIds={selectedIds} selectedModules={selectedModules} sceneItems={sceneItems} focusedInstanceId={focusedSceneInstanceId} onSceneItemsChange={updateSceneItems} onToggleModule={toggleSceneModule} onRemoveModule={removeSceneModule} projectId={projectId} mockMode={mockMode} /><UploadVibeSection projectId={projectId} mockMode={mockMode} petImageUrl={petImageUrl} selectedSpecies={selectedSpecies} /><RenderSection projectId={projectId} mockMode={mockMode} /><ScenePackSection selectedIds={selectedIds} onApplyScenePack={applyScenePack} /><ManufacturingSection projectId={projectId} mockMode={mockMode} petName={petName} petSize={petSize} selectedModules={selectedModules} /><MaterialSafetySection /><GiftSection /><OrderFlowSection projectId={projectId} petImageUrl={petImageUrl} avatarGenerated={avatarGenerated} selectedWearables={selectedWearables} selectedIds={selectedIds} /><FlipCards /></main>;
 }

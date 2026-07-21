@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
-import { getProject, touch } from '../../../../lib/store/projects';
+import { getOrCreateProject, touch } from '../../../../lib/store/projects';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,10 +28,12 @@ function extFor(file: File) {
 
 // POST /api/project/[id]/upload → multipart form-data { file, kind: 'pet'|'cage' }
 // 落 public/uploads/{projectId}/{kind}.{ext}，写回 brief.petPhotoUrl / brief.cagePhotoUrl，返回 {url}。
+//
+// WP-G1：id 现在是 v1 Project.id，本路由的内存态是「未迁段状态缓存」，惰性建镜像
+// （真实上传走 OSS 的迁移是 WP-G2 范围，本路由原样保留公开静态盘落盘行为）。
 export async function POST(request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
-  const project = getProject(id);
-  if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+  const project = getOrCreateProject(id);
 
   const form = await request.formData().catch(() => null);
   if (!form) return NextResponse.json({ error: '需要 multipart/form-data' }, { status: 400 });
