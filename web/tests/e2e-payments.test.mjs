@@ -68,13 +68,14 @@ async function ready() {
   throw new Error(log.slice(-4000));
 }
 
-async function otp(phone, offset) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+async function otp(phone, offset, timeoutMs = 30_000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
     const code = [...log.slice(offset).matchAll(new RegExp(`\\[SMS:log\\] OTP for \\+86${phone} => (\\d+)`, 'g'))].at(-1)?.[1];
     if (code) return code;
     await sleep(150);
   }
-  throw new Error('OTP missing');
+  throw new Error(`OTP missing for ${phone} after ${timeoutMs}ms\n${log.slice(-4000)}`);
 }
 
 async function login(page, phone) {
@@ -207,6 +208,10 @@ test('accepts a quote, confirms checkout, retries sandbox payment, and hands suc
   const otherContext = await browser.newContext();
   const page = await context.newPage();
   const otherPage = await otherContext.newPage();
+  // This flow visits several routes that Next compiles lazily on a clean CI
+  // runner. The assertions stay unchanged; only cold compilation gets room.
+  page.setDefaultTimeout(60_000);
+  page.setDefaultNavigationTimeout(60_000);
   try {
     await login(page, PHONES[0]);
     const me = await api(page, '/api/me');

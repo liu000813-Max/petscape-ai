@@ -5,50 +5,98 @@ on:
   push:
     branches: [main]
 
-# PR 上同分支的新 commit 会作废旧 run 的结论，直接取消以释放 runner；
-# main 的 push run 用 run_id 各自成组：既不取消也不互相排队，
-# 保持"每个 merge commit 都有独立完整 CI 结论"（deploy 依赖该结论）。
+# A newer commit invalidates an older conclusion for the same PR. Main runs
+# remain independent because Deploy consumes the exact successful main SHA.
 concurrency:
   group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+permissions:
+  contents: read
+
 jobs:
-  quality-gates:
+  classify-changes:
+    name: classify-changes
     runs-on: ubuntu-latest
-    services:
-      # CI 本地一次性 PostgreSQL，供 packages/server 集成测试真跑。
-      # 与生产 RDS 同为 PostgreSQL 16（版本证据见 docs/operations/phase-b-step-0-cloud-resources.md），
-      # 表结构由下方 migrate deploy 用同一份 prisma/migrations 建出，跑完即销毁。
-      # 纪律不变：不在 CI 注入任何 RDS/OSS 云凭证（assets 测试的 OSS 部分保持 skip）。
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: petscape_ci
-          POSTGRES_PASSWORD: petscape_ci
-          POSTGRES_DB: petscape_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U petscape_ci"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      runtime_changed: ${{ steps.classify.outputs.runtime_changed }}
+      deploy_required: ${{ steps.classify.outputs.deploy_required }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Whitespace check (PR range)
+      - name: Check whitespace across the complete change range
         shell: bash
         env:
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event.after }}
         run: |
-          if [[ -n "$PR_BASE_SHA" ]]; then
-            git diff --check "$PR_BASE_SHA...HEAD"
+          if [[ "$BASE_SHA" =~ ^0{40}$ ]]; then
+            git diff-tree --check --no-commit-id --root -r "$HEAD_SHA"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --check "$BASE_SHA...$HEAD_SHA"
           else
-            git diff-tree --check --no-commit-id --root -r HEAD
+            git diff --check "$BASE_SHA..$HEAD_SHA"
           fi
+
+      - name: Classify changed files fail-safe
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event.after }}
+          CLASSIFICATION_REF: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
+        run: >-
+          node .github/scripts/classify-changes.mjs
+          --event "$EVENT_NAME"
+          --base-sha "$BASE_SHA"
+          --head-sha "$HEAD_SHA"
+          --repository "$GITHUB_REPOSITORY"
+          --run-id "$GITHUB_RUN_ID"
+          --ref "$CLASSIFICATION_REF"
+          --output "$RUNNER_TEMP/release-classification.json"
+
+      - name: Upload main release classification
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-release-metadata-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-classification.json
+          if-no-files-found: error
+          retention-days: 1
+
+  docs-check:
+    name: docs-check
+    needs: classify-changes
+    if: needs.classify-changes.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm documentation-only route
+        env:
+          DOCS_ONLY: ${{ needs.classify-changes.outputs.docs_only }}
+          RUNTIME_CHANGED: ${{ needs.classify-changes.outputs.runtime_changed }}
+          DEPLOY_REQUIRED: ${{ needs.classify-changes.outputs.deploy_required }}
+        run: |
+          test "$DOCS_ONLY" = "true"
+          test "$RUNTIME_CHANGED" = "false"
+          test "$DEPLOY_REQUIRED" = "false"
+          echo "Documentation whitespace and classification checks passed."
+
+  static-and-unit:
+    name: static-and-unit
+    needs: classify-changes
+    if: needs.classify-changes.outputs.runtime_changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Enable corepack
         run: corepack enable
@@ -57,7 +105,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-          # key 取自 pnpm-lock.yaml 哈希：lockfile 一变即失效重装，miss 只退回全量下载
           cache: pnpm
 
       - name: Test production release safety invariants
@@ -69,14 +116,6 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Setup uv for real mesh analyzer tests
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: '0.8.12'
-          enable-cache: true
-
-      # Prisma client is a generated artifact (gitignored) that packages/server's
-      # own type-check depends on; must run before tsc. See packages/server/src/generated/.
       - name: Prisma generate (packages/server)
         run: pnpm --filter @petscape/server run db:generate
 
@@ -104,12 +143,59 @@ jobs:
       - name: Build web (production Next)
         run: pnpm --filter web run build
 
-      # 对一次性 PG 执行全部 migration：既为集成测试建表，
-      # 也让 migration 文件本身每次 CI 都被真实执行验证。
-      - name: Prisma migrate deploy (CI Postgres)
-        run: pnpm --filter @petscape/server run db:migrate:deploy
+  server-integration:
+    name: server-integration
+    needs: classify-changes
+    if: needs.classify-changes.outputs.runtime_changed == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
         env:
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+          POSTGRES_USER: petscape_ci
+          POSTGRES_PASSWORD: petscape_ci
+          POSTGRES_DB: petscape_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U petscape_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+      NODE_ENV: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Activate pnpm via packageManager
+        run: corepack prepare --activate
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup uv for real mesh analyzer tests
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.8.12'
+          enable-cache: true
+
+      - name: Generate Prisma client and apply migrations
+        run: |
+          pnpm --filter @petscape/server run db:generate
+          pnpm --filter @petscape/server run db:migrate:deploy
 
       - name: Generate ephemeral sandbox payment test secret
         shell: bash
@@ -120,19 +206,78 @@ jobs:
 
       - name: Configure sandbox payment trust in ephemeral CI Postgres
         run: pnpm --filter @petscape/server run db:configure:sandbox-payment-test
-        env:
-          NODE_ENV: test
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
 
-      - name: Test (packages/server)
-        # db/auth 集成测试对上方 CI 本地 PostgreSQL 真跑；assets 的 OSS 部分因
-        # 无云凭证保持 skip（纪律：云凭证不进 CI，RDS 仍在内网不可达）。
-        # 测试侧有守卫：CI 里缺 DATABASE_URL 会直接报错而非静默全 skip。
+      - name: Test (packages/server, real PostgreSQL)
         run: pnpm --filter @petscape/server run test
+
+      - name: Prisma validate (packages/server)
+        run: pnpm --filter @petscape/server exec prisma validate
+
+  business-e2e:
+    name: business-e2e-${{ matrix.shard }}
+    needs: classify-changes
+    if: needs.classify-changes.outputs.runtime_changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - request-profile-quote
+          - payment
+          - review-delivery-order
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
         env:
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
-          # 统一配置入口（infra/config）要求 NODE_ENV 为合法枚举值；GHA 默认不设。
+          POSTGRES_USER: petscape_ci
+          POSTGRES_PASSWORD: petscape_ci
+          POSTGRES_DB: petscape_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U petscape_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Activate pnpm via packageManager
+        run: corepack prepare --activate
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client and apply migrations
+        run: |
+          pnpm --filter @petscape/server run db:generate
+          pnpm --filter @petscape/server run db:migrate:deploy
+
+      - name: Generate ephemeral sandbox payment test secret
+        shell: bash
+        run: |
+          C3_TEST_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$C3_TEST_SECRET"
+          echo "SANDBOX_PAYMENT_SECRET=$C3_TEST_SECRET" >> "$GITHUB_ENV"
+
+      - name: Configure sandbox payment trust in ephemeral CI Postgres
+        env:
           NODE_ENV: test
+        run: pnpm --filter @petscape/server run db:configure:sandbox-payment-test
 
       - name: Cache Playwright Chromium
         uses: actions/cache@v4
@@ -140,101 +285,104 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Install Playwright Chromium (C1 browser flow)
-        # 缓存命中时浏览器下载被跳过，此步仍负责装系统依赖（--with-deps）
+      - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install --with-deps chromium
 
-      - name: Test C1 request flow (real Next + PostgreSQL + Chromium)
+      - name: Run balanced business E2E shard
         working-directory: web
-        run: node --test tests/e2e-customization-requests.test.mjs
+        shell: bash
         env:
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
-
-      - name: Test Pack B pet profile flow (real Next + PostgreSQL + Chromium)
-        working-directory: web
-        run: node --test tests/e2e-pets.test.mjs
-        env:
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
-
-      - name: Test B6 admin review flow (real Next + PostgreSQL + Chromium)
-        working-directory: web
-        run: node --test tests/e2e-check-runs.test.mjs
-        env:
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
-
-      - name: Upload B6 browser evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: wp-b6-0-browser-evidence
-          path: web/test-results/b6-reviews/
-          if-no-files-found: warn
-
-      - name: Test C2 quote flow (real Next + PostgreSQL + Chromium)
-        working-directory: web
-        run: node --test tests/e2e-quotes.test.mjs
-        env:
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+          SHARD: ${{ matrix.shard }}
+        run: |
+          case "$SHARD" in
+            request-profile-quote)
+              node --test tests/e2e-customization-requests.test.mjs
+              node --test tests/e2e-pets.test.mjs
+              node --test tests/e2e-quotes.test.mjs
+              ;;
+            payment)
+              node --test tests/e2e-payments.test.mjs
+              ;;
+            review-delivery-order)
+              node --test tests/e2e-check-runs.test.mjs
+              node --test tests/e2e-delivery-addresses.test.mjs
+              node --test tests/e2e-orders.test.mjs
+              ;;
+            *)
+              echo "Unknown shard: $SHARD" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Upload UI polish Pack B browser evidence
-        if: always()
+        if: always() && matrix.shard == 'request-profile-quote'
         uses: actions/upload-artifact@v4
         with:
           name: ui-polish-pack-b-browser-evidence
           path: web/test-results/ui-polish-pack-b/
           if-no-files-found: warn
 
-      - name: Test C5 delivery address flow (real Next + PostgreSQL + Chromium)
-        working-directory: web
-        run: node --test tests/e2e-delivery-addresses.test.mjs
-        env:
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
-
-      - name: Upload C5 browser evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: wp-c5-1-browser-evidence
-          path: web/test-results/c5-delivery-addresses/
-          if-no-files-found: warn
-
-      - name: Test C3 sandbox payment flow (real Next + PostgreSQL + Chromium)
-        working-directory: web
-        run: node --test tests/e2e-payments.test.mjs
-        env:
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
-
       - name: Upload C3 browser evidence
-        if: always()
+        if: always() && matrix.shard == 'payment'
         uses: actions/upload-artifact@v4
         with:
           name: wp-c3-1-browser-evidence
           path: web/test-results/c3-payments/
           if-no-files-found: warn
 
-      - name: Test C4 order flow (real Next + PostgreSQL + Chromium)
-        working-directory: web
-        run: node --test tests/e2e-orders.test.mjs
-        env:
-          DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+      - name: Upload B6 browser evidence
+        if: always() && matrix.shard == 'review-delivery-order'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-b6-0-browser-evidence
+          path: web/test-results/b6-reviews/
+          if-no-files-found: warn
+
+      - name: Upload C5 browser evidence
+        if: always() && matrix.shard == 'review-delivery-order'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-c5-1-browser-evidence
+          path: web/test-results/c5-delivery-addresses/
+          if-no-files-found: warn
 
       - name: Upload C4 browser evidence
-        if: always()
+        if: always() && matrix.shard == 'review-delivery-order'
         uses: actions/upload-artifact@v4
         with:
           name: wp-c4-1-browser-evidence
           path: web/test-results/c4-orders/
           if-no-files-found: warn
 
-      - name: Prisma validate (packages/server)
-        run: pnpm --filter @petscape/server exec prisma validate
+  worker-image:
+    name: worker-image
+    needs: classify-changes
+    if: needs.classify-changes.outputs.runtime_changed == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: petscape_ci
+          POSTGRES_PASSWORD: petscape_ci
+          POSTGRES_DB: petscape_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U petscape_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build worker image (mesh analyzer runtime)
-        # scope=worker 与 deploy.yml 的 worker 构建共用 gha 层缓存：
-        # main 上 CI 建过的层，随后的 Deploy run 直接复用，不再从零重建。
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -243,6 +391,13 @@ jobs:
           tags: petscape-worker-ci:${{ github.sha }}
           cache-from: type=gha,scope=worker
           cache-to: type=gha,mode=max,scope=worker
+
+      - name: Apply migrations from the exact image to empty CI PostgreSQL
+        run: |
+          docker run --rm --network host \
+            --env DATABASE_URL=postgresql://petscape_ci:petscape_ci@127.0.0.1:5432/petscape_ci \
+            --entrypoint /bin/sh petscape-worker-ci:${{ github.sha }} -lc \
+            'cd /workspace/packages/server && ./node_modules/.bin/prisma migrate deploy'
 
       - name: Exercise exact-image production migration no-op
         run: |
@@ -253,11 +408,15 @@ jobs:
 
   viewer-touch-e2e:
     name: viewer-touch-e2e
+    needs: classify-changes
+    if: needs.classify-changes.outputs.runtime_changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Enable corepack
         run: corepack enable
@@ -266,7 +425,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-          # key 取自 pnpm-lock.yaml 哈希：lockfile 一变即失效重装，miss 只退回全量下载
           cache: pnpm
 
       - name: Activate pnpm via packageManager
@@ -305,6 +463,8 @@ jobs:
 
   viewer-model-e2e:
     name: viewer-model-e2e
+    needs: classify-changes
+    if: needs.classify-changes.outputs.runtime_changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -326,6 +486,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Enable corepack
         run: corepack enable
@@ -334,7 +496,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-          # key 取自 pnpm-lock.yaml 哈希：lockfile 一变即失效重装，miss 只退回全量下载
           cache: pnpm
 
       - name: Activate pnpm via packageManager
@@ -370,13 +531,66 @@ jobs:
           if-no-files-found: warn
 
   # main 的 ruleset（main-ci-gate）以本 job 名为唯一必过检查上下文；
-  # CI 增减 job 时改这里的 needs 列表，不动 ruleset。
+  # CI 增减 job 时改这里的 needs 和显式结果校验，不动 ruleset。
   ci-gate:
     name: ci-gate
-    runs-on: ubuntu-latest
-    needs: [quality-gates, viewer-touch-e2e, viewer-model-e2e]
     if: always()
+    needs:
+      - classify-changes
+      - docs-check
+      - static-and-unit
+      - server-integration
+      - business-e2e
+      - worker-image
+      - viewer-touch-e2e
+      - viewer-model-e2e
+    runs-on: ubuntu-latest
+    env:
+      DOCS_ONLY: ${{ needs.classify-changes.outputs.docs_only }}
+      CLASSIFY_RESULT: ${{ needs.classify-changes.result }}
+      DOCS_RESULT: ${{ needs.docs-check.result }}
+      STATIC_RESULT: ${{ needs.static-and-unit.result }}
+      SERVER_RESULT: ${{ needs.server-integration.result }}
+      BUSINESS_E2E_RESULT: ${{ needs.business-e2e.result }}
+      WORKER_IMAGE_RESULT: ${{ needs.worker-image.result }}
+      VIEWER_TOUCH_RESULT: ${{ needs.viewer-touch-e2e.result }}
+      VIEWER_MODEL_RESULT: ${{ needs.viewer-model-e2e.result }}
     steps:
-      - name: Fail unless every needed job succeeded
+      - name: Enforce the expected CI route
+        shell: bash
         run: |
-          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "false" ]
+          require_result() {
+            local job="$1"
+            local actual="$2"
+            local expected="$3"
+            if [[ "$actual" != "$expected" ]]; then
+              echo "::error::$job result=$actual; expected=$expected"
+              return 1
+            fi
+          }
+
+          require_result classify-changes "$CLASSIFY_RESULT" success
+          case "$DOCS_ONLY" in
+            true)
+              require_result docs-check "$DOCS_RESULT" success
+              require_result static-and-unit "$STATIC_RESULT" skipped
+              require_result server-integration "$SERVER_RESULT" skipped
+              require_result business-e2e "$BUSINESS_E2E_RESULT" skipped
+              require_result worker-image "$WORKER_IMAGE_RESULT" skipped
+              require_result viewer-touch-e2e "$VIEWER_TOUCH_RESULT" skipped
+              require_result viewer-model-e2e "$VIEWER_MODEL_RESULT" skipped
+              ;;
+            false)
+              require_result docs-check "$DOCS_RESULT" skipped
+              require_result static-and-unit "$STATIC_RESULT" success
+              require_result server-integration "$SERVER_RESULT" success
+              require_result business-e2e "$BUSINESS_E2E_RESULT" success
+              require_result worker-image "$WORKER_IMAGE_RESULT" success
+              require_result viewer-touch-e2e "$VIEWER_TOUCH_RESULT" success
+              require_result viewer-model-e2e "$VIEWER_MODEL_RESULT" success
+              ;;
+            *)
+              echo "::error::Invalid docs_only output: $DOCS_ONLY"
+              exit 1
+              ;;
+          esac

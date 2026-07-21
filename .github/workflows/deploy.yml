@@ -10,19 +10,21 @@ on:
 
 permissions:
   contents: read
-
-# A single production lane prevents two successful main CI runs from changing
-# ECS concurrently. Older queued runs re-check main immediately before migrate.
-concurrency:
-  group: production-deploy
-  cancel-in-progress: false
+  actions: read
 
 jobs:
   resolve:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_branch == 'main'
+        && github.event.workflow_run.head_repository.full_name == github.repository
+      }}
     runs-on: ubuntu-latest
     outputs:
       target_sha: ${{ steps.target.outputs.sha }}
+      deploy_required: ${{ steps.classification.outputs.deploy_required }}
     steps:
       - name: Bind release to successful CI head SHA
         id: target
@@ -36,14 +38,114 @@ jobs:
           echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
           echo "release.target_sha=$TARGET_SHA ci_run=${{ github.event.workflow_run.id }}"
 
+      - name: Verify triggering run identity
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          RUN_JSON="$(mktemp)"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" > "$RUN_JSON"
+          jq --exit-status \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg run_id "$RUN_ID" \
+            --arg target_sha "$TARGET_SHA" \
+            '
+              (.id | tostring) == $run_id
+              and .event == "push"
+              and .head_branch == "main"
+              and .head_sha == $target_sha
+              and .head_repository.full_name == $repository
+              and .path == ".github/workflows/ci.yml"
+              and .conclusion == "success"
+            ' "$RUN_JSON"
+
+      - name: Download exact-run release classification
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-release-metadata-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/release-classification
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout exact CI-tested classifier
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release classification
+        id: classification
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          CLASSIFICATION="$RUNNER_TEMP/release-classification/release-classification.json"
+          test -f "$CLASSIFICATION"
+          test "$(find "$RUNNER_TEMP/release-classification" -type f | wc -l | tr -d ' ')" = "1"
+
+          jq --exit-status \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg run_id "$RUN_ID" \
+            --arg target_sha "$TARGET_SHA" \
+            '
+              (keys | sort) == ([
+                "base_sha", "changed_files", "deploy_required", "docs_only",
+                "event_name", "head_sha", "ref", "repository", "runtime_changed",
+                "schema_version", "workflow_run_id"
+              ] | sort)
+              and .schema_version == 1
+              and .repository == $repository
+              and .workflow_run_id == $run_id
+              and .event_name == "push"
+              and .ref == "refs/heads/main"
+              and .head_sha == $target_sha
+              and (.base_sha | test("^[0-9a-f]{40}$"))
+              and (.changed_files | type == "array")
+              and (all(.changed_files[]; type == "string"))
+              and (.docs_only | type == "boolean")
+              and (.runtime_changed | type == "boolean")
+              and (.deploy_required | type == "boolean")
+              and (.runtime_changed == (.docs_only | not))
+              and (.deploy_required == .runtime_changed)
+            ' "$CLASSIFICATION"
+
+          DEPLOY_REQUIRED="$(jq --raw-output '.deploy_required' "$CLASSIFICATION")"
+
+          RECOMPUTED="$RUNNER_TEMP/recomputed-release-classification.json"
+          CLASSIFIER_OUTPUT="$(mktemp)"
+          BASE_SHA="$(jq --raw-output '.base_sha' "$CLASSIFICATION")"
+          GITHUB_OUTPUT="$CLASSIFIER_OUTPUT" node .github/scripts/classify-changes.mjs \
+            --event push \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$TARGET_SHA" \
+            --repository "$GITHUB_REPOSITORY" \
+            --run-id "$RUN_ID" \
+            --ref refs/heads/main \
+            --output "$RECOMPUTED"
+          diff --unified=3 \
+            <(jq --sort-keys . "$CLASSIFICATION") \
+            <(jq --sort-keys . "$RECOMPUTED")
+
+          echo "deploy_required=$DEPLOY_REQUIRED" >> "$GITHUB_OUTPUT"
+          echo "release.classification target=$TARGET_SHA deploy_required=$DEPLOY_REQUIRED"
+
   build-and-push:
     needs: resolve
+    if: needs.resolve.outputs.deploy_required == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact CI-tested SHA
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.resolve.outputs.target_sha }}
+          persist-credentials: false
 
       - name: Set up QEMU (cross-arch emulation for linux/amd64)
         uses: docker/setup-qemu-action@v3
@@ -85,17 +187,32 @@ jobs:
 
   deploy:
     needs: [resolve, build-and-push]
+    if: >-
+      ${{
+        always()
+        && needs.resolve.result == 'success'
+        && needs.resolve.outputs.deploy_required == 'true'
+        && needs.build-and-push.result == 'success'
+      }}
     runs-on: ubuntu-latest
+    # Only jobs that can mutate production join this lane. A docs-only
+    # workflow_run must never evict a queued runtime release.
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
     steps:
       - name: Checkout exact CI-tested deployment scripts
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.resolve.outputs.target_sha }}
           fetch-depth: 0
+          # Freshness checks below still need authenticated reads from this
+          # private repository. The workflow token is contents:read only.
 
-      # If main advanced while an older release was building or queued, the old
-      # run exits successfully without touching RDS/ECS. The newer successful CI
-      # run owns the next serialized release.
+      # A later documentation-only commit does not invalidate the last tested
+      # runtime release. A later runtime commit does: its successful CI run owns
+      # the next serialized release. Unknown paths and classifier errors fail
+      # closed to the runtime path.
       - name: Reject stale release before production mutation
         id: freshness
         env:
@@ -105,9 +222,24 @@ jobs:
           if [[ "$LATEST_MAIN_SHA" == "$TARGET_SHA" ]]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
             echo "release.fresh target=$TARGET_SHA"
+            exit 0
+          fi
+
+          if [[ ! "$LATEST_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "invalid latest main SHA: $LATEST_MAIN_SHA" >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin "$LATEST_MAIN_SHA"
+          FRESHNESS="$(node .github/scripts/release-freshness.mjs \
+            --target-sha "$TARGET_SHA" \
+            --latest-main-sha "$LATEST_MAIN_SHA")"
+          echo "$FRESHNESS"
+
+          if [[ "$(jq --raw-output '.deploy' <<< "$FRESHNESS")" == "true" ]]; then
+            echo "::notice::Deploying runtime target beneath documentation-only main commits target=$TARGET_SHA latest_main=$LATEST_MAIN_SHA"
           else
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping stale release target=$TARGET_SHA latest_main=$LATEST_MAIN_SHA"
+            echo "::notice::Skipping stale runtime release target=$TARGET_SHA latest_main=$LATEST_MAIN_SHA"
           fi
 
       - name: Set up SSH

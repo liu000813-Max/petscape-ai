@@ -82,7 +82,7 @@ async function browserApi(page, path, init = {}) {
 
 test.before(async () => {
   await mkdir(EVIDENCE_DIR, { recursive: true });
-  serverProcess = spawn('pnpm', ['exec', 'next', 'dev', '-H', '127.0.0.1', '-p', PORT], {
+  serverProcess = spawn('pnpm', ['exec', 'next', 'dev', '--webpack', '-H', '127.0.0.1', '-p', PORT], {
     cwd: webRoot,
     detached: process.platform !== 'win32',
     env: {

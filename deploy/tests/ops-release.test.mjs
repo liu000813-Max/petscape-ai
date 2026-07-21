@@ -65,15 +65,31 @@ fi
 
 test('Deploy consumes the successful main CI run for one exact SHA and serializes production', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
+  const jobsAt = workflow.indexOf('\njobs:');
+  const deployJobAt = workflow.indexOf('\n  deploy:');
   assert.match(workflow, /workflow_run:/);
   assert.match(workflow, /workflows:\s*\[CI\]/);
   assert.match(workflow, /branches:\s*\[main\]/);
   assert.match(workflow, /group:\s*production-deploy/);
   assert.match(workflow, /cancel-in-progress:\s*false/);
+  assert.doesNotMatch(workflow.slice(0, jobsAt), /concurrency:/);
+  assert.ok(workflow.indexOf('group: production-deploy') > deployJobAt);
   assert.match(workflow, /target_sha/);
+  assert.match(workflow, /deploy_required/);
+  assert.match(workflow, /ci-release-metadata-/);
+  assert.match(workflow, /actions\/download-artifact@v4/);
+  assert.match(workflow, /Checkout exact CI-tested classifier/);
+  assert.match(workflow, /recomputed-release-classification\.json/);
+  assert.match(workflow, /diff --unified=3/);
+  assert.match(workflow, /\.path == "\.github\/workflows\/ci\.yml"/);
+  assert.match(workflow, /head_repository\.full_name/);
   assert.match(workflow, /ref:\s*\$\{\{ needs\.resolve\.outputs\.target_sha \}\}/);
   assert.match(workflow, /git ls-remote origin refs\/heads\/main/);
-  assert.match(workflow, /Skipping stale release/);
+  assert.match(workflow, /release-freshness\.mjs/);
+  assert.match(workflow, /--target-sha "\$TARGET_SHA"/);
+  assert.match(workflow, /--latest-main-sha "\$LATEST_MAIN_SHA"/);
+  assert.match(workflow, /Deploying runtime target beneath documentation-only main commits/);
+  assert.match(workflow, /Skipping stale runtime release/);
   assert.match(workflow, /Migrate then switch exact-SHA application images/);
   assert.doesNotMatch(workflow, /uses:\s*\.\/\.github\/workflows\/ci\.yml/);
 });
