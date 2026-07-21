@@ -1,0 +1,24 @@
+{"image": "scene1", "point": [250, 300], "target": "蘑菇树屋(左上)", "areas": [4918, 5836], "confs": [0.822, 0.89], "chosen_idx": 1, "chosen_area": 5836, "t_decode_s": 0.046}
+{"image": "scene1", "point": [700, 300], "target": "树屋(右上)", "areas": [45278, 8846, 26947], "confs": [0.426, 0.332, 0.787], "chosen_idx": 2, "chosen_area": 26947, "t_decode_s": 0.043}
+{"image": "scene1", "point": [880, 545], "target": "小蘑菇灯(右中)", "areas": [13409, 8005, 8433], "confs": [0.544, 0.851, 0.941], "chosen_idx": 2, "chosen_area": 8433, "t_decode_s": 0.043}
+{"image": "scene2", "point": [200, 320], "target": "苔藓屋(左上)", "areas": [41632, 9343, 12973], "confs": [0.26, 0.793, 0.544], "chosen_idx": 1, "chosen_area": 9343, "t_decode_s": 0.055}
+{"image": "scene2", "point": [750, 800], "target": "苔藓屋(右下)", "areas": [33636], "confs": [0.847], "chosen_idx": 0, "chosen_area": 33636, "t_decode_s": 0.054}
+{"image": "scene2", "point": [750, 350], "target": "苔藓树屋复合体(右上)", "areas": [9797, 11971], "confs": [0.876, 0.935], "chosen_idx": 1, "chosen_area": 11971, "t_decode_s": 0.052}
+{"image": "scene3", "point": [300, 720], "target": "低多边形蘑菇屋", "areas": [88198, 27439, 44031], "confs": [0.392, 0.477, 0.893], "chosen_idx": 2, "chosen_area": 44031, "t_decode_s": 0.048}
+{"image": "scene3", "point": [835, 615], "target": "食盆盒(右中)", "areas": [46836, 7060, 24776], "confs": [0.511, 0.267, 0.742], "chosen_idx": 2, "chosen_area": 24776, "t_decode_s": 0.044}
+{"image": "scene3", "point": [745, 775], "target": "小隧道件(右下)", "areas": [6398, 10024], "confs": [0.541, 0.903], "chosen_idx": 1, "chosen_area": 10024, "t_decode_s": 0.042}
+{"image": "clean-item", "point": [510, 380], "target": "蘑菇屋-帽", "areas": [369, 752], "confs": [0.569, 0.633], "chosen_idx": 1, "chosen_area": 752, "t_decode_s": 0.036}
+{"image": "clean-item", "point": [510, 650], "target": "蘑菇屋-身", "areas": [18085, 28018], "confs": [0.819, 0.67], "chosen_idx": 0, "chosen_area": 18085, "t_decode_s": 0.035}
+{"image": "clean-item", "point": [400, 500], "target": "蘑菇屋-左侧", "areas": [193722, 56842, 95214], "confs": [0.31, 0.897, 0.645], "chosen_idx": 1, "chosen_area": 56842, "t_decode_s": 0.036}
+{"image": "styled", "point": [515, 400], "target": "仓鼠-头", "areas": [253400, 86676, 199496], "confs": [0.817, 0.453, 0.887], "chosen_idx": 2, "chosen_area": 199496, "t_decode_s": 0.07}
+{"image": "styled", "point": [515, 700], "target": "仓鼠-身", "areas": [253322, 75027, 198603], "confs": [0.825, 0.441, 0.886], "chosen_idx": 2, "chosen_area": 198603, "t_decode_s": 0.045}
+{"image": "styled", "point": [510, 230], "target": "仓鼠-帽子", "areas": [3758, 18125], "confs": [0.328, 0.401], "chosen_idx": 1, "chosen_area": 18125, "t_decode_s": 0.045}
+{"image": "scene1", "point": [250, 300], "target": "蘑菇树屋(左上)", "areas": [4619, 5827], "confs": [0.672, 0.846], "chosen_idx": 1, "chosen_area": 5827, "t_decode_s": 0.061}
+{"image": "scene1", "point": [700, 300], "target": "树屋(右上)", "areas": [23606, 35683], "confs": [0.684, 0.764], "chosen_idx": 1, "chosen_area": 35683, "t_decode_s": 0.049}
+{"image": "scene1", "point": [880, 545], "target": "小蘑菇灯(右中)", "areas": [8410, 13126], "confs": [0.919, 0.63], "chosen_idx": 0, "chosen_area": 8410, "t_decode_s": 0.043}
+{"image": "scene2", "point": [200, 320], "target": "苔藓屋(左上)", "areas": [39381, 8451, 11191], "confs": [0.259, 0.808, 0.82], "chosen_idx": 2, "chosen_area": 11191, "t_decode_s": 0.069}
+{"image": "scene2", "point": [750, 800], "target": "苔藓屋(右下)", "areas": [30854, 40658], "confs": [0.8, 0.915], "chosen_idx": 1, "chosen_area": 40658, "t_decode_s": 0.043}
+{"image": "scene2", "point": [750, 350], "target": "苔藓树屋复合体(右上)", "areas": [7676, 11874], "confs": [0.839, 0.908], "chosen_idx": 1, "chosen_area": 11874, "t_decode_s": 0.045}
+{"image": "scene3", "point": [300, 720], "target": "低多边形蘑菇屋", "areas": [38504, 50491], "confs": [0.794, 0.769], "chosen_idx": 0, "chosen_area": 38504, "t_decode_s": 0.047}
+{"image": "scene3", "point": [835, 615], "target": "食盆盒(右中)", "areas": [18584, 38332], "confs": [0.946, 0.462], "chosen_idx": 0, "chosen_area": 18584, "t_decode_s": 0.041}
+{"image": "scene3", "point": [745, 775], "target": "小隧道件(右下)", "areas": [10058, 16981], "confs": [0.892, 0.593], "chosen_idx": 0, "chosen_area": 10058, "t_decode_s": 0.041}

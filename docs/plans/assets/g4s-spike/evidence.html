@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>形态 C 拍板证据 — G4s 分割实测</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; max-width: 1080px; margin: 2rem auto; padding: 0 1rem; background: #faf8f5; color: #2b2620; }
+  h1 { font-size: 1.4rem; } h2 { font-size: 1.1rem; margin-top: 2.2rem; border-left: 4px solid #c9a06a; padding-left: .6rem; }
+  img { max-width: 100%; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,.12); margin: .6rem 0; }
+  p.cap { color: #6b6259; font-size: .92rem; margin-top: 0; }
+  .verdict { background: #f3ece2; border-radius: 8px; padding: .8rem 1rem; }
+  code { background: #efe9e0; padding: .1em .35em; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>形态 C「拉框 → 轮廓发光」拍板证据</h1>
+<p class="verdict">结论：单点 hover（形态 A 的机制）严格命中 4/9 ≈ 44%，不达标；拉框（box 提示）14/15 干净整件。C = 拉框输入 + G4d 发光视觉。模型 = 自托管 SAM2.1（Apache-2.0，纯 CPU）。</p>
+
+<h2>1. 为什么 hover 不行：单点命中的典型失败</h2>
+<img src="hittest-scene1-pt0.png" alt="单点命中失败示例">
+<p class="cap">红点点在绿色树屋上，模型只返回了门拱那一小块（绿色区域）——部件级 mask，不是整件。9 个测试点里这类失败占多数。</p>
+<img src="hittest-scene1-pt0-scales.png" alt="同一点的三尺度候选">
+<p class="cap">同一个点的三个尺度候选（红框 = 模型按置信度选中的那个）——正确整件有时存在于其他尺度，但模型自动选择不可靠。</p>
+
+<h2>2. 为什么拉框可以：box 提示整件 mask</h2>
+<img src="boxes-scene1.png" alt="拉框整件 mask，多物品场景">
+<p class="cap">五个彩框 = 模拟用户拉框；每个色块 = 返回的 mask。蘑菇屋、树屋、弹簧管、木桩全部隔着笼网整件拿下，mask 贴物品轮廓而非矩形。发光就渲染在这个轮廓上。</p>
+<img src="boxes-styled.png" alt="风格化图拉框">
+<p class="cap">风格化效果图上同样成立。15 框中唯一失败是半透明水瓶（已记为已知弱项）。</p>
+
+<h2>3. 交互长什么样：G4d 探索稿（可直接上手玩）</h2>
+<p>在终端跑：<br><code>open "<REPOSITORY_ROOT>/.claude/worktrees/agent-ae576b7ff711bf5a6/docs/plans/assets/b3-extraction-prototype/index.html?state=all"</code></p>
+<p class="cap">探索稿里的「拉框」形态 B 就是 C 的输入方式，「选中发光」就是 C 的反馈——两者拼起来即为最终形态。发光轮廓在实现时用真实 mask 的简化多边形（IoU 0.977）。</p>
+
+<h2>4. 延迟与部署（M4 实测）</h2>
+<p class="cap">每图 embedding 一次 1.4–4.7s（效果图生成后预热），之后每次拉框 40–200ms；纯 CPU、峰值内存 3.2GB、模型 154MB，现有 ECS 可托管。ECS 实机延迟未测（估编码 3–15s）。花费 $0。</p>
+</body>
+</html>
