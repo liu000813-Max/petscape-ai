@@ -1,6 +1,6 @@
 # C 线执行文档：报价、支付与订单骨架（B7 输入 + C1-C5 首版）
 
-状态：v6 沙箱实现链已合入 `main`，关账证据待收口（2026-07-20 校准）。WP-SEAM-0、B7-1、C1-1、B6-0、OPS-1、C2-1、C5-1、C3-1、C4-1 均有对应合并提交；本文保留沙箱交易边界和验收要求，不表示真实支付、真实订单或履约已经完成。生产行为是否完整通过，仍以 exact SHA 的数据库、API 和浏览器证据为准。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
+状态：v6 沙箱实现链已合入 `main`，**批次 2 收口已关账（WP-Z0，2026-07-21）**。WP-SEAM-0、B7-1、C1-1、B6-0、OPS-1、C2-1、C5-1、C3-1、C4-1 均有对应合并提交；C 线沙箱主路径 `quote→address→payment→order` 加冲突重试恢复路径已在部署 SHA `9a344274fd` 完成真实浏览器 E2E，证据见 [`docs/operations/wp-z0-c-line-e2e/`](../operations/wp-z0-c-line-e2e/README.md)。本文保留沙箱交易边界和验收要求，不表示真实支付、真实订单或履约已经完成；真实成交开放条件见第九节。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`、`ARCHITECTURE.md` §5.7/§6-7、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/governance/engineering-conventions.md`。
 
 目标：先做出可验证的**沙箱交易骨架**，再在真实材料、定价、审核和支付渠道全部就绪后开放真实成交：
 
@@ -237,4 +237,4 @@ Viewer 确认引用
 5. PITR、回滚、监控、限流和人工异常入口通过；
 6. 真实浏览器完成一笔真实付款，系统生成 live 订单；后续 C6-C9 另按正本验收履约。
 
-当前状态：**已按批次 2 编排开工**。开发期允许在独立 worktree 与隔离临时数据库推进；进入 main、生产 migration 和真实交易启用仍分别受本节门禁约束。
+当前状态：**批次 2 沙箱收口已关账（WP-Z0，2026-07-21）**——沙箱交易骨架 `quote→address→payment→order` 加冲突重试恢复路径已在部署 SHA `9a344274fd` 完成真实浏览器 E2E（证据见 [`docs/operations/wp-z0-c-line-e2e/`](../operations/wp-z0-c-line-e2e/README.md)）；生产实例按设计 fail-close mock provider，沙箱支付段在部署同 SHA 代码 + 一次性 PostgreSQL 16 验证。真实成交（本节六条）仍未开放：进入 main、生产 migration 和真实交易启用分别受各节门禁约束。

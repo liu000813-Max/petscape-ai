@@ -1,6 +1,6 @@
 # B 线执行文档：B4 单品检视 + B5 场景确认首版
 
-状态：v5 实现链已合入 `main`，关账证据待收口（2026-07-20 校准）。WP-B45-0、B4-1、B5-1、B45-2、B45-3 均有对应合并提交；本文保留已确认边界和验收要求，不再表示任务仍在执行。生产行为是否完整通过，仍以 exact SHA 的浏览器与数据库证据为准。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`（B4/B5）、`ARCHITECTURE.md` §6、§7.3、§7.4、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/plans/p0-batch-1-execution-plan.md`。
+状态：v5 实现链已合入 `main`，**批次 2 收口已关账（WP-Z0，2026-07-21）**。WP-B45-0、B4-1、B5-1、B45-2、B45-3 均有对应合并提交；B 线单品检视/模型确认/场景确认已随 C 线主路径在部署 SHA `9a344274fd` 完成真实浏览器 E2E（登录→viewer 模型确认→场景确认，证据见 [`docs/operations/wp-z0-c-line-e2e/`](../operations/wp-z0-c-line-e2e/README.md)）。本文保留已确认边界和验收要求，不再表示任务仍在执行。上游：`PetScape-PRD.md`、`PRODUCT-MODULES.md`（B4/B5）、`ARCHITECTURE.md` §6、§7.3、§7.4、`docs/plans/reference-competitor-3d-flow-2026-07-19.md`、`docs/plans/p0-batch-1-execution-plan.md`。
 
 本版取代 PR #31 中“单页完成 B4+B5、选中场景物品即预览”的范围切法。首版采用两个明确阶段：用户先检视并确认单个目标模型版本，再把该模型放入完整场景确认尺寸、摆放和空间关系。提议、预览、模型确认、场景确认、制作/安全检查、报价和订单是不同承诺，不得混写。
 
