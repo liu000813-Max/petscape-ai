@@ -101,6 +101,13 @@ test.after(async () => {
 test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可变确认历史', async () => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const page = await context.newPage();
+  const testStartedAt = performance.now();
+  let stageStartedAt = testStartedAt;
+  function checkpoint(name) {
+    const now = performance.now();
+    console.log(`viewer-stage ${name}: ${Math.round(now - stageStartedAt)}ms (total ${Math.round(now - testStartedAt)}ms)`);
+    stageStartedAt = now;
+  }
   try {
     await login(page);
     await page.goto(`${BASE_URL}/viewer`);
@@ -112,6 +119,7 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     await page.getByRole('heading', { name: '选择一个目标物品' }).waitFor();
     assert.match(page.url(), /\/viewer\?projectId=/);
     await page.getByText(`项目 · ${title}`).waitFor();
+    checkpoint('login-and-project');
 
     const confirm = page.getByRole('button', { name: /确认此模型，进入场景/ });
     async function waitForModelReady() {
@@ -147,6 +155,7 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     assert.equal(await page.locator('.viewer-role.is-target').count(), 1);
     await page.getByText('香蕉小床').waitFor();
     await page.getByText('最终尺寸 292.6 × 125 × 118.4 mm').waitFor();
+    checkpoint('model-selection-and-confirmation');
 
     await page.getByRole('button', { name: /加入 云朵苔藓台/ }).click();
     await page.getByRole('button', { name: /环境.*云朵苔藓台/ }).click();
@@ -171,6 +180,7 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     await page.getByText(/超出笼舍边界/).waitFor();
     assert.equal(await page.getByRole('button', { name: '确认此场景' }).isDisabled(), true);
     await page.getByLabel('长度 X').fill('800');
+    checkpoint('scene-edit-and-collision');
 
     await page.getByRole('button', { name: /环境.*云朵苔藓台/ }).click();
     await page.setViewportSize({ width: 390, height: 844 });
@@ -198,6 +208,7 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     await page.screenshot({ path: `${ciEvidenceRoot}/stage2-edges-layout.png`, fullPage: true });
 
     await page.getByText('已自动保存').waitFor({ timeout: 15_000 });
+    checkpoint('touch-layout-and-autosave');
 
     // 可见失败与人工重试：只注入一次网络失败，随后仍由真实 Route + DB 保存。
     let abortedOnce = false;
@@ -231,6 +242,7 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     await page.getByText('最近确认已保存').waitFor();
     await page.getByRole('button', { name: '回到原点' }).click();
     await page.getByText(/确认已保存到服务器；不代表可制造/).waitFor();
+    checkpoint('save-retry-and-first-confirmation');
 
     await page.screenshot({ path: `${evidenceRoot}/viewer-scene-confirmation.png`, fullPage: true });
 
@@ -275,6 +287,7 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
     assert.equal(oldSnapshot.json.snapshot.cageMm.width, 800);
     assert.equal(oldSnapshot.json.id, firstConfirmationId);
     await stalePage.close();
+    checkpoint('revision-conflict-and-history');
 
     // 刷新与实际 Next 服务重启后都从 PostgreSQL 恢复同一最新 revision。
     await page.reload();
@@ -284,6 +297,7 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
       const response = await fetch(`/api/v1/projects/${projectId}/viewer-state`);
       return (await response.json()).latestSceneConfirmation.id;
     }, new URL(page.url()).searchParams.get('projectId')), secondConfirmationId);
+    checkpoint('page-reload-restore');
 
     const persistedViewerUrl = page.url();
     await stopServer();
@@ -296,12 +310,14 @@ test('真实数据库 Viewer：自动保存、恢复、revision 冲突与不可�
       return (await response.json()).latestSceneConfirmation.id;
     }, new URL(page.url()).searchParams.get('projectId')), secondConfirmationId);
     await page.screenshot({ path: `${evidenceRoot}/viewer-server-restart-restored.png`, fullPage: true });
+    checkpoint('server-restart-restore');
 
     await page.goto(BASE_URL);
     await page.getByRole('heading', { name: /为爱宠定制/ }).waitFor();
     await page.getByRole('button', { name: '开始定制' }).waitFor();
     await page.getByRole('button', { name: '浏览标品' }).waitFor();
     await page.screenshot({ path: `${evidenceRoot}/landing-first-fold.png`, fullPage: false });
+    checkpoint('landing-page');
   } finally {
     await context.close();
   }

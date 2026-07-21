@@ -11,6 +11,7 @@ import {
   type SaveDeliveryAddress,
 } from '../contracts/delivery-addresses.ts';
 import { NotFoundError } from '../domain/index.ts';
+import { isSerializableTransactionConflict, withSerializableTransactionRetry } from './transaction-retry.ts';
 import type { PrismaClient } from '../infra/db/index.ts';
 
 const LABEL = '沙箱配送地址（仅用于测试，不会发起真实支付）' as const;
@@ -32,11 +33,6 @@ export class DeliveryAddressEligibilityError extends Error {
 function errorCode(error: unknown, code: string) {
   return typeof error === 'object' && error !== null && 'code' in error &&
     (error as { code?: unknown }).code === code;
-}
-
-function isSerializationFailure(error: unknown) {
-  if (errorCode(error, 'P2034') || errorCode(error, '40001')) return true;
-  return error instanceof Error && /(?:SQLSTATE\s*)?40001|could not serialize|write conflict/i.test(error.message);
 }
 
 type AddressRow = {
@@ -88,18 +84,17 @@ function sameFields(row: AddressRow, input: SaveDeliveryAddress) {
 }
 
 async function withSerializableRetry<T>(prisma: PrismaClient, work: (tx: PrismaClient) => Promise<T>): Promise<T> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      return await prisma.$transaction(
-        (tx) => work(tx as PrismaClient),
-        { isolationLevel: 'Serializable' },
-      );
-    } catch (error) {
-      if (!isSerializationFailure(error)) throw error;
-      if (attempt === 2) throw new DeliveryAddressConflictError('地址并发写入失败，请重试');
+  try {
+    return await withSerializableTransactionRetry(() => prisma.$transaction(
+      (tx) => work(tx as PrismaClient),
+      { isolationLevel: 'Serializable' },
+    ));
+  } catch (error) {
+    if (isSerializableTransactionConflict(error)) {
+      throw new DeliveryAddressConflictError('地址并发写入失败，请重试');
     }
+    throw error;
   }
-  throw new DeliveryAddressConflictError('地址并发写入失败，请重试');
 }
 
 export async function saveDeliveryAddress({ prisma, ownerUserId, input: untrusted }: {

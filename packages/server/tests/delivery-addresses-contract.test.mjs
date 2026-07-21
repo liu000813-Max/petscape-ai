@@ -61,5 +61,6 @@ test('serialization retry exhaustion becomes a domain conflict instead of a raw 
     () => saveDeliveryAddress({ prisma, ownerUserId: 'owner-1', input: { quoteId: 'quote-1', ...fields } }),
     (error) => error instanceof DeliveryAddressConflictError,
   );
-  assert.equal(attempts, 3);
+  // 与 transaction-retry.ts 共享默认对齐：5 次尝试后收敛为领域冲突错误。
+  assert.equal(attempts, 5);
 });

@@ -1,0 +1,281 @@
+name: Full Regression
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Exact commit to test; defaults to the selected ref
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      target_sha:
+        description: Exact main SHA bound by the caller
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  business-e2e:
+    name: full-business-e2e-${{ matrix.shard }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - request-profile-quote
+          - payment
+          - review-delivery-order
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: petscape_ci
+          POSTGRES_PASSWORD: petscape_ci
+          POSTGRES_DB: petscape_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U petscape_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://petscape_ci:petscape_ci@localhost:5432/petscape_ci
+    steps:
+      - name: Checkout exact regression target
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Activate pnpm via packageManager
+        run: corepack prepare --activate
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client and apply migrations
+        run: |
+          pnpm --filter @petscape/server run db:generate
+          pnpm --filter @petscape/server run db:migrate:deploy
+
+      - name: Generate ephemeral sandbox payment test secret
+        shell: bash
+        run: |
+          C3_TEST_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$C3_TEST_SECRET"
+          echo "SANDBOX_PAYMENT_SECRET=$C3_TEST_SECRET" >> "$GITHUB_ENV"
+
+      - name: Configure sandbox payment trust in ephemeral CI Postgres
+        env:
+          NODE_ENV: test
+        run: pnpm --filter @petscape/server run db:configure:sandbox-payment-test
+
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run balanced business E2E shard
+        working-directory: web
+        shell: bash
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          case "$SHARD" in
+            request-profile-quote)
+              node --test tests/e2e-customization-requests.test.mjs
+              node --test tests/e2e-pets.test.mjs
+              node --test tests/e2e-quotes.test.mjs
+              ;;
+            payment)
+              node --test tests/e2e-payments.test.mjs
+              ;;
+            review-delivery-order)
+              node --test tests/e2e-check-runs.test.mjs
+              node --test tests/e2e-delivery-addresses.test.mjs
+              node --test tests/e2e-orders.test.mjs
+              ;;
+            *)
+              echo "Unknown shard: $SHARD" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Upload UI polish Pack B browser evidence
+        if: always() && matrix.shard == 'request-profile-quote'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-polish-pack-b-browser-evidence
+          path: web/test-results/ui-polish-pack-b/
+          if-no-files-found: warn
+
+      - name: Upload C3 browser evidence
+        if: always() && matrix.shard == 'payment'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-c3-1-browser-evidence
+          path: web/test-results/c3-payments/
+          if-no-files-found: warn
+
+      - name: Upload B6 browser evidence
+        if: always() && matrix.shard == 'review-delivery-order'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-b6-0-browser-evidence
+          path: web/test-results/b6-reviews/
+          if-no-files-found: warn
+
+      - name: Upload C5 browser evidence
+        if: always() && matrix.shard == 'review-delivery-order'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-c5-1-browser-evidence
+          path: web/test-results/c5-delivery-addresses/
+          if-no-files-found: warn
+
+      - name: Upload C4 browser evidence
+        if: always() && matrix.shard == 'review-delivery-order'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-c4-1-browser-evidence
+          path: web/test-results/c4-orders/
+          if-no-files-found: warn
+
+  viewer-touch-e2e:
+    name: full-viewer-touch-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact regression target
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Activate pnpm via packageManager
+        run: corepack prepare --activate
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run 390x844 touch-pointer browser test
+        working-directory: web
+        run: |
+          pnpm exec next dev -H 127.0.0.1 -p 3014 > /tmp/petscape-r3f-spike.log 2>&1 &
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:3014/r3f-spike >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3014/r3f-spike >/dev/null
+          R3F_SPIKE_BASE_URL=http://127.0.0.1:3014 node --test tests/e2e-r3f-spike-touch.test.mjs
+
+      - name: Upload touch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-b45-0-touch-evidence
+          path: web/test-results/r3f-spike-touch.png
+          if-no-files-found: warn
+
+  viewer-model-e2e:
+    name: full-viewer-model-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: petscape_viewer
+          POSTGRES_PASSWORD: petscape_viewer
+          POSTGRES_DB: petscape_viewer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U petscape_viewer"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://petscape_viewer:petscape_viewer@localhost:5432/petscape_viewer
+    steps:
+      - name: Checkout exact regression target
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Activate pnpm via packageManager
+        run: corepack prepare --activate
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client and apply migrations
+        run: |
+          pnpm --filter @petscape/server run db:generate
+          pnpm --filter @petscape/server run db:migrate:deploy
+
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run authenticated model confirmation flow
+        working-directory: web
+        run: node --test tests/e2e-viewer-model.test.mjs
+
+      - name: Upload UI polish browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-polish-pack-a-browser-evidence
+          path: web/test-results/ui-polish-pack-a/
+          if-no-files-found: warn

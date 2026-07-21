@@ -68,3 +68,4 @@ export type {
 } from './infra/jobs/index.ts';
 
 export { processOrderRecoveryJob } from './application/orders.ts';
+export { isSerializableTransactionConflict } from './application/transaction-retry.ts';

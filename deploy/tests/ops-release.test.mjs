@@ -63,19 +63,62 @@ fi
   return { ...result, calls };
 }
 
-test('Deploy consumes the successful main CI run for one exact SHA and serializes production', async () => {
+test('Deploy is manual, verifies current main exact-SHA gates, and serializes the full release', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
-  assert.match(workflow, /workflow_run:/);
-  assert.match(workflow, /workflows:\s*\[CI\]/);
-  assert.match(workflow, /branches:\s*\[main\]/);
-  assert.match(workflow, /group:\s*production-deploy/);
-  assert.match(workflow, /cancel-in-progress:\s*false/);
+  const jobsAt = workflow.indexOf('\njobs:');
+  const resolveJobAt = workflow.indexOf('\n  resolve:');
+  const fullRegressionJobAt = workflow.indexOf('\n  full-regression:');
+  const buildJobAt = workflow.indexOf('\n  build-and-push:');
+  const deployJobAt = workflow.indexOf('\n  deploy:');
+  const preJobs = workflow.slice(0, jobsAt);
+  const buildJob = workflow.slice(buildJobAt, deployJobAt);
+  const deployJob = workflow.slice(deployJobAt);
+
+  assert.match(preJobs, /workflow_dispatch:/);
+  assert.doesNotMatch(preJobs, /workflow_run:/);
+  assert.doesNotMatch(preJobs, /inputs:/);
+  assert.match(preJobs, /concurrency:\s*\n\s+group:\s*production-deploy\s*\n\s+cancel-in-progress:\s*false/);
+  assert.equal((workflow.match(/group:\s*production-deploy/g) ?? []).length, 1);
+
+  assert.ok(resolveJobAt > jobsAt);
+  assert.ok(fullRegressionJobAt > resolveJobAt);
+  assert.ok(buildJobAt > fullRegressionJobAt);
+  assert.ok(deployJobAt > buildJobAt);
   assert.match(workflow, /target_sha/);
+  assert.match(workflow, /DISPATCH_REF:\s*\$\{\{ github\.ref \}\}/);
+  assert.match(workflow, /DISPATCH_SHA:\s*\$\{\{ github\.sha \}\}/);
+  assert.match(workflow, /DISPATCH_REF" != "refs\/heads\/main"/);
+  assert.match(workflow, /repos\/\$GITHUB_REPOSITORY\/branches\/main/);
+  assert.match(workflow, /actions\/workflows\/ci\.yml\/runs\?branch=main&event=push&status=success&head_sha=\$TARGET_SHA/);
+  assert.match(workflow, /\.path == "\.github\/workflows\/ci\.yml"/);
+  assert.match(workflow, /head_repository\.full_name/);
+  assert.match(workflow, /actions\/runs\/\$CI_RUN_ID\/jobs\?filter=latest/);
+  assert.match(workflow, /\.name == "ci-gate"/);
+  assert.match(workflow, /\.head_sha == \$target_sha/);
+  assert.match(workflow, /\.conclusion == "success"/);
+
+  assert.match(workflow, /full-regression:\s*\n\s+needs:\s*resolve\s*\n\s+uses:\s*\.\/\.github\/workflows\/full-regression\.yml/);
+  assert.match(workflow, /target_sha:\s*\$\{\{ needs\.resolve\.outputs\.target_sha \}\}/);
+  assert.match(buildJob, /needs:\s*\[resolve, full-regression\]/);
+  assert.match(buildJob, /needs\.full-regression\.result == 'success'/);
+  assert.ok(buildJob.indexOf('Reject stale target before registry mutation') < buildJob.indexOf('Log in to ACR'));
+  assert.match(buildJob, /push:\s*true/);
+  assert.match(buildJob, /cache-to:\s*type=gha,mode=max,scope=web/);
+  assert.match(buildJob, /cache-to:\s*type=gha,mode=max,scope=worker/);
+
+  assert.match(deployJob, /needs:\s*\[resolve, full-regression, build-and-push\]/);
+  assert.match(deployJob, /needs\.full-regression\.result == 'success'/);
+  assert.match(deployJob, /needs\.build-and-push\.result == 'success'/);
+  assert.doesNotMatch(deployJob, /always\(\)/);
+  assert.ok(deployJob.indexOf('Reject stale release before production mutation') < deployJob.indexOf('Set up SSH'));
   assert.match(workflow, /ref:\s*\$\{\{ needs\.resolve\.outputs\.target_sha \}\}/);
-  assert.match(workflow, /git ls-remote origin refs\/heads\/main/);
-  assert.match(workflow, /Skipping stale release/);
   assert.match(workflow, /Migrate then switch exact-SHA application images/);
-  assert.doesNotMatch(workflow, /uses:\s*\.\/\.github\/workflows\/ci\.yml/);
+  assert.match(workflow, /Verify exact-SHA containers healthy/);
+
+  assert.doesNotMatch(workflow, /deploy_required/);
+  assert.doesNotMatch(workflow, /ci-release-metadata-/);
+  assert.doesNotMatch(workflow, /release-freshness\.mjs/);
+  assert.doesNotMatch(workflow, /skip_regression/i);
 });
 
 test('migration failure stops before application pull or restart', async () => {

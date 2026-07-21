@@ -30,8 +30,16 @@ const waitExit = (process, ms) => process.exitCode !== null ? Promise.resolve(tr
 function signal(childProcess, value) { try { process.kill(-childProcess.pid, value); } catch (error) { if (error?.code !== 'ESRCH') throw error; } }
 async function stop() { if (!child || child.exitCode !== null) return; const graceful = waitExit(child, 2000); signal(child, 'SIGTERM'); if (await graceful) return; const forced = waitExit(child, 2000); signal(child, 'SIGKILL'); await forced; }
 async function ready() { for (let index = 0; index < 200; index += 1) { try { if ((await fetch(`${BASE}/api/v1/commerce/orders`)).status === 401) return; } catch {} await sleep(300); } throw new Error(log.slice(-4000)); }
-async function otp(phone, offset) { for (let index = 0; index < 100; index += 1) { const match = [...log.slice(offset).matchAll(new RegExp(`\\[SMS:log\\] OTP for \\+86${phone} => (\\d+)`, 'g'))].at(-1)?.[1]; if (match) return match; await sleep(150); } throw new Error('OTP missing'); }
-async function login(page, phone) { await page.goto(`${BASE}/login`); await page.getByLabel('手机号').fill(phone); const offset = log.length; await page.getByRole('button', { name: '获取验证码' }).click(); await page.getByLabel('验证码').fill(await otp(phone, offset)); await page.getByRole('button', { name: '登录' }).click(); await page.waitForURL(`${BASE}/account`); }
+async function otp(phone, offset, timeoutMs = 30_000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const match = [...log.slice(offset).matchAll(new RegExp(`\\[SMS:log\\] OTP for \\+86${phone} => (\\d+)`, 'g'))].at(-1)?.[1];
+    if (match) return match;
+    await sleep(150);
+  }
+  throw new Error(`OTP missing for ${phone} after ${timeoutMs}ms\n${log.slice(-4000)}`);
+}
+async function login(page, phone) { await page.goto(`${BASE}/login`); await page.getByLabel('手机号').fill(phone); const offset = log.length; await page.getByRole('button', { name: '获取验证码' }).click(); await page.getByLabel('验证码').fill(await otp(phone, offset)); await page.getByRole('button', { name: '登录' }).click(); await page.waitForURL(`${BASE}/account`, { timeout: 60_000 }); }
 async function api(page, path, init = {}) { return page.evaluate(async ({ path, init }) => { const response = await fetch(path, init); return { status: response.status, body: await response.json().catch(() => null) }; }, { path, init }); }
 
 async function fixture(ownerUserId) {
@@ -68,7 +76,7 @@ async function fixture(ownerUserId) {
 
 test.before(async () => {
   await mkdir(DIR, { recursive: true });
-  child = spawn('pnpm', ['exec', 'next', 'dev', '-H', '127.0.0.1', '-p', PORT], {
+  child = spawn('pnpm', ['exec', 'next', 'dev', '--webpack', '-H', '127.0.0.1', '-p', PORT], {
     cwd: webRoot, detached: true,
     env: { ...process.env, NODE_ENV: 'development', SMS_CHANNEL: 'log', BETTER_AUTH_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', BETTER_AUTH_URL: BASE, PAYMENT_PROVIDER_MODE: 'sandbox', ALIBABA_CLOUD_ACCESS_KEY_ID: 'c4-unused', ALIBABA_CLOUD_ACCESS_KEY_SECRET: 'c4-unused-secret', ALIBABA_CLOUD_OSS_BUCKET: 'c4-unused-bucket', ALIBABA_CLOUD_OSS_ENDPOINT: 'oss-cn-hangzhou.aliyuncs.com', ALIBABA_CLOUD_REGION: 'cn-hangzhou', PORT },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -92,7 +100,17 @@ test('trusted sandbox success creates one immutable order visible only to its ow
     await page.getByRole('link', { name: '进入沙箱支付页' }).click();
     await page.getByRole('button', { name: '模拟成功' }).click();
     await page.getByText('沙箱订单已由服务端幂等生成。').waitFor();
-    await page.getByRole('link', { name: '查看沙箱订单' }).click();
+    const ordersResponsePromise = page.waitForResponse((response) => (
+      response.request().method() === 'GET'
+      && new URL(response.url()).pathname === '/api/v1/commerce/orders'
+    ), { timeout: 120_000 });
+    const [ordersResponse] = await Promise.all([
+      ordersResponsePromise,
+      page.getByRole('link', { name: '查看沙箱订单' }).click(),
+    ]);
+    assert.equal(ordersResponse.status(), 200);
+    const navigationOrders = await ordersResponse.json();
+    assert.equal(navigationOrders.orders.some((item) => item.quoteId === quote.id), true);
     await page.getByText('已支付（沙箱）').waitFor();
     await page.getByText('文一西路 C4 沙箱地址').waitFor();
     await page.getByText('¥330.00').waitFor();

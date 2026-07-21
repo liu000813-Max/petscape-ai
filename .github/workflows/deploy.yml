@@ -1,49 +1,159 @@
 name: Deploy
 
 on:
-  # Only a completed CI push run on main may create a production release. This
-  # consumes the already-finished CI result instead of calling ci.yml again.
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
+  workflow_dispatch:
 
-permissions:
-  contents: read
-
-# A single production lane prevents two successful main CI runs from changing
-# ECS concurrently. Older queued runs re-check main immediately before migrate.
+# A production release is an explicit, low-frequency operation. Serializing the
+# whole workflow also prevents two manual requests from racing through browser
+# regression, registry writes, migrations, or the ECS switch.
 concurrency:
   group: production-deploy
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   resolve:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
     runs-on: ubuntu-latest
     outputs:
       target_sha: ${{ steps.target.outputs.sha }}
     steps:
-      - name: Bind release to successful CI head SHA
+      - name: Bind manual release to current main HEAD
         id: target
         env:
-          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_REF: ${{ github.ref }}
+          DISPATCH_SHA: ${{ github.sha }}
         run: |
-          if [[ ! "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "invalid CI head SHA: $TARGET_SHA" >&2
+          if [[ "$EVENT_NAME" != "workflow_dispatch" ]]; then
+            echo "Deploy only accepts workflow_dispatch; got $EVENT_NAME" >&2
             exit 1
           fi
-          echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
-          echo "release.target_sha=$TARGET_SHA ci_run=${{ github.event.workflow_run.id }}"
+          if [[ "$DISPATCH_REF" != "refs/heads/main" ]]; then
+            echo "Deploy must be dispatched from main; got $DISPATCH_REF" >&2
+            exit 1
+          fi
+          if [[ ! "$DISPATCH_SHA" =~ ^[0-9a-f]{40}$ || "$DISPATCH_SHA" =~ ^0{40}$ ]]; then
+            echo "invalid dispatch SHA: $DISPATCH_SHA" >&2
+            exit 1
+          fi
+
+          MAIN_JSON="$(mktemp)"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/branches/main" > "$MAIN_JSON"
+          CURRENT_MAIN_SHA="$(jq --raw-output '.commit.sha // empty' "$MAIN_JSON")"
+          if [[ ! "$CURRENT_MAIN_SHA" =~ ^[0-9a-f]{40}$ || "$CURRENT_MAIN_SHA" =~ ^0{40}$ ]]; then
+            echo "invalid current main SHA: $CURRENT_MAIN_SHA" >&2
+            exit 1
+          fi
+          if [[ "$DISPATCH_SHA" != "$CURRENT_MAIN_SHA" ]]; then
+            echo "dispatch target is stale: dispatch=$DISPATCH_SHA current_main=$CURRENT_MAIN_SHA" >&2
+            exit 1
+          fi
+
+          echo "sha=$CURRENT_MAIN_SHA" >> "$GITHUB_OUTPUT"
+          echo "release.target_sha=$CURRENT_MAIN_SHA source=manual-current-main"
+
+      - name: Verify exact-SHA main ci-gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          RUNS_JSON="$(mktemp)"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&head_sha=$TARGET_SHA&per_page=100" \
+            > "$RUNS_JSON"
+
+          CI_RUN_ID="$(jq --raw-output \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg target_sha "$TARGET_SHA" \
+            '
+              [
+                .workflow_runs[]
+                | select(
+                    .event == "push"
+                    and .head_branch == "main"
+                    and .head_sha == $target_sha
+                    and .head_repository.full_name == $repository
+                    and .path == ".github/workflows/ci.yml"
+                    and .status == "completed"
+                    and .conclusion == "success"
+                  )
+              ]
+              | sort_by([.run_attempt, .id])
+              | last
+              | .id // empty
+            ' "$RUNS_JSON")"
+          if [[ ! "$CI_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "no successful main CI run found for exact SHA $TARGET_SHA" >&2
+            exit 1
+          fi
+
+          JOBS_JSON="$(mktemp)"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID/jobs?filter=latest&per_page=100" \
+            > "$JOBS_JSON"
+          jq --exit-status \
+            --arg target_sha "$TARGET_SHA" \
+            'any(
+              .jobs[];
+              .name == "ci-gate"
+              and .head_sha == $target_sha
+              and .status == "completed"
+              and .conclusion == "success"
+            )' "$JOBS_JSON"
+          echo "release.ci_gate target=$TARGET_SHA ci_run=$CI_RUN_ID result=success"
+
+  full-regression:
+    needs: resolve
+    uses: ./.github/workflows/full-regression.yml
+    with:
+      target_sha: ${{ needs.resolve.outputs.target_sha }}
 
   build-and-push:
-    needs: resolve
+    needs: [resolve, full-regression]
+    if: >-
+      ${{
+        needs.resolve.result == 'success'
+        && needs.full-regression.result == 'success'
+      }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact CI-tested SHA
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.resolve.outputs.target_sha }}
+          persist-credentials: false
+
+      - name: Reject stale target before registry mutation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_SHA: ${{ needs.resolve.outputs.target_sha }}
+        run: |
+          MAIN_JSON="$(mktemp)"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/branches/main" > "$MAIN_JSON"
+          CURRENT_MAIN_SHA="$(jq --raw-output '.commit.sha // empty' "$MAIN_JSON")"
+          if [[ "$CURRENT_MAIN_SHA" != "$TARGET_SHA" ]]; then
+            echo "release became stale before registry mutation: target=$TARGET_SHA current_main=$CURRENT_MAIN_SHA" >&2
+            exit 1
+          fi
+          echo "release.fresh stage=registry target=$TARGET_SHA"
 
       - name: Set up QEMU (cross-arch emulation for linux/amd64)
         uses: docker/setup-qemu-action@v3
@@ -84,34 +194,40 @@ jobs:
           cache-to: type=gha,mode=max,scope=worker
 
   deploy:
-    needs: [resolve, build-and-push]
+    needs: [resolve, full-regression, build-and-push]
+    if: >-
+      ${{
+        needs.resolve.result == 'success'
+        && needs.full-regression.result == 'success'
+        && needs.build-and-push.result == 'success'
+      }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact CI-tested deployment scripts
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.resolve.outputs.target_sha }}
-          fetch-depth: 0
+          persist-credentials: false
 
-      # If main advanced while an older release was building or queued, the old
-      # run exits successfully without touching RDS/ECS. The newer successful CI
-      # run owns the next serialized release.
       - name: Reject stale release before production mutation
-        id: freshness
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_SHA: ${{ needs.resolve.outputs.target_sha }}
         run: |
-          LATEST_MAIN_SHA="$(git ls-remote origin refs/heads/main | cut -f1)"
-          if [[ "$LATEST_MAIN_SHA" == "$TARGET_SHA" ]]; then
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
-            echo "release.fresh target=$TARGET_SHA"
-          else
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping stale release target=$TARGET_SHA latest_main=$LATEST_MAIN_SHA"
+          MAIN_JSON="$(mktemp)"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/branches/main" > "$MAIN_JSON"
+          CURRENT_MAIN_SHA="$(jq --raw-output '.commit.sha // empty' "$MAIN_JSON")"
+          if [[ "$CURRENT_MAIN_SHA" != "$TARGET_SHA" ]]; then
+            echo "release became stale before production mutation: target=$TARGET_SHA current_main=$CURRENT_MAIN_SHA" >&2
+            exit 1
           fi
+          echo "release.fresh stage=production target=$TARGET_SHA"
 
       - name: Set up SSH
-        if: steps.freshness.outputs.deploy == 'true'
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
@@ -119,7 +235,6 @@ jobs:
           ssh-keyscan -H "${{ secrets.DEPLOY_SSH_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Upload exact-SHA release scripts and preflight
-        if: steps.freshness.outputs.deploy == 'true'
         run: |
           scp -i ~/.ssh/deploy_key deploy/ecs-image-retention.sh deploy/ecs-release.sh \
             "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}:/tmp/"
@@ -127,7 +242,6 @@ jobs:
             "chmod 700 /tmp/ecs-image-retention.sh /tmp/ecs-release.sh && /tmp/ecs-image-retention.sh pre"
 
       - name: Log in to ECS ACR mirror
-        if: steps.freshness.outputs.deploy == 'true'
         run: |
           printf '%s' '${{ secrets.ALIBABA_CLOUD_ACR_PASSWORD }}' | \
             ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
@@ -137,7 +251,6 @@ jobs:
       # failure exits non-zero before compose pull/up, leaving old containers in
       # service. "No pending migrations" is the normal successful no-op path.
       - name: Migrate then switch exact-SHA application images
-        if: steps.freshness.outputs.deploy == 'true'
         env:
           TARGET_SHA: ${{ needs.resolve.outputs.target_sha }}
         run: |
@@ -145,7 +258,6 @@ jobs:
             "/tmp/ecs-release.sh '$TARGET_SHA' '${{ secrets.ACR_REGISTRY_VPC }}'"
 
       - name: Verify exact-SHA containers healthy
-        if: steps.freshness.outputs.deploy == 'true'
         env:
           TARGET_SHA: ${{ needs.resolve.outputs.target_sha }}
         run: |
