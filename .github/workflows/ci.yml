@@ -116,6 +116,9 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      - name: Validate active Markdown
+        run: pnpm validate:docs
+
       - name: Prisma generate (packages/server)
         run: pnpm --filter @petscape/server run db:generate
 
@@ -206,6 +209,10 @@ jobs:
 
       - name: Configure sandbox payment trust in ephemeral CI Postgres
         run: pnpm --filter @petscape/server run db:configure:sandbox-payment-test
+
+      - name: Test durable order recovery worker failure
+        working-directory: worker
+        run: node --test --test-concurrency=1 tests/*.test.mjs
 
       - name: Test (packages/server, real PostgreSQL)
         run: pnpm --filter @petscape/server run test

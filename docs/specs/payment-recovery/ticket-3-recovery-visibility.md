@@ -1,6 +1,6 @@
 # Ticket 3：补单与人工关注可见
 
-- 状态：Ready
+- 状态：Done（审计修复实现 `916bdb1589f9f48c39c79af4b1cdb8a891497d01`；[行为与审计证据](../../evidence/payment-recovery/ticket-3/README.md)）
 - 前置：[支付异常恢复 Spec](README.md)、[Ticket 2](ticket-2-safe-retry.md)
 - 证据目录：`docs/evidence/payment-recovery/ticket-3/`
 

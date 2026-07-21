@@ -31,6 +31,7 @@ import { NeedsAttentionError, RetryableError, type JobHandler } from './handlers
 import { sampleEchoHandler } from './handlers/sampleEcho.ts';
 import { meshAnalysisHandler } from './handlers/meshAnalysis.ts';
 import { orderRecoveryHandler } from './handlers/orderRecovery.ts';
+import { orphanRecoveryLogEvent } from './orphanRecoveryLog.ts';
 
 // 本地开发约定：worker/package.json 的 dev/start 脚本用
 // `--env-file=../.env` 指向仓库根目录 `.env`；部署环境由 Compose 直接注入，
@@ -274,7 +275,9 @@ const recoverTimer = setInterval(() => {
   void recoverOrphans({}).then((results) => {
     // WP-3.5：orphan-recovered 事件——每个被恢复的孤儿任务各记一条。
     for (const result of results) {
-      logInfo('worker.job.orphan-recovered', { jobId: result.jobId, action: result.action });
+      const event = orphanRecoveryLogEvent(result);
+      if (event.level === 'error') logError(event.message, event.fields);
+      else logInfo(event.message, event.fields);
     }
   }).catch((error) => {
     logError('worker.recoverOrphans.error', { err: error });

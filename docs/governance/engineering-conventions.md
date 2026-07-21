@@ -51,9 +51,13 @@
 - [ ] 监控告警：支付失败率、任务失败率异常时主动通知到人，而非等用户上报
 - [ ] 对账与异常恢复：渠道流水 vs 订单表定期核对；不一致订单有人工处理入口
 - [ ] 真实 provider 事务边界：外部创建/查单调用不得长期占用数据库事务；通过 outbox 或等价可恢复边界证明崩溃与重试不会重复扣款
+- [ ] 数据库最小权限：migration owner 与 Web/Worker runtime role 分离；runtime 账号不能 `ALTER TABLE`、禁用/替换 trigger 或执行 DDL
+- [ ] Provider 归因与创建语义：查单结果必须绑定请求的 provider payment ID；adapter 明确处理同步 `processing/succeeded`，不能让渠道已受理而本地拒绝落 attempt
 - [ ] 审计记录：订单等关键状态变化留痕（谁/何时/从何值到何值）
 
 **不遵守的事故**：收款后才发现无法回滚、无告警、对不上账——损失的是真金白银和用户信任，且事后没有还手余地。
+
+当前 sandbox 的 HMAC persistence proof 和数据库 trigger 用于防止普通应用代码绕过状态机；它们共享 runtime 进程可访问的 secret 与高权限数据库账号，不抵御进程失陷。不得把这层防误写证明描述成独立的安全隔离。
 
 ## 演化记录
 

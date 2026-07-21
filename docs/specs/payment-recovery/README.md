@@ -43,11 +43,18 @@ retry 输入的 `expectedStatus` 支持 `failed | canceled`。reconcile URL 保�
 
 - PaymentIntent 的金额、币种、Quote 和地址快照不因恢复而改变。
 - 只有可信 provider event 或主动查单证明可以影响资金状态。
+- 主动查单返回的 provider、provider payment ID 必须与被查询 attempt 完全一致；身份错配只允许拒绝，不能把结果归到另一笔支付。
+- provider payment ID 或 provider event ID 命中唯一冲突时，只有回读后的支付归属、状态和关键 payload 完全一致才能视为幂等；否则必须显式冲突，不得静默成功。
+- 本轮 sandbox provider 的创建结果只接受 `requires_action`。真实 provider 若可能同步返回处理中或终态，必须先设计可信创建与事件落库边界。
 - 任何 `needs_attention` 都不创建 Order。
 - 并发恢复只能创建一个新 PaymentAttempt；merchant payment ID 与 provider 幂等输入保持确定性。
 - `canceled → requires_action` 只允许发生在同一事务已创建带可信 provider proof 的新 attempt 时；其他路径由数据库拒绝。
 - 生产继续 fail-closed，sandbox provider 不得在 production 启用。
+- Worker 只能在未耗尽 `maxAttempts` 且租约未过期时认领、完成或失败；崩溃耗尽后必须留下 durable 终态。
+- 用户侧首次创建失败必须复用同一支付初始化幂等键；管理员接口只返回稳定错误码和脱敏摘要，不返回原始 stack。
+- PaymentIntent、Order 与 order recovery Job 的公开派生状态必须来自同一数据库快照，不能把并发完成误报为人工关注。
 - 本轮不把真实 provider 外部调用移出数据库事务；该改造是接入真实渠道的上线门禁。
+- 当前 migration 与 runtime 共用数据库凭证，所以 trigger 只算防误写护栏，不算抵御应用进程失陷的独立安全边界。真实渠道上线前必须拆分 migration owner 与最小权限 runtime role。
 
 ## 验收终点
 

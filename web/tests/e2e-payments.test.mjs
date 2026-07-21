@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -9,6 +10,7 @@ import {
   B7_SANDBOX_SCENE_CONFIRMATION_ID,
   acceptQuote,
   bootstrapFirstAdmin,
+  changeUserRole,
   completeCheckRun,
   createCheckRun,
   createCustomizationRequest,
@@ -25,7 +27,7 @@ const PORT = process.env.E2E_C3_PORT ?? '3428';
 const BASE = `http://127.0.0.1:${PORT}`;
 const DIR = fileURLToPath(new URL('../test-results/c3-payments/', import.meta.url));
 const phoneSeed = Number(BigInt(Date.now()) % 100000000n);
-const defaultPhones = [0, 1, 2, 3]
+const defaultPhones = [0, 1, 2, 3, 4]
   .map((offset) => `137${String((phoneSeed + offset) % 100000000).padStart(8, '0')}`)
   .join(',');
 const PHONES = (process.env.E2E_C3_PHONES ?? defaultPhones).split(',');
@@ -291,6 +293,8 @@ test('accepts a quote, confirms checkout, retries sandbox payment, and hands suc
     const list = await api(page, '/api/v1/commerce/payment-intents');
     const intent = list.body.paymentIntents.find((item) => item.quoteId === quote.id);
     assert.equal(intent.status, 'succeeded');
+    assert.equal(intent.orderRecoveryStatus, 'order_created');
+    assert.equal(intent.recoveryAction, 'view_order');
     assert.equal(intent.amountCent, quote.amountCent);
     assert.equal(intent.attempts.length, 2);
     assert.equal(await prisma.order.count({ where: { paymentIntentId: intent.id } }), 1);
@@ -298,6 +302,62 @@ test('accepts a quote, confirms checkout, retries sandbox payment, and hands suc
     await login(otherPage, PHONES[1]);
     const foreign = await api(otherPage, `/api/v1/commerce/payment-intents/${intent.id}`);
     assert.equal(foreign.status, 404);
+
+    const recoveryQuote = await eligibleFixture(me.body.userId, 'visible-order-recovery');
+    const recoveryIntent = await api(page, '/api/v1/commerce/payment-intents', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ quoteId: recoveryQuote.id, idempotencyKey: `payment-recovery-visible-${crypto.randomUUID()}` }),
+    });
+    assert.equal(recoveryIntent.status, 201);
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION e2e_block_order_insert() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'e2e injected order interruption'; END; $$ LANGUAGE plpgsql`);
+    await prisma.$executeRawUnsafe(`CREATE TRIGGER a_e2e_block_order_insert BEFORE INSERT ON "order" FOR EACH ROW EXECUTE FUNCTION e2e_block_order_insert()`);
+    try {
+      const interrupted = await api(page, `/api/v1/commerce/sandbox-payments/${recoveryIntent.body.attempts[0].id}/complete`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ result: 'succeeded' }),
+      });
+      assert.equal(interrupted.status, 500);
+    } finally {
+      await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS a_e2e_block_order_insert ON "order"`);
+      await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS e2e_block_order_insert()`);
+    }
+    await page.goto(`${BASE}/payments`);
+    await page.getByText('付款成功，正在补单').waitFor();
+    assert.equal((await api(page, '/api/v1/commerce/orders')).status, 200);
+    assert.equal(await prisma.order.count({ where: { paymentIntentId: recoveryIntent.body.id } }), 0);
+    await page.screenshot({ path: `${DIR}/payment-recovery-order-recovering.png`, fullPage: true });
+
+    const recoveryJob = await prisma.job.findUniqueOrThrow({ where: { job_owner_type_idempotency_key: {
+      ownerUserId: me.body.userId, type: 'order_recovery', idempotencyKey: recoveryIntent.body.id,
+    } } });
+    await prisma.job.update({ where: { id: recoveryJob.id }, data: {
+      status: 'failed', attemptCount: recoveryJob.maxAttempts, errorClass: 'retryable',
+      errorDetail: { code: 'order_insert_failed', message: 'e2e injected durable recovery failure' }, finishedAt: new Date(),
+    } });
+    await page.reload();
+    await page.getByText('补单失败').waitFor();
+    await page.screenshot({ path: `${DIR}/payment-recovery-order-failed.png`, fullPage: true });
+    const failedIntent = (await api(page, `/api/v1/commerce/payment-intents/${recoveryIntent.body.id}`)).body;
+    assert.equal(failedIntent.orderRecoveryStatus, 'failed');
+    assert.equal(failedIntent.recoveryAction, 'contact_support');
+
+    const browserUser = await prisma.user.findUniqueOrThrow({ where: { id: me.body.userId }, select: { role: true } });
+    if (browserUser.role !== 'admin') {
+      const adminActor = await prisma.user.findFirstOrThrow({ where: { role: 'admin' }, select: { id: true } });
+      await changeUserRole({
+        prisma,
+        actorUserId: adminActor.id,
+        targetUserId: me.body.userId,
+        input: { role: 'admin', expectedRole: 'user', reason: 'payment recovery browser evidence' },
+      });
+    }
+    await page.goto(`${BASE}/admin/payments`);
+    const adminItem = page.locator('article', { hasText: recoveryIntent.body.id });
+    await adminItem.getByText('补单失败').first().waitFor();
+    await adminItem.getByText('retryable').waitFor();
+    await adminItem.getByText('order_insert_failed').waitFor();
+    await adminItem.getByText('订单补单失败，请按 Job ID 查询受控日志').waitFor();
+    assert.equal(await adminItem.getByText('e2e injected durable recovery failure').count(), 0);
+    await page.screenshot({ path: `${DIR}/payment-recovery-admin-job-failed.png`, fullPage: true });
   } finally {
     await context.close();
     await otherContext.close();
@@ -371,6 +431,63 @@ test('reconciles a canceled payment before letting the user pay again', async ()
       where: { paymentIntentId: created.body.id, source: 'query' },
     }), 1);
     await page.screenshot({ path: `${DIR}/payment-recovery-canceled-retry.png`, fullPage: true });
+  } finally {
+    await context.close();
+  }
+});
+
+test('reuses one Quote-scoped idempotency key and recovers a zero-attempt payment initialization', async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  try {
+    await login(page, PHONES[4]);
+    const me = await api(page, '/api/me');
+    const quote = await eligibleFixture(me.body.userId, 'stable-browser-idempotency');
+    const submittedKeys = [];
+    await page.route('**/api/v1/commerce/payment-intents', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      submittedKeys.push(route.request().postDataJSON().idempotencyKey);
+      return route.continue();
+    });
+
+    await page.goto(`${BASE}/payments`);
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION e2e_block_payment_attempt_insert() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'e2e injected provider persistence failure'; END; $$ LANGUAGE plpgsql`);
+    await prisma.$executeRawUnsafe(`CREATE TRIGGER a_e2e_block_payment_attempt_insert BEFORE INSERT ON "payment_attempt" FOR EACH ROW EXECUTE FUNCTION e2e_block_payment_attempt_insert()`);
+    try {
+      await page.getByRole('button', { name: '创建沙箱支付' }).click();
+      await page.getByText('支付渠道初始化失败，可使用同一幂等键重试').waitFor();
+      await page.getByRole('button', { name: '恢复支付初始化' }).waitFor();
+      assert.equal((await prisma.paymentIntent.findUniqueOrThrow({ where: { quoteId: quote.id }, include: { attempts: true } })).attempts.length, 0);
+      await page.screenshot({ path: `${DIR}/payment-recovery-zero-attempt.png`, fullPage: true });
+    } finally {
+      await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS a_e2e_block_payment_attempt_insert ON "payment_attempt"`);
+      await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS e2e_block_payment_attempt_insert()`);
+    }
+    await page.getByRole('button', { name: '恢复支付初始化' }).click();
+    await page.getByText('沙箱支付意图已创建；金额和地址均来自服务端冻结快照。').waitFor();
+
+    assert.equal(submittedKeys.length, 2);
+    assert.equal(submittedKeys[0], submittedKeys[1]);
+    const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { quoteId: quote.id }, include: { attempts: true } });
+    assert.equal(intent.attempts.length, 1);
+    await page.screenshot({ path: `${DIR}/payment-recovery-stable-idempotency.png`, fullPage: true });
+
+    const event = {
+      provider: 'sandbox', providerEventId: `sandbox_evt_route_conflict_${Date.now()}`,
+      providerPaymentId: intent.attempts[0].providerPaymentId, status: 'processing', amountCent: intent.amountCent,
+      currency: 'CNY', occurredAt: new Date().toISOString(), failureCode: null, failureMessage: null,
+    };
+    const deliver = (payload) => {
+      const rawBody = JSON.stringify(payload);
+      const signature = createHmac('sha256', process.env.SANDBOX_PAYMENT_SECRET).update(rawBody).digest('hex');
+      return api(page, '/api/v1/commerce/payment-events/sandbox', {
+        method: 'POST', headers: { 'content-type': 'application/json', 'x-sandbox-signature': signature }, body: rawBody,
+      });
+    };
+    assert.equal((await deliver(event)).status, 200);
+    const conflict = await deliver({ ...event, status: 'failed', failureCode: 'reused-id', failureMessage: 'different payload' });
+    assert.equal(conflict.status, 409);
+    assert.equal(conflict.body.error, 'conflict');
   } finally {
     await context.close();
   }

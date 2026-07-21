@@ -228,7 +228,7 @@ export interface ClaimNextJobParams {
 
 /**
  * 原子认领下一个可执行任务：`SELECT … FOR UPDATE SKIP LOCKED`。
- * 候选集合 = pending 任务，或 running 且租约已过期的任务。
+ * 候选集合 = 尚未耗尽 maxAttempts 的 pending 任务，或 running 且租约已过期的任务。
  * 认领成功后：置 running、写入 leaseOwner/leaseExpiresAt、attemptCount+1、
  * 写一行 JobAttempt。无可认领任务时返回 null。
  */
@@ -257,6 +257,7 @@ export async function claimNextJob(params: ClaimNextJobParams): Promise<JobRecor
     const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
       `SELECT id FROM "job"
        WHERE type = ANY($1::text[])
+         AND "attemptCount" < "maxAttempts"
          AND (
            status = 'pending'
            OR (status = 'running' AND "leaseExpiresAt" < $2 AND "vendorTaskId" IS NULL)
@@ -365,7 +366,8 @@ export async function completeJob(params: CompleteJobParams): Promise<CompleteJo
      WHERE id = $2
        AND "leaseOwner" = $3
        AND status = 'running'
-       AND "targetVersion" = $4`,
+       AND "targetVersion" = $4
+       AND "leaseExpiresAt" > $5`,
     JSON.stringify(resultRef),
     jobId,
     workerId,
@@ -448,6 +450,7 @@ export async function failJob(params: FailJobParams): Promise<FailJobOutcome> {
      WHERE id = $3
        AND "leaseOwner" = $4
        AND status = 'running'
+       AND "leaseExpiresAt" > $5
      RETURNING status`,
     errorClass,
     detailJson,
@@ -510,7 +513,7 @@ export interface RecoverOrphansParams {
   now?: Date;
 }
 
-export type RecoverOrphanAction = 'requeued' | 'needs_vendor_check';
+export type RecoverOrphanAction = 'requeued' | 'needs_vendor_check' | 'failed_exhausted';
 
 export interface RecoverOrphanResult {
   jobId: string;
@@ -521,7 +524,8 @@ export interface RecoverOrphanResult {
  * 孤儿任务恢复（ADR-0003 机制 2）：扫描 running 且租约已过期的任务。
  * - 存在 vendorTaskId → 置 needs_attention，返回 'needs_vendor_check'
  *   （不自动重跑；必须先由人工/后续流程查询供应商侧状态）；
- * - 不存在 vendorTaskId → 回 pending，返回 'requeued'（可再被认领）。
+ * - 不存在 vendorTaskId 且仍有尝试次数 → 回 pending，返回 'requeued'；
+ * - 不存在 vendorTaskId 且尝试次数耗尽 → durable failed，返回 'failed_exhausted'。
  */
 export async function recoverOrphans(
   params: RecoverOrphansParams,
@@ -530,8 +534,10 @@ export async function recoverOrphans(
   const now = params.now ?? new Date();
 
   return client.$transaction(async (tx) => {
-    const orphans = await tx.$queryRawUnsafe<Array<{ id: string; vendorTaskId: string | null }>>(
-      `SELECT id, "vendorTaskId" FROM "job"
+    const orphans = await tx.$queryRawUnsafe<Array<{
+      id: string; vendorTaskId: string | null; attemptCount: number; maxAttempts: number;
+    }>>(
+      `SELECT id, "vendorTaskId", "attemptCount", "maxAttempts" FROM "job"
        WHERE status = 'running'
          AND "leaseExpiresAt" < $1
        FOR UPDATE SKIP LOCKED`,
@@ -551,6 +557,22 @@ export async function recoverOrphans(
           },
         });
         results.push({ jobId: orphan.id, action: 'needs_vendor_check' });
+      } else if (orphan.attemptCount >= orphan.maxAttempts) {
+        await tx.job.update({
+          where: { id: orphan.id },
+          data: {
+            status: 'failed',
+            leaseOwner: null,
+            leaseExpiresAt: null,
+            errorClass: 'retryable',
+            errorDetail: {
+              code: 'lease_expired_max_attempts',
+              message: 'worker lease expired after the final allowed attempt',
+            },
+            finishedAt: now,
+          },
+        });
+        results.push({ jobId: orphan.id, action: 'failed_exhausted' });
       } else {
         await tx.job.update({
           where: { id: orphan.id },
