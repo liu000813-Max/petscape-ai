@@ -4,13 +4,13 @@ import { NextResponse } from 'next/server';
 import { getWebAuth } from '../../../../../lib/auth';
 import { getWebServerContext, withApiLogging } from '../../../../../lib/server-context';
 import { getAssetDownloadUrl, NotFoundError } from '@petscape/server/application';
+import { AssetDownloadResponseSchema } from '@petscape/server/contracts/assets';
+import { assetApiError, toAssetResponse } from '../../../../../lib/asset-api';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiLogging(req, async () => {
     const session = await getWebAuth().api.getSession({ headers: req.headers });
-    if (!session) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
+    if (!session) return assetApiError(401, { error: 'unauthorized' });
 
     const { id: assetId } = await params;
     const { prisma, oss } = getWebServerContext();
@@ -21,13 +21,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         ownerUserId: session.user.id,
         assetId,
       });
-      const res = NextResponse.json(result);
+      const body = AssetDownloadResponseSchema.parse({
+        asset: toAssetResponse(result.asset),
+        downloadUrl: result.downloadUrl,
+        expiresInSeconds: result.expiresInSeconds,
+      });
+      const res = NextResponse.json(body);
       return Object.assign(res, { _loggedUserId: session.user.id });
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        const res = NextResponse.json({ error: 'not_found' }, { status: 404 });
-        return Object.assign(res, { _loggedUserId: session.user.id });
-      }
+      if (error instanceof NotFoundError) return assetApiError(404, { error: 'not_found' }, session.user.id);
       throw error;
     }
   });

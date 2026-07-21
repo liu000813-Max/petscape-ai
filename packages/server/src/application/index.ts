@@ -20,7 +20,9 @@ export {
   requestAssetUpload,
   confirmAssetUpload,
   getAssetDownloadUrl,
+  listProjectAssets,
   AssetVerificationError,
+  InvalidAssetKindError,
 } from './assets.ts';
 
 // A4：宠物档案 CRUD、软删除与封面 Asset 约束。
@@ -41,6 +43,8 @@ export type {
   ConfirmAssetUploadInput,
   GetAssetDownloadUrlInput,
   GetAssetDownloadUrlResult,
+  ListProjectAssetsInput,
+  ProjectAssetSummary,
 } from './assets.ts';
 
 // WP-3.4：任务用例（createSampleJob/getJob），见 ./jobs.ts。

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Camera, HeartHandshake, ShieldCheck, Tags } from 'lucide-react';
 import { ImageDropzone } from '../ImageDropzone';
+import { uploadProjectImageAsset } from '../../lib/assetUpload';
 
 export function IntroSection({ projectId, petImageUrl, onPetImageUpload, petName, petAge, selectedSpecies, petSize }) {
   const displayName = petName?.trim() || '爱宠';
@@ -20,17 +21,9 @@ export function IntroSection({ projectId, petImageUrl, onPetImageUpload, petName
       onPetImageUpload(previousPreviewUrl || '');
       throw new Error('项目还在初始化，请稍后再试');
     }
-    const form = new FormData();
-    form.append('file', file);
-    form.append('kind', 'pet');
     try {
-      const res = await fetch(`/api/project/${projectId}/upload`, { method: 'POST', body: form });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || '上传失败');
-      }
-      const data = await res.json();
-      if (data.url) onPetImageUpload(data.url);
+      const { downloadUrl } = await uploadProjectImageAsset(projectId, file);
+      onPetImageUpload(downloadUrl);
     } catch (error) {
       onPetImageUpload(previousPreviewUrl || '');
       throw error;

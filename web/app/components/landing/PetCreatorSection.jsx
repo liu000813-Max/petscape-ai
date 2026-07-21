@@ -6,6 +6,7 @@ import { Gift, Rotate3D, Upload } from 'lucide-react';
 import { species, wearableItems } from './data';
 import { AssetPlaceholder } from './AssetPlaceholder';
 import { ImageDropzone } from '../ImageDropzone';
+import { uploadProjectImageAsset } from '../../lib/assetUpload';
 
 // three.js 舞台 client-only（three 用 window/document），ssr 关闭。
 const PetViewer = dynamic(() => import('../PetViewer'), { ssr: false });
@@ -121,7 +122,8 @@ export function PetCreatorSection({
     };
   }, [pipelineActive, poll]);
 
-  // 上传：POST /api/project/[id]/upload kind=pet，保留本地即时预览（onPetImageUpload 仍跑）。
+  // 上传：v1 Asset 链（POST assets → PUT 签名 URL → confirm，WP-G2），保留本地
+  // 即时预览（onPetImageUpload 仍跑）。
   const handleUpload = async (file) => {
     if (!file) return;
     const previousPreviewUrl = petImageUrl;
@@ -130,17 +132,9 @@ export function PetCreatorSection({
       onPetImageUpload(previousPreviewUrl || '');
       throw new Error('项目还在初始化，请稍后再试');
     }
-    const form = new FormData();
-    form.append('file', file);
-    form.append('kind', 'pet');
     try {
-      const res = await fetch(`/api/project/${projectId}/upload`, { method: 'POST', body: form });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || '上传失败');
-      }
-      const data = await res.json();
-      if (data.url) onPetImageUpload(data.url);
+      const { downloadUrl } = await uploadProjectImageAsset(projectId, file);
+      onPetImageUpload(downloadUrl);
     } catch (error) {
       onPetImageUpload(previousPreviewUrl || '');
       throw error;

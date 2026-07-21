@@ -50,6 +50,7 @@ if (!databaseUrl) {
     requestAssetUpload,
     confirmAssetUpload,
     getAssetDownloadUrl,
+    listProjectAssets,
     getProject,
     NotFoundError,
     AssetVerificationError,
@@ -71,6 +72,13 @@ if (!databaseUrl) {
     endpoint: process.env.ALIBABA_CLOUD_OSS_ENDPOINT,
     region: process.env.ALIBABA_CLOUD_REGION,
   });
+
+  // 真实最小 1x1 PNG（含正确 PNG 魔数 89 50 4E 47 0D 0A 1A 0A），供 mime 嗅探测试
+  // 使用——区别于其余测试用的任意文本 Buffer（那些测试不关心内容嗅探）。
+  const REAL_PNG_1X1 = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  );
 
   /** 劫持 console.log，从 infra/sms 的 log 通道输出中提取最近一次 OTP（同 auth.integration.test.mjs）。 */
   async function captureOtp(fn) {
@@ -158,8 +166,9 @@ if (!databaseUrl) {
     const project = await createProject({ prisma, ownerUserId: userA.userId, title: 'itest project' });
     assert.equal(project.ownerUserId, userA.userId);
 
-    // A 请求上传（拿到 PUT 签名 URL）
-    const fileBody = Buffer.from(`itest-content-${runId}`);
+    // A 请求上传（拿到 PUT 签名 URL）。声明 mime=image/png 时 confirm 会按真实
+    // 字节魔数嗅探校验（QA 修复），用真实 PNG 字节而非任意文本 Buffer。
+    const fileBody = REAL_PNG_1X1;
     const { asset, uploadUrl } = await requestAssetUpload({
       prisma,
       oss,
@@ -173,14 +182,13 @@ if (!databaseUrl) {
     assert.match(asset.ossKey, new RegExp(`^uploads/raw/${userA.userId}/${asset.id}/photo\\.png$`));
     createdOssKeys.push(asset.ossKey);
 
-    // 客户端 PUT（真实网络请求，验证签名 URL 确实可用）。不携带 Content-Type
-    // header——V4 签名 URL 若签名时未声明 content-type，OSS 服务端校验时会将
-    // 请求实际携带的 Content-Type 强制并入 canonical headers 重算，与签名 URL
-    // 生成时（未声明该 header）的 canonical request 不一致，导致 SignatureDoesNotMatch。
-    // 本包签名 URL 生成不预声明 headers（signPutUrl 不接受 headers 参数），
-    // 因此客户端 PUT 也不应主动携带 Content-Type/Content-MD5。
+    // 客户端 PUT（真实网络请求，验证签名 URL 确实可用）。WP-G2 修正：真实浏览器
+    // `fetch(url, { body: File })` 会自动附加 Content-Type header（规范行为，
+    // 客户端代码无法阻止），故 signPutUrl 现在把声明的 mime 预先纳入签名
+    // （见 infra/oss/index.ts），这里显式携带同一 Content-Type 验证签名一致。
     const putRes = await fetch(uploadUrl, {
       method: 'PUT',
+      headers: { 'Content-Type': 'image/png' },
       body: fileBody,
     });
     assert.equal(putRes.status, 200, `PUT 上传应成功: ${await putRes.text()}`);
@@ -257,7 +265,11 @@ if (!databaseUrl) {
     });
     createdOssKeys.push(asset.ossKey);
 
-    const putRes = await fetch(uploadUrl, { method: 'PUT', body: fileBody });
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: fileBody,
+    });
     assert.equal(putRes.status, 200);
 
     // 未签名直接访问同一对象（拼公网 endpoint URL，不带任何签名参数）——私有 Bucket
@@ -318,7 +330,11 @@ if (!databaseUrl) {
     });
     createdOssKeys.push(asset.ossKey);
 
-    const putRes = await fetch(uploadUrl, { method: 'PUT', body: fileBody });
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: fileBody,
+    });
     assert.equal(putRes.status, 200);
 
     // 声明一个与真实大小不符的伪造尺寸
@@ -381,7 +397,11 @@ if (!databaseUrl) {
     });
     createdOssKeys.push(asset.ossKey);
 
-    const putRes = await fetch(uploadUrl, { method: 'PUT', body: fileBody });
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: fileBody,
+    });
     assert.equal(putRes.status, 200);
     await confirmAssetUpload({ prisma, oss, ownerUserId: user.userId, assetId: asset.id });
 
@@ -395,5 +415,215 @@ if (!databaseUrl) {
     for (const key of keysInOss) {
       assert.ok(dbKeys.has(key), `OSS 中的对象 key（${key}）应有对应 Asset 数据库记录`);
     }
+  });
+
+  test('WP-G2：listProjectAssets 只返回 available 状态资产，含短 TTL 下载 URL；越权 404；重启后（新 Prisma 连接模拟）仍可读', async () => {
+    const userA = await loginAsNewUser('g2a');
+    const userB = await loginAsNewUser('g2b');
+    createdUserIds.push(userA.userId, userB.userId);
+    const project = await createProject({ prisma, ownerUserId: userA.userId, title: 'itest g2 list' });
+
+    // 声明 mime=image/png，confirm 会按真实字节魔数嗅探校验（QA 修复），
+    // 用真实 PNG 字节而非任意文本 Buffer。
+    const fileBody = REAL_PNG_1X1;
+    const { asset, uploadUrl } = await requestAssetUpload({
+      prisma,
+      oss,
+      ownerUserId: userA.userId,
+      projectId: project.id,
+      filename: 'pet.png',
+      mime: 'image/png',
+      size: fileBody.length,
+    });
+    createdOssKeys.push(asset.ossKey);
+
+    // pending（未 PUT+confirm）资产不应出现在列表中。
+    const beforeConfirm = await listProjectAssets({
+      prisma,
+      oss,
+      ownerUserId: userA.userId,
+      projectId: project.id,
+    });
+    assert.equal(
+      beforeConfirm.find((a) => a.id === asset.id),
+      undefined,
+      'pending 资产不应出现在 listProjectAssets 结果中',
+    );
+
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/png' },
+      body: fileBody,
+    });
+    assert.equal(putRes.status, 200);
+    await confirmAssetUpload({ prisma, oss, ownerUserId: userA.userId, assetId: asset.id });
+
+    const afterConfirm = await listProjectAssets({
+      prisma,
+      oss,
+      ownerUserId: userA.userId,
+      projectId: project.id,
+    });
+    const listed = afterConfirm.find((a) => a.id === asset.id);
+    assert.ok(listed, 'confirm 后资产应出现在 listProjectAssets 结果中');
+    assert.equal(listed.status, 'available');
+    assert.ok(listed.downloadUrl, 'listProjectAssets 结果应含可用的下载签名 URL');
+
+    const getRes = await fetch(listed.downloadUrl);
+    assert.equal(getRes.status, 200, '列表返回的下载 URL 应可直接下载 200');
+
+    // B 越权访问 A 的项目资产列表 → NotFoundError（404 语义）。
+    await assert.rejects(
+      () => listProjectAssets({ prisma, oss, ownerUserId: userB.userId, projectId: project.id }),
+      NotFoundError,
+      'B 访问 A 的项目资产列表应抛 NotFoundError',
+    );
+
+    // 「重启后图仍可见」的核心机制：新建一个独立 Prisma 连接模拟进程重启后的
+    // 全新查询（内存态清零，数据库/OSS 是唯一持久层），assetId 仍能换到有效签名 URL。
+    const { createPrismaClient: createFreshPrismaClient } = await import('../src/infra/db/index.ts');
+    const freshPrisma = createFreshPrismaClient({ connectionString: databaseUrl, poolMax: 2 });
+    try {
+      const afterRestart = await listProjectAssets({
+        prisma: freshPrisma,
+        oss,
+        ownerUserId: userA.userId,
+        projectId: project.id,
+      });
+      const restartListed = afterRestart.find((a) => a.id === asset.id);
+      assert.ok(restartListed, '模拟重启后的新连接仍应能列出该资产');
+      const restartGetRes = await fetch(restartListed.downloadUrl);
+      assert.equal(restartGetRes.status, 200, '模拟重启后下载 URL 仍应可用（内容持久化在 OSS，不依赖进程内存）');
+      const restartBuffer = Buffer.from(await restartGetRes.arrayBuffer());
+      assert.equal(restartBuffer.toString(), fileBody.toString(), '重启后下载内容应与原始上传内容一致');
+    } finally {
+      await freshPrisma.$disconnect();
+    }
+  });
+
+  test('QA 修复：checksum 在 confirm 后落地为 OSS ETag（此前恒 null）', async () => {
+    const user = await loginAsNewUser('qacs');
+    createdUserIds.push(user.userId);
+    const project = await createProject({ prisma, ownerUserId: user.userId, title: 'itest checksum' });
+
+    const { asset, uploadUrl } = await requestAssetUpload({
+      prisma,
+      oss,
+      ownerUserId: user.userId,
+      projectId: project.id,
+      filename: 'checksum.png',
+      mime: 'image/png',
+      size: REAL_PNG_1X1.length,
+    });
+    createdOssKeys.push(asset.ossKey);
+    assert.equal(asset.checksum, null, 'pending 阶段 checksum 应为 null（尚未上传/确认）');
+
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/png' },
+      body: REAL_PNG_1X1,
+    });
+    assert.equal(putRes.status, 200);
+
+    const confirmed = await confirmAssetUpload({ prisma, oss, ownerUserId: user.userId, assetId: asset.id });
+    assert.equal(confirmed.status, 'available');
+    assert.ok(confirmed.checksum, 'confirm 后 checksum 应落地非空（ADR-0005：保存校验值）');
+
+    const head = await oss.head(asset.ossKey);
+    assert.equal(confirmed.checksum, head.etag, 'checksum 应等于 OSS 返回的 ETag');
+
+    const reloaded = await prisma.asset.findUniqueOrThrow({ where: { id: asset.id } });
+    assert.equal(reloaded.checksum, head.etag, '数据库持久化的 checksum 应与 OSS ETag 一致');
+  });
+
+  test('QA 修复：confirm 按对象真实字节魔数嗅探 mime，与声明不符则 409 拒绝、Asset 保持 pending', async () => {
+    const user = await loginAsNewUser('qamime');
+    createdUserIds.push(user.userId);
+    const project = await createProject({ prisma, ownerUserId: user.userId, title: 'itest mime sniff' });
+
+    // 客户端声明 mime=image/jpeg，但实际 PUT 的字节是 PNG 魔数——模拟 QA 实测的
+    // 「text/html + JPEG 字节」类攻击场景的等价形式：声明与真实内容不一致。
+    const { asset, uploadUrl } = await requestAssetUpload({
+      prisma,
+      oss,
+      ownerUserId: user.userId,
+      projectId: project.id,
+      filename: 'forged-mime.jpg',
+      mime: 'image/jpeg',
+      size: REAL_PNG_1X1.length,
+    });
+    createdOssKeys.push(asset.ossKey);
+
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      // 签名已按声明的 image/jpeg 预声明，PUT 必须携带同一 Content-Type 才能通过
+      // OSS 签名校验；mime 嗅探校验的是「服务端读取到的真实字节」与「Asset 记录
+      // 声明的 mime」是否一致，和 Content-Type header 是两件事。
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: REAL_PNG_1X1,
+    });
+    assert.equal(putRes.status, 200);
+
+    await assert.rejects(
+      () => confirmAssetUpload({ prisma, oss, ownerUserId: user.userId, assetId: asset.id }),
+      AssetVerificationError,
+      '声明 mime 与真实字节魔数不符应抛 AssetVerificationError',
+    );
+
+    const reloaded = await prisma.asset.findUniqueOrThrow({ where: { id: asset.id } });
+    assert.equal(reloaded.status, 'pending', 'mime 嗅探失败后 Asset 应保持 pending，不进入 available');
+    assert.equal(reloaded.checksum, null, 'mime 嗅探失败后不应写入 checksum');
+  });
+
+  test('QA 修复：confirm 按魔数嗅探接受声明与真实内容一致的 mime（正常路径不受影响）', async () => {
+    const user = await loginAsNewUser('qamimeok');
+    createdUserIds.push(user.userId);
+    const project = await createProject({ prisma, ownerUserId: user.userId, title: 'itest mime ok' });
+
+    const { asset, uploadUrl } = await requestAssetUpload({
+      prisma,
+      oss,
+      ownerUserId: user.userId,
+      projectId: project.id,
+      filename: 'real.png',
+      mime: 'image/png',
+      size: REAL_PNG_1X1.length,
+    });
+    createdOssKeys.push(asset.ossKey);
+
+    const putRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/png' },
+      body: REAL_PNG_1X1,
+    });
+    assert.equal(putRes.status, 200);
+
+    const confirmed = await confirmAssetUpload({ prisma, oss, ownerUserId: user.userId, assetId: asset.id });
+    assert.equal(confirmed.status, 'available', '声明 mime 与真实字节一致时 confirm 应正常通过');
+  });
+
+  test('QA 修复：requestAssetUpload 忽略调用方以外注入的非法 kind——路由层不再原样转发客户端 kind', async () => {
+    const user = await loginAsNewUser('qakind');
+    createdUserIds.push(user.userId);
+    const project = await createProject({ prisma, ownerUserId: user.userId, title: 'itest kind allowlist' });
+
+    // requestAssetUpload 本身仍允许服务端调用方显式传 kind（如 pet cover-upload
+    // route 传 'pet_cover'）；本测试验证的是允许值集合（allowlist），不合法的
+    // kind 直接被拒绝，防止路由层疏忽转发未来新增的客户端字段时静默放行。
+    await assert.rejects(
+      () =>
+        requestAssetUpload({
+          prisma,
+          oss,
+          ownerUserId: user.userId,
+          projectId: project.id,
+          filename: 'evil.png',
+          mime: 'image/png',
+          size: 1,
+          kind: 'generated_render',
+        }),
+      /kind/i,
+      'kind 不在服务端 allowlist 中应被拒绝，不应静默建 Asset',
+    );
   });
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Upload, WandSparkles } from 'lucide-react';
 import { ImageDropzone } from '../ImageDropzone';
+import { uploadProjectImageAsset } from '../../lib/assetUpload';
 
 const DEFAULT_VIBE = '森林奶酪屋，童话厨房氛围，适合花枝鼠钻洞、觅食和攀爬。';
 const MAX_VIBE_PROMPT_CHARS = 200;
@@ -110,27 +111,14 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSp
 
   const mockQuery = mockMode ? '?mock=1' : '';
 
-  const uploadImage = async (file, kind) => {
-    if (!projectId) throw new Error('项目还在初始化，请稍后再试');
-    const form = new FormData();
-    form.append('file', file);
-    form.append('kind', kind);
-    const res = await fetch(`/api/project/${projectId}/upload`, { method: 'POST', body: form });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || '上传失败');
-    }
-    return res.json();
-  };
-
   const handleCageUpload = async (file) => {
-    const data = await uploadImage(file, 'cage');
-    setCagePreviewUrl(data.url);
+    const { downloadUrl } = await uploadProjectImageAsset(projectId, file);
+    setCagePreviewUrl(downloadUrl);
   };
 
   const handlePetReplace = async (file) => {
-    const data = await uploadImage(file, 'pet');
-    setLocalPetPreviewUrl(data.url);
+    const { downloadUrl } = await uploadProjectImageAsset(projectId, file);
+    setLocalPetPreviewUrl(downloadUrl);
   };
 
   const handleStructurePrompt = async () => {

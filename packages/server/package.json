@@ -11,6 +11,7 @@
     "./infra/logging": "./src/infra/logging/index.ts",
     "./application": "./src/application/index.ts",
     "./contracts/pets": "./src/contracts/pets.ts",
+    "./contracts/assets": "./src/contracts/assets.ts",
     "./contracts/scene-confirmation-commerce": "./src/contracts/scene-confirmation-commerce.ts",
     "./contracts/scene-confirmation-commerce.fixture": "./src/contracts/scene-confirmation-commerce.fixture.ts",
     "./contracts/scenes": "./src/contracts/scenes.ts",

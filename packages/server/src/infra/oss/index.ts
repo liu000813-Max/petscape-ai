@@ -55,11 +55,22 @@ export class OssStorage {
    * （`signatureUrlV4`，ADR-0005 验证条件 1）——ali-oss 的 `signatureUrl`/
    * `authorizationV4` client 选项走的是 V1 签名算法，不受 `authorizationV4`
    * 影响，V4 签名只能通过 `signatureUrlV4` 这个独立（async）方法获得。
+   *
+   * contentType 预声明（WP-G2 修正）：真实浏览器 `fetch(url, { body: File })`
+   * 会自动附加 `Content-Type` header（浏览器规范行为，客户端代码无法阻止）。
+   * ali-oss 的 canonical request 计算会把请求携带的 `content-type` 自动并入
+   * 签名（见 signUtils.js getCanonicalRequest），若生成签名 URL 时不预先声明
+   * 同一 Content-Type，浏览器上传会因签名不一致收到 SignatureDoesNotMatch/403
+   * （Node `fetch` 传 Buffer 不会自动加此 header，故 Node 环境集成测试此前
+   * 未暴露这个问题——WP-G2 真实浏览器上传测试首次发现）。传入 contentType 时，
+   * 调用方后续 PUT 必须携带完全相同的 Content-Type 值，否则签名同样不匹配。
    * @param key OSS 对象 key（调用方按 ADR-0005 规则构造，本模块不做规则判断）。
    * @param expiresSeconds 签名 URL 有效期（秒）。
+   * @param contentType 预声明并纳入签名的 Content-Type；不传则维持原行为（不声明）。
    */
-  async signPutUrl(key: string, expiresSeconds: number): Promise<string> {
-    return this.client.signatureUrlV4('PUT', expiresSeconds, undefined, key);
+  async signPutUrl(key: string, expiresSeconds: number, contentType?: string): Promise<string> {
+    const request = contentType ? { headers: { 'content-type': contentType } } : undefined;
+    return this.client.signatureUrlV4('PUT', expiresSeconds, request, key);
   }
 
   /** 签发短 TTL 的 GET 签名 URL（V4 签名），供客户端下载单个对象。 */
@@ -114,6 +125,33 @@ export class OssStorage {
       throw new Error(`OSS 对象读取长度不一致: expected=${expectedBytes}, actual=${total}`);
     }
     return Buffer.concat(chunks, total);
+  }
+
+  /**
+   * 用标准 HTTP Range 只读取对象头部若干字节（QA 修复：confirmAssetUpload 需要
+   * 按真实字节魔数嗅探 mime，不能只信任客户端声明——魔数嗅探只需文件头几十字节，
+   * 不必像 getVerifiedBuffer 那样读取并校验整个对象，避免不必要的下载流量）。
+   * @param key OSS 对象 key。
+   * @param maxBytes 最多读取的字节数（Range: bytes=0-{maxBytes-1}）。
+   */
+  async readHeadBytes(key: string, maxBytes: number): Promise<Buffer> {
+    const result = await this.client.getStream(key, {
+      headers: { Range: `bytes=0-${maxBytes - 1}` },
+    });
+    if (!result.stream) throw new Error('OSS 未返回对象读取流');
+    const chunks: Buffer[] = [];
+    let total = 0;
+    try {
+      for await (const chunk of result.stream as AsyncIterable<Buffer | string>) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        total += buffer.byteLength;
+        chunks.push(buffer);
+        if (total >= maxBytes) break;
+      }
+    } finally {
+      result.stream.destroy();
+    }
+    return Buffer.concat(chunks).subarray(0, maxBytes);
   }
 
   /**
