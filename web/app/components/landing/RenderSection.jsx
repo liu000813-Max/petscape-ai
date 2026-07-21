@@ -1,29 +1,38 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { fetchLatestRenderState } from '../../lib/vibeRender';
 
 // 批次2（F39）：三态展示——改造前(cage原图)/改造后(afterUrl)/小红书分享图(改造后图 3:4 中心裁切+品牌角标)。
-// 与 UploadVibeSection 解耦：不共享本地 state，靠轮询 GET /api/project/[id] 读 vibeRender 同步。
+// WP-G3：与 UploadVibeSection 解耦，靠轮询 GET /api/v1/projects/:id/renders 读最新
+// vibe_render 任务的展示态（旧 GET /api/project/[id] 内存 vibeRender 已退役）。
+// 「改造前」= 该任务引用的用户环境照签名 URL（与 main 行为等价：显示用户自己上传的
+// 环境照）；纯 t2i 场景（无环境照）保留示例图 + 「示例」标签，与 main 生成前初始态一致。
 export function RenderSection({ projectId }) {
-  const [vibeRender, setVibeRender] = useState(null);
+  const [renderState, setRenderState] = useState({ beforeUrl: null, afterUrl: null });
   const pollRef = useRef(null);
 
   useEffect(() => {
     if (!projectId) return undefined;
+    const handle = { aborted: false };
+    pollRef.current = handle;
+    let timer;
     const poll = async () => {
-      const res = await fetch(`/api/project/${projectId}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.vibeRender) setVibeRender(data.vibeRender);
+      if (handle.aborted) return;
+      const next = await fetchLatestRenderState(projectId).catch(() => null);
+      if (!handle.aborted && next) setRenderState({ beforeUrl: next.beforeUrl, afterUrl: next.afterUrl });
+      if (!handle.aborted) timer = setTimeout(poll, 2000);
     };
     poll();
-    pollRef.current = setInterval(poll, 1000);
-    return () => clearInterval(pollRef.current);
+    return () => {
+      handle.aborted = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [projectId]);
 
-  const hasLiveBefore = !!vibeRender?.beforeUrl;
-  const hasLiveAfter = vibeRender?.status === 'done' && !!vibeRender?.afterUrl;
-  const beforeUrl = hasLiveBefore ? vibeRender.beforeUrl : '/assets/social-before.png';
-  const afterUrl = hasLiveAfter ? vibeRender.afterUrl : '/assets/social-after.png';
-  const shareUrl = hasLiveAfter ? vibeRender.afterUrl : '/assets/social-xhs.png';
+  const hasLiveBefore = !!renderState.beforeUrl;
+  const hasLiveAfter = !!renderState.afterUrl;
+  const beforeUrl = hasLiveBefore ? renderState.beforeUrl : '/assets/social-before.png';
+  const afterUrl = hasLiveAfter ? renderState.afterUrl : '/assets/social-after.png';
+  const shareUrl = hasLiveAfter ? renderState.afterUrl : '/assets/social-xhs.png';
 
   return (
     <section className="render-section">

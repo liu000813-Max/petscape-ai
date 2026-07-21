@@ -25,12 +25,14 @@ import {
   logInfo,
   logWarn,
   logError,
+  createVibeRenderProviderFromConfig,
   type JobRecord,
 } from '@petscape/server/worker-api';
 import { NeedsAttentionError, RetryableError, type JobHandler } from './handlers/types.ts';
 import { sampleEchoHandler } from './handlers/sampleEcho.ts';
 import { meshAnalysisHandler } from './handlers/meshAnalysis.ts';
 import { orderRecoveryHandler } from './handlers/orderRecovery.ts';
+import { vibeRenderHandler } from './handlers/vibeRender.ts';
 import { orphanRecoveryLogEvent } from './orphanRecoveryLog.ts';
 
 // 本地开发约定：worker/package.json 的 dev/start 脚本用
@@ -89,10 +91,26 @@ logInfo('worker.config', {
   heartbeatIntervalMs,
 });
 
+// WP-G3：vibe_render provider（云雾）按配置装配一次，注入到每次 handler 执行的
+// ctx.server。两个云雾 key 都缺失时装配抛错——但仅当 vibe_render 在本 worker 的
+// 认领 type 列表内才 fail-fast，避免不跑生成任务的 worker 被无关配置卡住启动。
+const workerHandlesVibeRender = config.WORKER_JOB_TYPES.split(',')
+  .map((t) => t.trim())
+  .includes('vibe_render');
+const vibeRenderProvider = workerHandlesVibeRender
+  ? createVibeRenderProviderFromConfig({
+      YUNWU_API_KEY: config.YUNWU_API_KEY,
+      YUNWU_API_KEY_LOWRATE: config.YUNWU_API_KEY_LOWRATE,
+      YUNWU_BASE_URL: config.YUNWU_BASE_URL,
+      YUNWU_IMAGE_MODEL: config.YUNWU_IMAGE_MODEL,
+    })
+  : undefined;
+
 const handlers: Record<string, JobHandler> = {
   'sample.echo': sampleEchoHandler,
   mesh_analysis: meshAnalysisHandler,
   order_recovery: orderRecoveryHandler,
+  vibe_render: vibeRenderHandler,
 };
 
 /**
@@ -181,6 +199,10 @@ async function runJob(job: JobRecord): Promise<void> {
           prisma,
           oss,
           meshAnalyzerPythonBin: config.MESH_ANALYZER_PYTHON_BIN,
+          // vibeRenderProvider 仅在 worker 认领 vibe_render 时装配；非 vibe worker
+          // 不会分发到 vibeRenderHandler，此处 undefined 不会被消费（handler 内
+          // 解构使用即已保证只有 vibe_render 任务才触及它）。
+          vibeRenderProvider: vibeRenderProvider!,
         },
       },
     );

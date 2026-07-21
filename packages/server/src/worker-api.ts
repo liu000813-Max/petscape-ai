@@ -69,3 +69,28 @@ export type {
 
 export { processOrderRecoveryJob } from './application/orders.ts';
 export { isSerializableTransactionConflict } from './application/transaction-retry.ts';
+
+// WP-G3：vibe_render provider 端口 + prompt 组装 + 云雾/fixture 实现装配。
+// worker handler（worker/src/handlers/vibeRender.ts）经此面消费，不走带
+// server-only 的主入口。
+export { buildVibeRenderPrompt, VIBE_RENDER_JOB_TYPE } from './application/vibe-render.ts';
+export type {
+  VibeRenderProvider,
+  VibeRenderProviderInput,
+  VibeRenderProviderResult,
+  VibeRenderReferenceImage,
+} from './application/vibe-render.ts';
+export {
+  createVibeRenderProviderFromConfig,
+  createYunwuVibeRenderProvider,
+  createFixtureVibeRenderProvider,
+  extractDataUriImage,
+  YunwuPermanentError,
+} from './infra/vendors/index.ts';
+export type { VibeRenderProviderConfig } from './infra/vendors/index.ts';
+export {
+  GENERATED_RENDER_KIND,
+  VibeRenderJobInputSchema,
+  VibeRenderResultRefSchema,
+} from './contracts/renders.ts';
+export type { VibeRenderJobInput, VibeRenderResultRef } from './contracts/renders.ts';

@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronRight, Download } from 'lucide-react';
 import { flowStepAssets, flowSteps } from './data';
+import { fetchLatestRenderState } from '../../lib/vibeRender';
 
 // F47 订单条：按 state 推导当前高亮步骤。flowSteps 顺序：
 // ['免费生成图', '选择宠物', '创建形象', '添加装扮', '添加模块', '确认模型', '3D 打印', '发货']
 // designer 源站把"免费生图"放在第 4 步；这里保留当前 state 语义和顺序，只复用其视觉资产。
 
 export function OrderFlowSection({ projectId, petImageUrl, avatarGenerated, selectedWearables, selectedIds }) {
-  // 只读 project：vibeRender.status（"免费生成图"）+ avatarSlice（"确认模型"，切片完成 + STL 链接），
-  // 均是批次1/批次2 产物字段，本组件不依赖其代码，仅轮询 GET 读状态。
-  const [vibeStatus, setVibeStatus] = useState(null);
+  // "免费生成图"步骤：WP-G3 起走 v1——项目下存在 generated_render 效果图即视为完成
+  // （旧 GET /api/project/:id 的 vibeRender 内存态已退役）。
+  // "确认模型"步骤：avatarSlice 仍是 avatar 未迁段产物（G5 范围），继续读旧 GET。
+  const [vibeDone, setVibeDone] = useState(false);
   const [avatarSlice, setAvatarSlice] = useState(null);
 
   useEffect(() => {
@@ -17,11 +19,14 @@ export function OrderFlowSection({ projectId, petImageUrl, avatarGenerated, sele
     let cancelled = false;
     const poll = async () => {
       try {
+        const render = await fetchLatestRenderState(projectId).catch(() => null);
+        if (cancelled) return;
+        setVibeDone(!!render?.afterUrl);
+        // avatarSlice 仍来自旧 GET（avatar 段未迁，G5 范围）。
         const res = await fetch(`/api/project/${projectId}`);
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (cancelled) return;
-        setVibeStatus(data?.vibeRender?.status || null);
         setAvatarSlice(data?.avatarSlice ?? null);
       } catch {
         // 静默忽略，保持上一次已知状态
@@ -36,7 +41,7 @@ export function OrderFlowSection({ projectId, petImageUrl, avatarGenerated, sele
   }, [projectId]);
 
   const reachedByStep = {
-    '免费生成图': vibeStatus === 'done',
+    '免费生成图': vibeDone,
     '选择宠物': !!petImageUrl,
     '创建形象': !!avatarGenerated,
     '添加装扮': (selectedWearables?.length || 0) > 0,

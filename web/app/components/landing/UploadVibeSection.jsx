@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Upload, WandSparkles } from 'lucide-react';
 import { ImageDropzone } from '../ImageDropzone';
 import { uploadProjectImageAsset } from '../../lib/assetUpload';
+import { startVibeRender, pollVibeRender } from '../../lib/vibeRender';
 
 const DEFAULT_VIBE = '森林奶酪屋，童话厨房氛围，适合花枝鼠钻洞、觅食和攀爬。';
 const MAX_VIBE_PROMPT_CHARS = 200;
@@ -77,7 +78,9 @@ const createStructuredVibePrompt = (text, selectedSpecies, hasEnvironmentImage) 
 export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSpecies }) {
   const [vibeText, setVibeText] = useState(DEFAULT_VIBE);
   const [cagePreviewUrl, setCagePreviewUrl] = useState('');
+  const [cageAssetId, setCageAssetId] = useState('');
   const [localPetPreviewUrl, setLocalPetPreviewUrl] = useState('');
+  const [localPetAssetId, setLocalPetAssetId] = useState('');
   const [status, setStatus] = useState('idle'); // idle | running | done | failed
   const [isRewriting, setIsRewriting] = useState(false);
   const [error, setError] = useState('');
@@ -92,7 +95,8 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSp
   latestVibeTextRef.current = vibeText;
 
   useEffect(() => () => {
-    if (pollRef.current) clearInterval(pollRef.current);
+    // 卸载时中止仍在跑的轮询（pollRef 现在是 { aborted } 句柄，非 interval id）。
+    if (pollRef.current) pollRef.current.aborted = true;
   }, []);
 
   useEffect(() => {
@@ -109,15 +113,15 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSp
     return () => window.removeEventListener('resize', resizeTextarea);
   }, [vibeText]);
 
-  const mockQuery = mockMode ? '?mock=1' : '';
-
   const handleCageUpload = async (file) => {
-    const { downloadUrl } = await uploadProjectImageAsset(projectId, file);
+    const { assetId, downloadUrl } = await uploadProjectImageAsset(projectId, file);
+    setCageAssetId(assetId);
     setCagePreviewUrl(downloadUrl);
   };
 
   const handlePetReplace = async (file) => {
-    const { downloadUrl } = await uploadProjectImageAsset(projectId, file);
+    const { assetId, downloadUrl } = await uploadProjectImageAsset(projectId, file);
+    setLocalPetAssetId(assetId);
     setLocalPetPreviewUrl(downloadUrl);
   };
 
@@ -166,41 +170,42 @@ export function UploadVibeSection({ projectId, mockMode, petImageUrl, selectedSp
     }
   };
 
-  const pollProject = () => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      const res = await fetch(`/api/project/${projectId}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const job = data.vibeRender;
-      if (!job) return;
-      if (job.status === 'done') {
-        setStatus('done');
-        clearInterval(pollRef.current);
-      } else if (job.status === 'failed') {
-        setStatus('failed');
-        setError(job.error || '生成失败');
-        clearInterval(pollRef.current);
-      }
-    }, 1000);
-  };
-
+  // WP-G3：vibe 效果图走 v1 持久任务链（POST renders → 轮询 job → 产物 Asset）。
+  // 环境照/宠物照经 assetId 引用（G2 已上传），worker 从 OSS 读字节真实入图。
+  // pollRef 存一个 { aborted } 句柄，卸载/重发时置 aborted 让轮询循环自然退出。
   const handleGenerate = async () => {
     if (!projectId || !vibeText.trim() || status === 'running') return;
     setStatus('running');
     setError('');
-    const res = await fetch(`/api/project/${projectId}/vibe${mockQuery}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ vibe: vibeText }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setStatus('failed');
-      setError(data.error || '生成失败');
-      return;
+
+    // 中止上一次仍在跑的轮询。
+    if (pollRef.current) pollRef.current.aborted = true;
+    const pollHandle = { aborted: false };
+    pollRef.current = pollHandle;
+
+    try {
+      const petAssetId = localPetAssetId || undefined;
+      const job = await startVibeRender(projectId, {
+        vibeText,
+        environmentAssetId: cageAssetId || undefined,
+        petAssetId,
+        // 幂等键：同一项目 + vibe 文本重复点击不重复扣费（服务端 vibe_render 幂等）。
+        idempotencyKey: `render-${projectId}-${vibeText.length}-${Date.now()}`,
+      });
+      await pollVibeRender(job.id, {
+        signal: pollHandle,
+        onStatus: (s) => {
+          if (pollHandle.aborted) return;
+          if (s === 'running' || s === 'pending') setStatus('running');
+        },
+      });
+      if (!pollHandle.aborted) setStatus('done');
+    } catch (err) {
+      if (!pollHandle.aborted) {
+        setStatus('failed');
+        setError(err instanceof Error ? err.message : '生成失败');
+      }
     }
-    pollProject();
   };
 
   const canGenerate = !!projectId && !!vibeText.trim() && status !== 'running';

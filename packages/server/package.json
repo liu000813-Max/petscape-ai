@@ -23,6 +23,7 @@
     "./contracts/delivery-addresses": "./src/contracts/delivery-addresses.ts",
     "./contracts/payments": "./src/contracts/payments.ts",
     "./contracts/orders": "./src/contracts/orders.ts",
+    "./contracts/renders": "./src/contracts/renders.ts",
     "./worker-api": "./src/worker-api.ts"
   },
   "scripts": {

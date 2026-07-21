@@ -118,6 +118,17 @@ export const workerSchema = z.object({
   TRIPO_API_KEY: z.string().min(1).optional(),
   TRIPO_API_KEY_2: z.string().min(1).optional(),
 
+  // WP-G3：云雾 API 图像引擎（ADR-0006 终审）。OpenAI 兼容中转，base https://yunwu.ai。
+  // (key, model) 为耦合配置组——低倍率 key（YUNWU_API_KEY_LOWRATE，特价banana 分组
+  // 倍率 1.0）只含 gemini-3.1-flash-image-preview；标准 key（YUNWU_API_KEY，倍率 2.4）
+  // 含 gemini-2.5-flash-image。默认走低倍率 key + 3.1-preview 模型（ADR-0006 拍板，
+  // $0.1655/图）。provider 优先用 LOWRATE，缺省回落 YUNWU_API_KEY；模型可覆盖。
+  // 均 optional：本地/CI 无外部调用时不需要（fixture provider 不读这些键）。
+  YUNWU_API_KEY: z.string().min(1).optional(),
+  YUNWU_API_KEY_LOWRATE: z.string().min(1).optional(),
+  YUNWU_BASE_URL: z.string().min(1).default('https://yunwu.ai'),
+  YUNWU_IMAGE_MODEL: z.string().min(1).default('gemini-3.1-flash-image-preview'),
+
   UV_BIN: z.string().min(1).optional(),
   PRUSASLICER_BIN: z.string().min(1).optional(),
   // WP-B7-1：worker 镜像内已安装 trimesh 的 Python。生产镜像显式覆盖；
@@ -128,7 +139,7 @@ export const workerSchema = z.object({
   // 轮询间隔（无可认领任务时的睡眠时长）、租约时长（claimNextJob 的 leaseSeconds，
   // 心跳节奏按 leaseSeconds/3 触发，见 worker/src/main.ts）、孤儿恢复扫描周期。
   // 全部给合理默认值，本地/演练无需显式配置也能跑。
-  WORKER_JOB_TYPES: z.string().min(1).default('sample.echo,mesh_analysis,order_recovery'),
+  WORKER_JOB_TYPES: z.string().min(1).default('sample.echo,mesh_analysis,order_recovery,vibe_render'),
   WORKER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(2000),
   WORKER_LEASE_SECONDS: z.coerce.number().int().positive().default(30),
   WORKER_RECOVER_ORPHANS_INTERVAL_MS: z.coerce.number().int().positive().default(15000),

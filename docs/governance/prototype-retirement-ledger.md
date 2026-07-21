@@ -11,9 +11,10 @@
 | 部件 | 归属模块 | 退役条件 | 状态 |
 |---|---|---|---|
 | `app/api/project/route.ts`（POST 创建） | B1 设计项目 | landing 的项目创建切到 v1 项目 API | 已退役（WP-G1，文件已删除，唯一消费方 landing boot() 已切 `POST /api/v1/projects`） |
-| `app/api/project/[id]/route.ts`（GET） | B1 设计项目 | landing 不再用它做「项目身份」创建/恢复（WP-G1 已完成，改用 `GET /api/v1/projects/:id`）；仍是 vibe/avatar/avatar-slice 未迁段任务状态轮询的唯一入口（`EnvironmentPreviewSection`/`PetCreatorSection`/`ManufacturingSection`/`OrderFlowSection`/`RenderSection` 消费），G3/G5 迁走对应任务后才能整体退役 | 在役（角色收窄：从「项目身份源」降级为「未迁段任务状态轮询源」，惰性按 v1 projectId 建内存镜像，见 `lib/store/projects.ts#getOrCreateProject`） |
+| `app/api/project/[id]/route.ts`（GET） | B1 设计项目 | landing 不再用它做「项目身份」创建/恢复（WP-G1 已完成，改用 `GET /api/v1/projects/:id`）；vibe 段已迁走（WP-G3，RenderSection/UploadVibeSection/OrderFlowSection 的 vibe 读改走 v1 jobs/assets），现仅剩 avatar/avatar-slice 未迁段任务状态轮询（`EnvironmentPreviewSection`/`PetCreatorSection`/`ManufacturingSection`/`OrderFlowSection` 的 avatarSlice 消费），G5 迁走 avatar 后才能整体退役 | 在役（角色进一步收窄：仅剩 avatar/avatar-slice 未迁段任务态轮询源，惰性按 v1 projectId 建内存镜像，见 `lib/store/projects.ts#getOrCreateProject`） |
 | `app/api/project/[id]/upload/route.ts` | B2 空间设计 | 上传走 OSS 私有资产链（WP-3.2 已有基座） | 已退役（WP-G2，文件已删除，唯一消费方 `PetCreatorSection`/`IntroSection`/`UploadVibeSection` 已切 v1 Asset 三段式：`POST /api/v1/projects/:id/assets` → PUT 签名 URL → `POST /api/v1/assets/:id/confirm`） |
-| `app/api/project/[id]/vibe/route.ts` + `app/api/vibe/rewrite/route.ts` | B2 空间设计 | vibe 生成迁任务表 + worker handler | 在役 |
+| `app/api/project/[id]/vibe/route.ts` | B2 空间设计 | vibe 生成迁任务表 + worker handler | 已退役（WP-G3，文件已删除。vibe 生成迁 `vibe_render` 持久任务 + worker handler `worker/src/handlers/vibeRender.ts`；landing 改走 `POST /api/v1/projects/:id/renders` → 轮询 `GET /api/v1/jobs/:id` → 产物 `generated_render` Asset 经签名 URL 下载；照片经 assetId→OSS 真实入图，G2→G3 断链已修复） |
+| `app/api/vibe/rewrite/route.ts` | B2 空间设计 | G0 核实 OPENAI key 事实后决定去留 | 在役（拍板 15：key 已确认可用，走「原样接线，不扩展」分支，功能保留；OpenAI `/v1/responses`，非本 WP 退役对象） |
 | `app/api/project/[id]/avatar/route.ts` | B4 3D 模型生成 | 3D 生成迁任务表 + worker handler | 在役 |
 | `app/api/project/[id]/avatar-slice/route.ts` | B7 打印与成本预估 | 切片 ADR 落地后由正式估价链取代 | 在役 |
 
@@ -23,11 +24,11 @@
 |---|---|---|---|
 | `lib/store/projects.ts` + `recoverProject.ts`（globalThis 内存 Map） | B1 | 全部旧 API 退役后随之删除；数据无迁移价值（内存态） | 在役 |
 | `lib/types/project.ts`（job 字段契约，冻结点） | B1-B4 | 最后一个消费它的旧 route 退役时解冻删除 | 在役 |
-| `lib/jobs/vibeJob.ts` | B2 | 逻辑迁 worker handler（沿用 fal 引擎，已拍板 2026-07-18） | 在役 |
+| `lib/jobs/vibeJob.ts` | B2 | 逻辑迁 worker handler | 已退役（WP-G3，文件已删除。逻辑迁 `worker/src/handlers/vibeRender.ts`；引擎由 fal 改为云雾 API（ADR-0006 终审，fal 账号锁定废弃），收编于 `packages/server/src/infra/vendors/yunwu.ts`） |
 | `lib/jobs/avatarJob.ts`（3D 引擎级联 + 切片编排） | B4（级联）+ B7（切片段） | 级联逻辑迁 worker；切片段等切片 ADR | 在役 |
 | `lib/jobs/timeouts.ts`（withTimeout） | B2/B4 | 迁移时并入 worker 超时语义；`web/tests/timeouts.test.mjs` 随之退役 | 在役 |
 | `lib/tripo/client.ts`（withTripoKey 多 key 注入） | B4 | 随 avatarJob 迁移收编进 `packages/server/src/infra/vendors/` | 在役 |
-| `lib/images/`（fal 生图 client，5 文件） | B2 | 随 vibeJob 迁移收编进 infra/vendors | 在役 |
+| `lib/images/`（5 文件） | B2/B4 | 随 vibeJob（B2）+ avatarJob（B4）迁移收编进 infra/vendors | 部分退役（WP-G3：`scenePrompt.ts`（仅 vibeJob 消费）已删除，vibe prompt 组装收编进 `packages/server/src/application/vibe-render.ts#buildVibeRenderPrompt`。**`falClient.ts` 与 `triview.ts` 仍在役**——`avatarJob.ts`（B4，G5 范围）仍 import；`cropGrid.ts`/`multiviewPrompt.ts` 无 active 消费方。整体退役随 G5 avatarJob 迁移；注意 G3 引擎已改云雾，falClient 是 fal 遗留，G5 迁移时一并替换） |
 | `lib/prompts/avatarStyle.ts`（用户亲手调的文案） | B2/B4 | 迁移时保持"改文案即调效果"的可编辑性，位置另定 | 在役 |
 | `lib/auth/`（getWebAuth 接驳） | A3 | 已是正式链接驳层，不退役，随 A3 演进 | 正式链 |
 | `lib/printability/`（空目录） | — | 空壳，随 WP-A1 删除 | 已退役（2026-07-18） |
@@ -41,7 +42,7 @@
 | `app/components/landing/`（22 文件，设计师像素定稿） | 各 B 模块 UI | 不整体退役；正式站 UI 以其视觉语言为基准延展 | 在役 |
 | `app/components/landing/PetCreatorSection.jsx`（匿名页内存档案表单） | A4（档案语义）+ B1/B2（旧项目入口） | A4 正式 `/pets` 已吸收长期档案语义；待 B1/B2 将 landing 切到正式 Pet/Project 数据流后删除旧表单状态 | 吸收中（A4 语义已吸收，旧入口仍在役） |
 | `app/components/PetViewer.tsx` + `app/components/SceneViewer.tsx` + `assetIndex.ts` | B5 尺寸与空间确认 | landing 不再消费这组旧组件；正式 Viewer 的存在本身不等于旧 consumer 已退出 | 吸收中（正式 Viewer 已落地，landing consumer 仍在役） |
-| `app/generated/[...path]` | B4 | 产物入 OSS 私有桶 + 签名 URL 后删除（公开运行资产是已知反模式） | 在役（vibe/avatar 未迁段产物仍走此路径，G3/G5 范围） |
+| `app/generated/[...path]` | B4 | 产物入 OSS 私有桶 + 签名 URL 后删除（公开运行资产是已知反模式） | 在役（vibe 段已不再写入此路径——WP-G3 vibe 产物入 OSS + 签名 URL；仅剩 avatar 未迁段产物走此路径，G5 迁走后删除） |
 | `app/uploads/[...path]`（公开静态服务） | B2 | 产物入 OSS 私有桶 + 签名 URL 后删除（公开运行资产是已知反模式） | 已退役（WP-G2，目录已删除，唯一写入方 `upload/route.ts` 已退役，无残留消费方） |
 | `public/mockup-assets/` + `web/tests/mockFixtures.test.mjs` | 横切 | 不退役：按 Phase A 拍板升级为正式测试夹具机制 | 保留 |
 | `tools/demo-prep.mjs` | — | 内存 store 退役后失效，随 B1 划账时归档 | 在役 |
@@ -50,10 +51,10 @@
 
 | 豁免文件 | 随谁收敛 |
 |---|---|
-| `app/lib/images/falClient.ts` | B2 |
+| `app/lib/images/falClient.ts` | B4（WP-G3 复核修正：仍被 `avatarJob.ts` import，随 G5 avatarJob 迁移收敛，非 G3） |
 | `app/lib/jobs/avatarJob.ts` | B4 |
 | `app/lib/tripo/client.ts` | B4 |
-| `app/api/vibe/rewrite/route.ts` | B2 |
+| `app/api/vibe/rewrite/route.ts` | 不收敛（WP-G3 复核：拍板 15「原样接线」保留，功能在役，process.env 读取随之保留） |
 
 ## 五、已退役（历史记录）
 

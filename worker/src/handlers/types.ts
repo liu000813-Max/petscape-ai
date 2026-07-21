@@ -35,6 +35,8 @@ export interface JobHandlerContext {
     prisma: import('@petscape/server/worker-api').PrismaClient;
     oss: import('@petscape/server/worker-api').OssStorage;
     meshAnalyzerPythonBin: string;
+    /** WP-G3：vibe_render provider（云雾或 fixture），main.ts 按配置装配后注入。 */
+    vibeRenderProvider: import('@petscape/server/worker-api').VibeRenderProvider;
   };
 }
 

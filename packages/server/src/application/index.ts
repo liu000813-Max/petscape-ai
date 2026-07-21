@@ -57,6 +57,25 @@ export type {
   GetJobInput,
 } from './jobs.ts';
 
+// WP-G3：vibe 效果图生成用例 + provider 端口 + prompt 组装。
+export {
+  createVibeRenderJob,
+  getLatestVibeRender,
+  buildVibeRenderPrompt,
+  VIBE_RENDER_JOB_TYPE,
+} from './vibe-render.ts';
+export type {
+  CreateVibeRenderJobInput,
+  CreateVibeRenderJobResult,
+  LatestVibeRenderInput,
+  LatestVibeRenderResult,
+  VibeRenderProvider,
+  VibeRenderProviderInput,
+  VibeRenderProviderResult,
+  VibeRenderReferenceImage,
+  BuildVibeRenderPromptInput,
+} from './vibe-render.ts';
+
 export { NotFoundError } from '../domain/index.ts';
 
 // WP-B7-1：服务端网格分析任务 + 沙箱 Estimate。
