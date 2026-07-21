@@ -222,7 +222,11 @@ export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymen
   prisma: PrismaClient; provider: PaymentProviderPort; ownerUserId: string; paymentIntentId: string; input: RetryPaymentIntent;
 }) {
   await requireTrustedProvider(prisma, provider);
-  RetryPaymentIntentSchema.parse(untrusted);
+  const input = RetryPaymentIntentSchema.parse(untrusted);
+  const reconciled = await reconcilePaymentIntent({ prisma, provider, ownerUserId, paymentIntentId });
+  if (reconciled.status !== input.expectedStatus) {
+    throw new PaymentConflictError(`支付状态已从 ${input.expectedStatus} 变化为 ${reconciled.status}`);
+  }
   for (let retryNo = 0; retryNo < 5; retryNo += 1) {
     try {
       await prisma.$transaction(async (tx) => {
@@ -231,7 +235,12 @@ export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymen
         `;
         if (locked.length !== 1) throw new NotFoundError('PaymentIntent');
         const row = await tx.paymentIntent.findUniqueOrThrow({ where: { id: paymentIntentId }, include: { attempts: true } });
-        if (row.status !== 'failed') throw new PaymentConflictError('只有 failed 支付意图可以重试');
+        if (row.status !== input.expectedStatus) throw new PaymentConflictError('支付状态已变化，请刷新后重试');
+        if (row.attempts.some((attempt) =>
+          ['succeeded', 'processing'].includes(attempt.status) ||
+          ['succeeded', 'processing'].includes(attempt.providerObservedStatus))) {
+          throw new PaymentConflictError('存在已成功或处理中的渠道尝试，禁止创建新支付尝试');
+        }
         const nextAttemptNo = Math.max(...row.attempts.map((attempt) => attempt.attemptNo)) + 1;
         const created = await provider.createPayment({
           merchantPaymentId: `${row.id}:${nextAttemptNo}`, amountCent: row.amountCent, currency: 'CNY',
@@ -246,7 +255,7 @@ export async function retryPaymentIntent({ prisma, provider, ownerUserId, paymen
           providerObservedStatus: providerPayment.status, providerObservedAt: new Date(providerPayment.updatedAt),
         } });
         await tx.paymentIntent.update({ where: { id: paymentIntentId }, data: {
-          status: 'requires_action', failedAt: null,
+          status: 'requires_action', attentionCode: null, failedAt: null, canceledAt: null,
         } });
       }, { isolationLevel: 'Serializable' });
       return toResponse(await readIntent(prisma, paymentIntentId));
@@ -299,7 +308,9 @@ async function applyVerifiedEvent(
       const stale = intentTerminal || !canApplyAttemptStatus(attempt.status, event.status) ||
         (attempt.lastEventAt !== null && occurredAt <= attempt.lastEventAt);
       const latestNo = Math.max(...intent.attempts.map((item) => item.attemptNo));
-      if (moneyMismatch) {
+      if (intent.status === 'needs_attention') {
+        processingResult = 'ignored_stale';
+      } else if (moneyMismatch) {
         processingResult = 'needs_attention';
         attentionCode = 'amount_mismatch';
       } else if (event.status === 'succeeded' && attempt.attemptNo !== latestNo) {
@@ -307,6 +318,10 @@ async function applyVerifiedEvent(
         attentionCode = 'stale_succeeded_attempt';
       } else if (event.status === 'succeeded' && intent.status !== 'succeeded' &&
         (intentTerminal || !canApplyAttemptStatus(attempt.status, event.status))) {
+        processingResult = 'needs_attention';
+        attentionCode = 'provider_state_conflict';
+      } else if (event.status === 'processing' &&
+        (attempt.attemptNo !== latestNo || ['failed', 'canceled', 'needs_attention'].includes(intent.status))) {
         processingResult = 'needs_attention';
         attentionCode = 'provider_state_conflict';
       } else if (stale || attempt.attemptNo !== latestNo) processingResult = 'ignored_stale';
@@ -390,22 +405,23 @@ export async function reconcilePaymentIntent({ prisma, provider, ownerUserId, pa
 }) {
   await requireTrustedProvider(prisma, provider);
   const current = await getPaymentIntent({ prisma, ownerUserId, paymentIntentId });
-  const attempt = current.attempts.at(-1);
-  if (!attempt) throw new PaymentEligibilityError('支付意图缺少渠道尝试');
-  const verified = await provider.queryPayment(attempt.providerPaymentId);
-  const queried = verified.payment;
-  const event = ProviderEventSchema.parse({
-    provider: provider.name,
-    providerEventId: `query:${queried.providerPaymentId}:${queried.status}:${queried.updatedAt}`,
-    providerPaymentId: queried.providerPaymentId,
-    status: queried.status,
-    amountCent: queried.amountCent,
-    currency: queried.currency,
-    occurredAt: queried.updatedAt,
-    failureCode: queried.status === 'failed' ? 'sandbox_declined' : null,
-    failureMessage: queried.status === 'failed' ? '沙箱支付失败' : null,
-  });
-  await applyVerifiedEvent(prisma, event, 'query', verified.persistenceProof);
+  if (current.attempts.length === 0) throw new PaymentEligibilityError('支付意图缺少渠道尝试');
+  for (const attempt of current.attempts) {
+    const verified = await provider.queryPayment(attempt.providerPaymentId);
+    const queried = verified.payment;
+    const event = ProviderEventSchema.parse({
+      provider: provider.name,
+      providerEventId: `query:${queried.providerPaymentId}:${queried.status}:${queried.updatedAt}`,
+      providerPaymentId: queried.providerPaymentId,
+      status: queried.status,
+      amountCent: queried.amountCent,
+      currency: queried.currency,
+      occurredAt: queried.updatedAt,
+      failureCode: queried.status === 'failed' ? 'sandbox_declined' : null,
+      failureMessage: queried.status === 'failed' ? '沙箱支付失败' : null,
+    });
+    await applyVerifiedEvent(prisma, event, 'query', verified.persistenceProof);
+  }
   await ensureOrderForSucceededPayment({ prisma, paymentIntentId });
   return getPaymentIntent({ prisma, ownerUserId, paymentIntentId });
 }
@@ -415,7 +431,7 @@ export async function simulateSandboxPaymentAction({ prisma, provider, ownerUser
   provider: PaymentProviderPort & { simulate(providerPaymentId: string, status: ProviderEvent['status']): Promise<{ rawBody: string; signature: string }> };
   ownerUserId: string;
   attemptId: string;
-  result: 'processing' | 'succeeded' | 'failed';
+  result: 'processing' | 'succeeded' | 'failed' | 'canceled';
 }) {
   await requireTrustedProvider(prisma, provider);
   const attempt = await prisma.paymentAttempt.findFirst({

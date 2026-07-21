@@ -1,6 +1,6 @@
 # Ticket 3：补单与人工关注可见
 
-- 状态：Blocked by Ticket 2
+- 状态：Ready
 - 前置：[支付异常恢复 Spec](README.md)、[Ticket 2](ticket-2-safe-retry.md)
 - 证据目录：`docs/evidence/payment-recovery/ticket-3/`
 

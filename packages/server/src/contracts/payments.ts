@@ -23,7 +23,7 @@ export const CreatePaymentIntentSchema = z.strictObject({
 });
 
 export const RetryPaymentIntentSchema = z.strictObject({
-  expectedStatus: z.literal('failed'),
+  expectedStatus: z.enum(['failed', 'canceled']),
 });
 
 export const PaymentIntentIdParamSchema = z.strictObject({ id: idSchema });
@@ -76,7 +76,7 @@ export const AdminPaymentAttentionListResponseSchema = z.strictObject({
 });
 
 export const SandboxPaymentActionSchema = z.strictObject({
-  result: z.enum(['processing', 'succeeded', 'failed']),
+  result: z.enum(['processing', 'succeeded', 'failed', 'canceled']),
 });
 
 export const ProviderEventSchema = z.strictObject({

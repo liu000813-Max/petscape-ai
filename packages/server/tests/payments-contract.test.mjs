@@ -5,6 +5,7 @@ import {
   CreatePaymentIntentSchema,
   PaymentIntentResponseSchema,
   ProviderEventSchema,
+  RetryPaymentIntentSchema,
   SandboxPaymentActionSchema,
 } from '../src/contracts/payments.ts';
 import { createSandboxPaymentProvider, PaymentProviderDisabledError } from '../src/application/index.ts';
@@ -15,6 +16,14 @@ test('client can reference only a Quote and idempotency key, never money or addr
   });
   for (const injected of [{ amountCent: 1 }, { currency: 'USD' }, { deliveryAddressId: 'forged' }, { sandboxOnly: false }]) {
     assert.throws(() => CreatePaymentIntentSchema.parse({ quoteId: 'quote-1', idempotencyKey: 'payment-key-1', ...injected }));
+  }
+});
+
+test('retry contract accepts only explicit failed or canceled expectations', () => {
+  assert.deepEqual(RetryPaymentIntentSchema.parse({ expectedStatus: 'failed' }), { expectedStatus: 'failed' });
+  assert.deepEqual(RetryPaymentIntentSchema.parse({ expectedStatus: 'canceled' }), { expectedStatus: 'canceled' });
+  for (const expectedStatus of ['processing', 'succeeded', 'requires_action', 'needs_attention']) {
+    assert.throws(() => RetryPaymentIntentSchema.parse({ expectedStatus }));
   }
 });
 
@@ -29,6 +38,7 @@ test('provider event and sandbox action boundaries are strict', () => {
   assert.throws(() => ProviderEventSchema.parse({ ...event, amountCent: 0 }));
   assert.throws(() => ProviderEventSchema.parse({ ...event, ownerUserId: 'attacker' }));
   assert.deepEqual(SandboxPaymentActionSchema.parse({ result: 'failed' }), { result: 'failed' });
+  assert.deepEqual(SandboxPaymentActionSchema.parse({ result: 'canceled' }), { result: 'canceled' });
 });
 
 test('payment response stays visibly sandbox and never calls itself an order', () => {
