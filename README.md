@@ -110,4 +110,4 @@ Database-backed integration and browser suites require a migrated PostgreSQL 16 
 
 Secrets belong in local environment files or repository secret storage; `.env.example` contains placeholders only. Vendor upload tokens, signed download URLs, production account identifiers, private hostnames, and real test-user details are intentionally excluded from this public history.
 
-This portfolio snapshot does not currently grant an open-source licence. Please contact the author before reusing code or assets.
+This portfolio snapshot is released under the [MIT License](LICENSE).
