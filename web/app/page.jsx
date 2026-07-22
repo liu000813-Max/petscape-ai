@@ -167,7 +167,8 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setMockMode(params.has('mock'));
+    const isMock = params.has('mock');
+    setMockMode(isMock);
     const existing = params.get('project');
     const writeProjectParam = (id) => {
       const url = new URL(window.location.href);
@@ -175,6 +176,13 @@ export default function App() {
       window.history.replaceState(null, '', url);
     };
     const boot = async () => {
+      // Public portfolio mode is intentionally browse-only and must not require
+      // auth or PostgreSQL just to render the pre-baked landing and 3D assets.
+      if (isMock) {
+        setAuthenticated(false);
+        setProjectId(null);
+        return;
+      }
       // WP-G1：先探测登录态（既有 A1 会话端点）；未登录不建立项目，landing 仍可浏览。
       const me = await fetch('/api/me');
       if (!me.ok) {

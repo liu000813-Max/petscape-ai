@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "next dev -H 0.0.0.0",
+    "dev": "node scripts/dev-with-env.mjs dev -H 0.0.0.0",
     "build": "next build",
     "lint": "eslint .",
     "lint:baseline": "node scripts/check-lint-baseline.mjs",
