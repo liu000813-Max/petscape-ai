@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 # PetScape 阿里云 CLI 封装：强制使用项目 .env 凭证，并在执行前断言账号身份。
-# 背景：本机 ~/.aliyun/config.json 的全局默认凭证属于用户个人账号（<PERSONAL_CLOUD_ACCOUNT_ID>），
-# 裸调 aliyun 会打到错误账号。所有 PetScape 阿里云操作必须经过本脚本。
+# 避免误用全局默认身份：项目账号 ID 必须由环境显式提供。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/.env"
-EXPECTED_ACCOUNT="<PROJECT_CLOUD_ACCOUNT_ID>"   # PETSCAPE 主账号
+EXPECTED_ACCOUNT="${ALIBABA_CLOUD_ACCOUNT_ID:-}"
+
+if [ -z "$EXPECTED_ACCOUNT" ]; then
+  echo "tools/aliyun: 请设置 ALIBABA_CLOUD_ACCOUNT_ID 后再执行" >&2
+  exit 1
+fi
 
 AK=$(grep '^ALIBABA_CLOUD_ACCESS_KEY_ID=' "$ENV_FILE" | cut -d= -f2-)
 SK=$(grep '^ALIBABA_CLOUD_ACCESS_KEY_SECRET=' "$ENV_FILE" | cut -d= -f2-)

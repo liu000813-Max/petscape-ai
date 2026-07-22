@@ -5,7 +5,7 @@
 # 同 VPC，直连不走隧道）。不打印任何键值。
 #
 # 用法（本机执行，需要 tools/aliyun 同款 SSH 免密通道）：
-#   ./deploy/provision-env.sh [ecs_host]
+#   ./deploy/provision-env.sh <ecs_host>
 #
 # 依赖：仓库根 .env 存在且含 ALIBABA_CLOUD_RDS_* 与
 # ALIBABA_CLOUD_ACR_USERNAME/PASSWORD（ACR 开通后写入，见 WP-2.5 报告）。
@@ -14,8 +14,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/.env"
-ECS_HOST="${1:-<ECS_PUBLIC_IP>}"
+ECS_HOST="${1:-}"
 REMOTE_DIR="/opt/petscape-compose"
+
+if [ -z "$ECS_HOST" ]; then
+  echo "用法：$0 <ecs_host>" >&2
+  exit 1
+fi
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "provision-env.sh: 找不到 $ENV_FILE" >&2

@@ -4,10 +4,14 @@
 # the real PNVS_SIGN_NAME / PNVS_TEMPLATE_CODE from the console for a real send.
 set -u
 cd "$(dirname "$0")/.."
-PHONE="${1:-<REAL_TEST_PHONE>}"
+PHONE="${1:-}"
 SIGN="${PNVS_SIGN_NAME:-PetScape}"
 TMPL="${PNVS_TEMPLATE_CODE:-SMS_000000}"
 MAX=6
+if [ -z "$PHONE" ]; then
+  echo "usage: $0 <test-phone>" >&2
+  exit 2
+fi
 for i in $(seq 1 $MAX); do
   echo "=== attempt $i/$MAX $(date '+%H:%M:%S') ==="
   OUT=$(node scripts/pnvs-send.mjs "$PHONE" "$SIGN" "$TMPL" 2>&1)

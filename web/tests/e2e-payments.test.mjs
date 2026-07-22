@@ -199,7 +199,7 @@ test.before(async () => {
       NODE_ENV: 'development',
       WATCHPACK_POLLING: 'true',
       SMS_CHANNEL: 'log',
-      BETTER_AUTH_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      BETTER_AUTH_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', // gitleaks:allow -- local-only test credential
       BETTER_AUTH_URL: BASE,
       PAYMENT_PROVIDER_MODE: 'sandbox',
       ALIBABA_CLOUD_ACCESS_KEY_ID: 'c3-unused',

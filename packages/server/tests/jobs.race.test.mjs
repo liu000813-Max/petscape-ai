@@ -384,7 +384,7 @@ if (!databaseUrl) {
     const type = 'race-exhausted-pending';
     const owner = ownerPrefix('exhausted-pending');
     const { job } = await createJob(prisma, {
-      type, ownerUserId: owner, input: {}, idempotencyKey: 'fixture1', maxAttempts: 1,
+      type, ownerUserId: owner, input: {}, idempotencyKey: 'fixture1', maxAttempts: 1, // gitleaks:allow -- deterministic test fixture
     });
     await prisma.job.update({ where: { id: job.id }, data: { attemptCount: 1 } });
 

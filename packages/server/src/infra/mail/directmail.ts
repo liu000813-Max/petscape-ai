@@ -6,7 +6,7 @@
 // （lint 边界：process.env 只准在 infra/config）。
 //
 // 外部前置（S1 已实测）：DirectMail 已开通（华东1），发信域名 mail.petscape3d.com
-// 已验证，发信地址 no-reply@mail.petscape3d.com（触发类）已建，DNS 已配。
+// 真实发信地址由 MAIL_FROM_ADDRESS 注入；仓库不携带环境专属域名。
 //
 // SDK 说明：@alicloud/dm20151123 的 Client extends @alicloud/openapi-core 的 OpenApi，
 // 构造函数吃 $OpenApiUtil.Config（accessKeyId/accessKeySecret/endpoint）。
@@ -21,7 +21,7 @@ export interface DirectMailCredentials {
 }
 
 export interface DirectMailConfig {
-  /** 已在 DirectMail 控制台配置的发信地址，如 no-reply@mail.petscape3d.com。 */
+  /** 已在 DirectMail 控制台配置并验证的发信地址。 */
   fromAddress: string;
   /** 发信显示名，如 "PetScape"。 */
   fromAlias: string;

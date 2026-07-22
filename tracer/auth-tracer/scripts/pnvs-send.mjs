@@ -15,8 +15,7 @@ const Dypnsapi =
   typeof DypnsapiPkg === "function" ? DypnsapiPkg : DypnsapiPkg.default;
 const Config = OpenApiPkg.Config ?? OpenApiPkg.default?.Config ?? OpenApiPkg.default;
 
-const MAIN_ENV =
-  "<REPOSITORY_ROOT>/.env";
+const MAIN_ENV = new URL('../../../.env', import.meta.url);
 
 function loadMainEnvCreds() {
   const txt = readFileSync(MAIN_ENV, "utf8");
@@ -30,7 +29,11 @@ function loadMainEnvCreds() {
   };
 }
 
-const phone = process.argv[2] ?? "<REAL_TEST_PHONE>";
+const phone = process.argv[2];
+if (!phone) {
+  console.error('usage: node scripts/pnvs-send.mjs <test-phone> [signName] [templateCode]');
+  process.exit(2);
+}
 const signName = process.argv[3] ?? process.env.PNVS_SIGN_NAME ?? "";
 const templateCode = process.argv[4] ?? process.env.PNVS_TEMPLATE_CODE ?? "";
 

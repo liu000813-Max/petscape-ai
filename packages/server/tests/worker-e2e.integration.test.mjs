@@ -244,7 +244,7 @@ if (!databaseUrl) {
           prisma,
           ownerUserId: userB.id,
           input: { projectId: project.id, text: 'hijack attempt', sleepMs: 0 },
-          idempotencyKey: 'fixture2',
+          idempotencyKey: 'fixture2', // gitleaks:allow -- deterministic test fixture
         }),
       NotFoundError,
       'B 向 A 的项目创建任务应抛 NotFoundError',

@@ -2,7 +2,7 @@
 # WP-4.2：部署回滚脚本。
 #
 # 用法（本机执行）：
-#   ./deploy/rollback.sh <image-tag> [ecs_host]
+#   ACR_REGISTRY_VPC=<registry> ./deploy/rollback.sh <image-tag> <ecs_host>
 #
 # <image-tag> 是 git SHA（完整或短均可，只要 ACR 上存在对应 tag 的
 # petscape/web 与 petscape/worker 镜像）。脚本 SSH 到 ECS，复刻
@@ -23,15 +23,15 @@
 set -euo pipefail
 
 IMAGE_TAG="${1:-}"
-ECS_HOST="${2:-<ECS_PUBLIC_IP>}"
+ECS_HOST="${2:-}"
 REMOTE_DIR="/opt/petscape-compose"
 SSH_KEY="${ROLLBACK_SSH_KEY:-$HOME/.ssh/petscape-deploy}"
-ACR_REGISTRY_VPC="${ACR_REGISTRY_VPC:-<ACR_REGISTRY_VPC>}"
+ACR_REGISTRY_VPC="${ACR_REGISTRY_VPC:-}"
 HEALTH_TIMEOUT_S="${ROLLBACK_HEALTH_TIMEOUT_S:-120}"
 HEALTH_POLL_INTERVAL_S=3
 
-if [ -z "$IMAGE_TAG" ]; then
-  echo "用法：$0 <image-tag> [ecs_host]" >&2
+if [ -z "$IMAGE_TAG" ] || [ -z "$ECS_HOST" ] || [ -z "$ACR_REGISTRY_VPC" ]; then
+  echo "用法：ACR_REGISTRY_VPC=<registry> $0 <image-tag> <ecs_host>" >&2
   echo "  <image-tag>：ACR 上已存在的 petscape/web 与 petscape/worker 镜像 tag（通常是 git SHA）" >&2
   exit 1
 fi

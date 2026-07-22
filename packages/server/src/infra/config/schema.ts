@@ -94,9 +94,10 @@ export const webSchema = z.object({
 
   // DirectMail 发信配置（控制台既有资源，非账号凭证——账号凭证 ALIBABA_CLOUD_ACCESS_KEY_*
   // 已在 common）。仅 MAIL_CHANNEL=directmail 时使用，故 from-address 给已验证发信地址默认值、
+  // 公开快照使用不可投递的示例域名；真实发信地址必须用环境变量显式配置。
   // 显示名默认 "PetScape"、端点默认华东1；真正调用 directmail 通道且发信地址缺失时由
   // infra/mail 在运行时报错，不在此处提前拒绝启动（log 通道场景下不需要）。
-  MAIL_FROM_ADDRESS: z.string().min(1).default('no-reply@mail.petscape3d.com'),
+  MAIL_FROM_ADDRESS: z.string().min(1).default('no-reply@example.invalid'),
   MAIL_FROM_ALIAS: z.string().min(1).default('PetScape'),
   MAIL_DIRECTMAIL_ENDPOINT: z.string().min(1).default('dm.aliyuncs.com'),
 

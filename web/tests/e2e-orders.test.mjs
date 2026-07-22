@@ -78,7 +78,7 @@ test.before(async () => {
   await mkdir(DIR, { recursive: true });
   child = spawn('pnpm', ['exec', 'next', 'dev', '--webpack', '-H', '127.0.0.1', '-p', PORT], {
     cwd: webRoot, detached: true,
-    env: { ...process.env, NODE_ENV: 'development', SMS_CHANNEL: 'log', BETTER_AUTH_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', BETTER_AUTH_URL: BASE, PAYMENT_PROVIDER_MODE: 'sandbox', ALIBABA_CLOUD_ACCESS_KEY_ID: 'c4-unused', ALIBABA_CLOUD_ACCESS_KEY_SECRET: 'c4-unused-secret', ALIBABA_CLOUD_OSS_BUCKET: 'c4-unused-bucket', ALIBABA_CLOUD_OSS_ENDPOINT: 'oss-cn-hangzhou.aliyuncs.com', ALIBABA_CLOUD_REGION: 'cn-hangzhou', PORT },
+    env: { ...process.env, NODE_ENV: 'development', SMS_CHANNEL: 'log', BETTER_AUTH_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', BETTER_AUTH_URL: BASE, PAYMENT_PROVIDER_MODE: 'sandbox', ALIBABA_CLOUD_ACCESS_KEY_ID: 'c4-unused', ALIBABA_CLOUD_ACCESS_KEY_SECRET: 'c4-unused-secret', ALIBABA_CLOUD_OSS_BUCKET: 'c4-unused-bucket', ALIBABA_CLOUD_OSS_ENDPOINT: 'oss-cn-hangzhou.aliyuncs.com', ALIBABA_CLOUD_REGION: 'cn-hangzhou', PORT }, // gitleaks:allow -- local-only test credentials
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   child.stdout.on('data', (value) => { log += value; }); child.stderr.on('data', (value) => { log += value; });
