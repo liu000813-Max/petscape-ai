@@ -38,7 +38,7 @@
   },
   "compileType": "miniprogram",
   "libVersion": "3.7.8",
-  "appid": "touristappid",
+  "appid": "wx86e80d01d33113a9",
   "projectname": "petscape-miniapp",
   "miniprogramRoot": ".",
   "cloudfunctionRoot": "cloudfunctions/",

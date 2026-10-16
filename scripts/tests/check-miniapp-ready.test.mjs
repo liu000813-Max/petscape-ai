@@ -16,7 +16,7 @@ async function fixture(t, { config = {}, appid = appId, privateSettings = {}, en
   });
   await mkdir(path.join(root, 'miniapp/utils'), { recursive: true });
   await writeFile(path.join(root, 'miniapp/utils/config.js'), 'module.exports = ' + JSON.stringify({
-    accountType: 'personal', webViewEnabled: false, mockMode: false, apiBaseUrl: 'https://api.example.com', ...config,
+    accountMode: 'registered', accountType: 'personal', webViewEnabled: false, mockMode: false, apiBaseUrl: 'https://api.example.com', ...config,
   }));
   await writeFile(path.join(root, 'miniapp/project.config.json'), JSON.stringify({ appid, setting: { urlCheck: true } }));
   await writeFile(path.join(root, 'miniapp/project.private.config.json'), JSON.stringify({ setting: privateSettings }));
@@ -38,6 +38,19 @@ test('complete local configuration stays separate from external verification and
 test('tourist mock setup reports concrete missing configuration', async (t) => {
   const root = await fixture(t, { appid: 'touristappid', config: { mockMode: true }, env: '' });
   assert.deepEqual(missing(await checkMiniappReady(root, {})), ['appid', 'backend-appid', 'backend-secret', 'mock-mode']);
+});
+
+test('test account with a valid AppID cannot be reported as ready for release', async (t) => {
+  const root = await fixture(t, { config: { accountMode: 'test' } });
+  const report = await checkMiniappReady(root, {});
+  assert.equal(report.configurationReady, false);
+  assert.deepEqual(missing(report), ['account-registration']);
+  assert.equal(report.checks.find((item) => item.id === 'appid').message.includes('正式'), false);
+});
+
+test('unknown registration status cannot be inferred from AppID format', async (t) => {
+  const root = await fixture(t, { config: { accountMode: null } });
+  assert.deepEqual(missing(await checkMiniappReady(root, {})), ['account-registration']);
 });
 
 test('environment overrides local .env and a mismatch is rejected without leaking credentials', async (t) => {

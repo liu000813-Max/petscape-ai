@@ -49,7 +49,10 @@ export async function checkMiniappReady(root, environment = process.env) {
     const appId = project.appid;
     const secret = env.WECHAT_MINIPROGRAM_APP_SECRET;
     const realId = typeof appId === 'string' && /^wx[0-9a-f]{16}$/iu.test(appId);
-    check('appid', realId, '客户端已填写正式 AppID 格式', '尚无正式 AppID；注册后替换 touristappid');
+    check('appid', realId, '客户端 AppID 格式有效；不证明账号已注册', '尚无有效 AppID；替换 touristappid 后继续检查账号类型');
+    check('account-registration', config.accountMode === 'registered',
+      '本机标记为已注册账号；后台主体与发布资格仍待核对',
+      config.accountMode === 'test' ? '当前为微信测试号，仅用于开发预览；正式发布仍需注册账号' : '账号注册状态未确认；核对后台后填写 accountMode');
     check('backend-appid', realId && env.WECHAT_MINIPROGRAM_APP_ID === appId,
       '本机服务端 AppID 与客户端一致', '本机服务端尚未配置一致的 WECHAT_MINIPROGRAM_APP_ID');
     check('backend-secret', typeof secret === 'string' && /^[0-9a-f]{32}$/iu.test(secret),

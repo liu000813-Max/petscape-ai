@@ -26,6 +26,7 @@
 
 1. 使用微信开发者工具打开本目录。
 2. 当前 `miniapp/utils/config.js` 默认使用 mock 数据，便于直接评审 PETSCAPE 界面和物种分类。
+   当前 AppID 已接入微信后台提供的测试号，`accountMode: 'test'`；它不代表正式注册或上传体验版完成。
 3. 接入正式 AppID、服务端会话和线上接口后，将 `mockMode` 改为 `false`。
 4. 个人版保留 `accountType: 'personal'`、`webViewEnabled: false`。演示内容不能作为线上真实服务。
 
@@ -35,7 +36,7 @@
 - 小程序请求通过 `X-PetScape-Session` 发送票据，AppSecret 不进入小程序代码。
 - 在微信公众平台配置 request 合法域名；个人版不配置或承诺 web-view。
 - 本机空库迁移、重复迁移、旧库升级及真实数据库/HTTP 验收已通过；正式环境迁移、真实微信登录及设备验收分别完成。
-- 将 `touristappid` 替换为正式 AppID，不把 AppSecret 放进小程序代码。
+- 正式注册后替换当前测试号 AppID，并核对 `accountMode: 'registered'`；AppID 格式本身不能证明账号注册状态。不把 AppSecret 放进小程序代码。
 - 现有 Web 的 Job/Worker 与个人小程序能力分别验收；个人版原生 3D 尚未实现。
 
 账号未建立时按 [账号准备指引](../docs/runbooks/miniapp-account-setup.md)由本人注册，不需要提前提供 AppSecret。配置后运行 Node 24 的 `node scripts/check-miniapp-ready.mjs`，仅检查本机客户端配置、根 `.env` 和进程环境变量；`--json` 输出脱敏报告，`--check` 在存在缺项时退出 1。它不会验证微信后台、密钥有效性、线上 API 或发布资格，也不写入配置。
@@ -44,4 +45,6 @@
 
 本轮范围与接口见 [小程序内容规范](../docs/specs/miniapp-content.md)，最新表单与个人能力调整见 [个人版验收](../docs/operations/miniapp-personal-2026-10-16.md)。数据库及 HTTP 入口见 [运行手册](../docs/runbooks/miniapp-local-postgres.md)。
 
-使用 Node 24 执行 `node --test web/tests/miniapp.test.mjs` 可验证原生页面配置、事件绑定、表单合同、mock 交互、登录合并与错误上报。配置诊断测试为 `node --test scripts/tests/check-miniapp-ready.test.mjs`。真实微信预览码需要登录开发者工具并配置正式 AppID；浏览器链接不能替代。
+使用 Node 24 执行 `node --test web/tests/miniapp.test.mjs` 可验证原生页面配置、事件绑定、表单合同、mock 交互、登录合并与错误上报。配置诊断测试为 `node --test scripts/tests/check-miniapp-ready.test.mjs`。
+
+PowerShell 运行 `./scripts/preview-miniapp.ps1` 调用官方工具生成当前项目的微信预览码，要求工具登录、服务端口可连接和当前 AppID 具备预览权限。产物留在仓库外的独立运行目录；失败不复用旧二维码。部分官方 Windows CLI 出错仍返回 0，入口同时检查错误信息与本轮新生成的 PNG。预览码、真机验收与正式体验版上传分别记录；浏览器链接不能替代。

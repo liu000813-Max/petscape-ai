@@ -1,0 +1,150 @@
+{
+  "recordedAt": "2026-10-16T11:10:10.346Z",
+  "baselineCommit": "077b14e6f2e527f68728e6f03a154daa05102287",
+  "scope": "test-account-configuration-and-local-verification",
+  "account": {
+    "officialPageKind": "miniapp-test-account",
+    "formalRegistrationVerified": false,
+    "localSecretFileIgnored": true
+  },
+  "configuration": {
+    "configurationReady": false,
+    "checks": [
+      {
+        "id": "appid",
+        "status": "pass",
+        "message": "客户端 AppID 格式有效；不证明账号已注册"
+      },
+      {
+        "id": "account-registration",
+        "status": "missing",
+        "message": "当前为微信测试号，仅用于开发预览；正式发布仍需注册账号"
+      },
+      {
+        "id": "backend-appid",
+        "status": "pass",
+        "message": "本机服务端 AppID 与客户端一致"
+      },
+      {
+        "id": "backend-secret",
+        "status": "pass",
+        "message": "本机已填写 AppSecret 格式，未输出值"
+      },
+      {
+        "id": "mock-mode",
+        "status": "missing",
+        "message": "当前仍为 mock；接通正式后端后再关闭"
+      },
+      {
+        "id": "api-origin",
+        "status": "pass",
+        "message": "已填写 HTTPS API 源地址，线上可用性待验收"
+      },
+      {
+        "id": "url-check",
+        "status": "pass",
+        "message": "项目与本机配置均启用域名校验"
+      },
+      {
+        "id": "account-capabilities",
+        "status": "pass",
+        "message": "主体与网页能力开关一致"
+      },
+      {
+        "id": "secret-location",
+        "status": "pass",
+        "message": "客户端源文件未发现当前配置的 AppSecret"
+      }
+    ],
+    "externalVerification": [
+      "注册账号并核对个人主体实际可选类目和内容范围",
+      "微信后台配置 request 合法域名并验证正式后端",
+      "本人登录开发者工具，完成 wx.login、真机和隐私授权验收",
+      "上传体验版、设置体验成员并验证微信体验二维码"
+    ]
+  },
+  "preview": {
+    "runId": "20261016-190759-851f6319",
+    "recordedAt": "2026-10-16T19:08:39.2942068+08:00",
+    "status": "failed",
+    "reason": "ide-port-timeout",
+    "cliExitCode": 0,
+    "qrSha256": null,
+    "phoneVerified": false
+  },
+  "verification": {
+    "readinessTests": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    "webUnitTests": {
+      "passed": 54,
+      "failed": 0,
+      "skipped": 0
+    },
+    "officialNativeCompile": {
+      "wxml": 13,
+      "wxss": 14,
+      "passed": true
+    },
+    "serverTypecheck": "passed",
+    "workerTypecheck": "passed",
+    "nextBuild": "passed",
+    "documentation": {
+      "gitIndexSnapshot": "passed",
+      "activeMarkdownFiles": 75,
+      "existingWindowsCheckout": "failed-existing-crlf"
+    },
+    "previewScriptFixtures": {
+      "kind": "synthetic-script-verification-only",
+      "passed": 4,
+      "failed": 0
+    },
+    "resultsSource": "commands-observed-in-this-session",
+    "realWxLoginVerified": false,
+    "phoneVerified": false,
+    "experienceUploaded": false
+  },
+  "productionProbes": [
+    {
+      "pathname": "/api/healthz",
+      "status": 503,
+      "contentType": "application/json",
+      "ok": false,
+      "databaseHealthy": false
+    },
+    {
+      "pathname": "/api/v1/content/articles",
+      "status": 404,
+      "contentType": "text/html; charset=utf-8"
+    }
+  ],
+  "delivery": {
+    "githubPush": "failed-no-available-credentials",
+    "ci": "not-verified",
+    "backendDeployedThisRound": false
+  },
+  "sources": [
+    {
+      "file": "miniapp/project.config.json",
+      "sha256": "708d551de49680ec07630fd4b42a0520430cbedbc57cea7810605e83bfccdda7"
+    },
+    {
+      "file": "miniapp/utils/config.js",
+      "sha256": "2802595ad5da5d0e932de3ce00fa5eef0b294a6f0a222b8df550dfdc7bb2c847"
+    },
+    {
+      "file": "scripts/check-miniapp-ready.mjs",
+      "sha256": "b334504ec8e1f92a4407b259d67e05e2d3d0ad56b7d5052751955ea677664d50"
+    },
+    {
+      "file": "scripts/tests/check-miniapp-ready.test.mjs",
+      "sha256": "02c733b2a520559fe38ced62a27d7e0bb04bfc7a4d1f477e806a2cd8bac614ec"
+    },
+    {
+      "file": "scripts/preview-miniapp.ps1",
+      "sha256": "b8f496dbd68d58ae82b6a0a790c951b34d4aa8acfa996f8214e3ab5ded3cd8b4"
+    }
+  ]
+}
