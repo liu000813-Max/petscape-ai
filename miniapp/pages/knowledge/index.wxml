@@ -1,0 +1,20 @@
+<view class="page">
+  <view class="eyebrow">PETSCAPE FIELD NOTES</view>
+  <view class="title">养护知识</view>
+  <view class="subtitle">按物种和场景找到能立刻执行的养护方法，再把它记录到你的宠物档案。</view>
+
+  <scroll-view class="category-scroll" scroll-x="true" enhanced="true" show-scrollbar="false">
+    <view class="category-row">
+      <view wx:for="{{categories}}" wx:key="*this" class="category {{active === item ? 'selected' : ''}}" data-category="{{item}}" bindtap="selectCategory">{{item}}</view>
+    </view>
+  </scroll-view>
+
+  <view class="section article-list">
+    <view wx:for="{{articles}}" wx:key="title" wx:if="{{active === '全部' || active === item.category}}" class="article-card card" data-title="{{item.title}}" bindtap="openArticle">
+      <view class="article-top"><text class="badge">{{item.category}}</text><text class="muted">{{item.read}}</text></view>
+      <text class="article-title">{{item.title}}</text>
+      <text class="muted article-summary">{{item.summary}}</text>
+      <text class="article-link">打开文章 →</text>
+    </view>
+  </view>
+</view>

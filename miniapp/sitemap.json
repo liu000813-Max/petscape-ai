@@ -1,0 +1,33 @@
+{
+  "desc": "PETSCAPE 宠境小程序站点地图",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "pages/home/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/knowledge/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/community/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/pet/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/pet-edit/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/design/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/order/index"
+    }
+  ]
+}

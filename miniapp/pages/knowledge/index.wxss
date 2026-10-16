@@ -1,0 +1,54 @@
+.category-scroll {
+  width: 100%;
+  margin-top: 32rpx;
+}
+
+.category-row {
+  display: flex;
+  gap: 14rpx;
+  width: max-content;
+}
+
+.category {
+  padding: 14rpx 20rpx;
+  border: 1rpx solid rgba(0, 0, 0, 0.16);
+  border-radius: 999rpx;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 24rpx;
+}
+
+.category.selected {
+  border-color: #050505;
+  background: #050505;
+  color: #ffffff;
+}
+
+.article-card {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18rpx;
+}
+
+.article-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.article-title {
+  margin-top: 20rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.article-summary {
+  margin-top: 10rpx;
+  line-height: 1.55;
+}
+
+.article-link {
+  margin-top: 24rpx;
+  color: #050505;
+  font-size: 24rpx;
+}

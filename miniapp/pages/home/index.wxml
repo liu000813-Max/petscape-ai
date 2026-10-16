@@ -1,0 +1,56 @@
+<view class="page home-page">
+  <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
+  <view class="eyebrow">PETSCAPE HABITAT</view>
+  <view class="title">给每一只宠物，<br />一处合适的栖境。</view>
+  <view class="subtitle">从宠物档案、养护知识到 AI Habitat 设计，把日常照料和空间创造放进一个小程序。</view>
+
+  <view class="hero-card" bindtap="openProject">
+    <view class="hero-orbit orbit-one"></view>
+    <view class="hero-orbit orbit-two"></view>
+    <view class="hero-copy">
+      <text class="hero-label">PETSCAPE HABITAT</text>
+      <text class="hero-title">为 {{pet ? pet.name : '你的宠物'}} 设计一处专属栖境</text>
+      <text class="hero-note">上传照片 · 描述习性 · 预览 3D · 提交定制</text>
+    </view>
+    <view class="hero-arrow">→</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">正在读取你的宠物空间</view>
+  <view wx:elif="{{pet}}" class="pet-strip card" bindtap="openPet">
+    <view class="pet-avatar">{{pet.speciesEmoji}}</view>
+    <view class="pet-info">
+      <text class="pet-name">{{pet.name}}</text>
+      <text class="muted">{{pet.speciesLabel}} · {{pet.breed || '品种待补充'}} · {{pet.environmentNotes || '还没有环境笔记'}}</text>
+    </view>
+    <text class="section-link">档案 →</text>
+  </view>
+  <view wx:else class="empty card" bindtap="openPet">
+    <view class="empty-title">先建立一份宠物档案</view>
+    <view class="muted">后续的知识、设计和订单都会围绕它展开</view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">现在开始</text>
+    </view>
+    <view class="grid-2">
+      <view wx:for="{{quickActions}}" wx:key="title" class="action-card {{item.tone}}" data-path="{{item.path}}" bindtap="openAction">
+        <text class="action-title">{{item.title}}</text>
+        <text class="action-note">{{item.note}}</text>
+        <text class="action-arrow">→</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">给养宠人的一页</text>
+      <text class="section-link" bindtap="openAction" data-path="/pages/knowledge/index">全部知识 →</text>
+    </view>
+    <view wx:for="{{highlights}}" wx:key="title" class="highlight-card card">
+      <text class="badge">{{item.tag}}</text>
+      <text class="highlight-title">{{item.title}}</text>
+      <text class="muted">{{item.note}}</text>
+    </view>
+  </view>
+</view>

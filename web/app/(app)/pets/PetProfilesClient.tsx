@@ -5,12 +5,12 @@ import { Camera, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { PetResponse } from '@petscape/server/contracts/pets';
 
 const SPECIES = [
-  ['rat', '鼠类'],
+  ['rat', '花枝鼠'],
   ['gecko', '守宫'],
   ['snake', '蛇'],
   ['parrot', '鹦鹉'],
   ['spider', '蜘蛛'],
-  ['other', '其他'],
+  ['other', '其他异宠'],
 ] as const;
 
 const LIFE_STAGES = [

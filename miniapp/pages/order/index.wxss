@@ -1,0 +1,57 @@
+.order-card {
+  margin-bottom: 18rpx;
+}
+
+.order-top,
+.timeline-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.order-code {
+  max-width: 460rpx;
+  overflow: hidden;
+  font-size: 28rpx;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.order-price {
+  margin-top: 28rpx;
+  color: #050505;
+  font-size: 42rpx;
+  font-weight: 700;
+}
+
+.timeline {
+  display: flex;
+  align-items: center;
+  margin-top: 32rpx;
+}
+
+.timeline-dot {
+  width: 18rpx;
+  height: 18rpx;
+  border: 4rpx solid rgba(0, 0, 0, 0.16);
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.timeline-dot.active {
+  border-color: #050505;
+  background: #050505;
+}
+
+.timeline-line {
+  flex: 1;
+  height: 2rpx;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.timeline-labels {
+  margin-top: 10rpx;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 22rpx;
+}

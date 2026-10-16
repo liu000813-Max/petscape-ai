@@ -1,0 +1,40 @@
+.pet-card {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 18rpx;
+}
+
+.pet-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin-left: 20rpx;
+}
+
+.pet-main .pet-name {
+  font-size: 34rpx;
+}
+
+.pet-main .muted {
+  margin-top: 6rpx;
+}
+
+.trait-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 18rpx;
+}
+
+.trait {
+  padding: 8rpx 12rpx;
+  border-radius: 999rpx;
+  background: #f7f7f5;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 21rpx;
+}
+
+.empty-icon {
+  margin-bottom: 12rpx;
+  font-size: 44rpx;
+}

@@ -4,13 +4,13 @@
 //
 // 不动现有 `/api/project` 原型路由——本文件是独立的正式 v1 路由。
 import { NextResponse } from 'next/server';
-import { getWebAuth } from '../../../lib/auth';
+import { getMiniappAwareSession } from '../../../lib/miniapp-auth';
 import { getWebServerContext, withApiLogging } from '../../../lib/server-context';
 import { createProject, listProjects } from '@petscape/server/application';
 
 export async function POST(req: Request) {
   return withApiLogging(req, async () => {
-    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    const session = await getMiniappAwareSession(req);
     if (!session) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   return withApiLogging(req, async () => {
-    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    const session = await getMiniappAwareSession(req);
     if (!session) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }

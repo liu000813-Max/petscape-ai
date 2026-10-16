@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getWebAuth } from '../../../../lib/auth';
+import { getMiniappAwareSession } from '../../../../lib/miniapp-auth';
 import { getWebServerContext, withApiLogging } from '../../../../lib/server-context';
 import {
   deletePet,
@@ -25,7 +25,7 @@ async function getId(context: RouteContext) {
 
 export async function GET(req: Request, routeContext: RouteContext) {
   return withApiLogging(req, async () => {
-    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    const session = await getMiniappAwareSession(req);
     if (!session) return petApiError(401, { error: 'unauthorized' });
     const context = getWebServerContext();
     try {
@@ -41,7 +41,7 @@ export async function GET(req: Request, routeContext: RouteContext) {
 
 export async function PATCH(req: Request, routeContext: RouteContext) {
   return withApiLogging(req, async () => {
-    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    const session = await getMiniappAwareSession(req);
     if (!session) return petApiError(401, { error: 'unauthorized' });
 
     let json: unknown;
@@ -78,7 +78,7 @@ export async function PATCH(req: Request, routeContext: RouteContext) {
 
 export async function DELETE(req: Request, routeContext: RouteContext) {
   return withApiLogging(req, async () => {
-    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    const session = await getMiniappAwareSession(req);
     if (!session) return petApiError(401, { error: 'unauthorized' });
     const { prisma } = getWebServerContext();
     try {

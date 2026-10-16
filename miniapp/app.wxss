@@ -1,0 +1,127 @@
+page {
+  background: #ffffff;
+  color: #050505;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+  font-size: 28rpx;
+}
+
+view,
+text,
+button,
+input,
+textarea {
+  box-sizing: border-box;
+}
+
+button::after {
+  border: 0;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 32rpx 32rpx 140rpx;
+}
+
+.eyebrow {
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  text-transform: uppercase;
+}
+
+.title {
+  margin-top: 14rpx;
+  color: #050505;
+  font-size: 54rpx;
+  font-weight: 300;
+  line-height: 1.12;
+}
+
+.subtitle {
+  margin-top: 16rpx;
+  color: rgba(0, 0, 0, 0.55);
+  line-height: 1.65;
+}
+
+.section {
+  margin-top: 42rpx;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18rpx;
+}
+
+.section-title {
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.section-link {
+  color: #050505;
+  font-size: 24rpx;
+}
+
+.card {
+  padding: 26rpx;
+  border: 1rpx solid rgba(0, 0, 0, 0.12);
+  border-radius: 18rpx;
+  background: #ffffff;
+  box-shadow: 0 18rpx 45rpx rgba(0, 0, 0, 0.08);
+}
+
+.muted {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.primary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  border-radius: 999rpx;
+  background: #050505;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.secondary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 78rpx;
+  border: 1rpx solid rgba(0, 0, 0, 0.16);
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #050505;
+  font-size: 26rpx;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18rpx;
+}
+
+.badge {
+  display: inline-flex;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: #f7f7f5;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 22rpx;
+}
+
+.empty {
+  padding: 54rpx 24rpx;
+  text-align: center;
+}
+
+.loading {
+  padding: 40rpx 0;
+  color: rgba(0, 0, 0, 0.55);
+  text-align: center;
+}

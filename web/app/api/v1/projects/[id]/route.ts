@@ -1,13 +1,13 @@
 // web/app/api/v1/projects/[id]/route.ts —— 单个项目读取（WP-3.2）。
 // spec: docs/plans/phase-b-execution-plan.md WP-3.2 验收 1：非 owner 访问 404。
 import { NextResponse } from 'next/server';
-import { getWebAuth } from '../../../../lib/auth';
+import { getMiniappAwareSession } from '../../../../lib/miniapp-auth';
 import { getWebServerContext, withApiLogging } from '../../../../lib/server-context';
 import { getProject, NotFoundError } from '@petscape/server/application';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiLogging(req, async () => {
-    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    const session = await getMiniappAwareSession(req);
     if (!session) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }

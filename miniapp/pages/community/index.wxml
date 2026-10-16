@@ -1,0 +1,25 @@
+<view class="page">
+  <view class="community-head">
+    <view>
+      <view class="eyebrow">PETSCAPE COMMUNITY</view>
+      <view class="title">宠物社区</view>
+    </view>
+    <button class="compose-button" bindtap="createPost">＋ 发帖</button>
+  </view>
+  <view class="subtitle">遇到问题先记录，看到好方案就分享。让经验沉淀成每个人都能用的养护知识。</view>
+
+  <scroll-view class="topic-scroll" scroll-x="true" enhanced="true" show-scrollbar="false">
+    <view class="topic-row">
+      <view wx:for="{{topics}}" wx:key="*this" class="topic {{active === item ? 'selected' : ''}}" data-topic="{{item}}" bindtap="selectTopic">{{item}}</view>
+    </view>
+  </scroll-view>
+
+  <view class="section post-list">
+    <view wx:for="{{posts}}" wx:key="title" wx:if="{{active === '全部' || active === item.tag}}" class="post-card card" data-title="{{item.title}}" bindtap="openPost">
+      <view class="post-tag badge">{{item.tag}}</view>
+      <text class="post-title">{{item.title}}</text>
+      <view class="post-meta"><text>{{item.author}}</text><text>{{item.time}}</text></view>
+      <view class="post-stats"><text>♡ {{item.likes}}</text><text>评论 {{item.comments}}</text></view>
+    </view>
+  </view>
+</view>

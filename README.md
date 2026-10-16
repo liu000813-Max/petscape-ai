@@ -73,6 +73,7 @@ Browser
 The system is split into three workspace packages:
 
 - `web/` — product UI and HTTP boundary.
+- `miniapp/` — 原生微信小程序壳，承接 PETSCAPE 内容/社区/宠物档案，并复用 PetScape API 与 Web 3D 工作台。
 - `packages/server/` — domain, application, contracts, database, auth, storage, and job infrastructure.
 - `worker/` — an independently deployable background process; it does not depend on Next.js or React.
 
@@ -104,6 +105,7 @@ Database-backed integration and browser suites require a migrated PostgreSQL 16 
 - `docs/specs/` and `docs/plans/` — bounded slices and acceptance criteria.
 - `docs/evidence/` and `docs/operations/` — selected behaviour evidence; sensitive infrastructure details are omitted from this public snapshot.
 - `assets-3d/` and `web/public/` — portfolio-safe reference and demo assets.
+- `miniapp/` and [`docs/miniapp-integration.md`](docs/miniapp-integration.md) — PETSCAPE 宠境原生小程序整合入口与接入边界。
 - `.github/workflows/` and `deploy/` — CI, container, migration, and release mechanics.
 
 ## Security and reuse

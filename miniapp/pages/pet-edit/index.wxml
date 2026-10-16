@@ -1,0 +1,49 @@
+<view class="page">
+  <view class="eyebrow">PET PROFILE</view>
+  <view class="title">{{isEdit ? '编辑档案' : '建立档案'}}</view>
+  <view class="subtitle">记录它的生活线索，后续的知识、设计和养护建议都会更准确。</view>
+
+  <view wx:if="{{loading}}" class="loading">正在读取档案</view>
+  <view wx:else class="form-card card section">
+    <view class="field">
+      <text class="field-label">名字</text>
+      <input class="field-input" maxlength="20" value="{{form.name}}" data-field="name" bindinput="onInput" placeholder="例如：米粒" />
+    </view>
+
+    <view class="field">
+      <text class="field-label">物种</text>
+      <picker mode="selector" range="{{speciesOptions}}" range-key="label" value="{{speciesIndex}}" bindchange="onSpeciesChange">
+        <view class="picker-value">{{speciesOptions[speciesIndex].label}} <text class="picker-arrow">⌄</text></view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <text class="field-label">品种或补充说明</text>
+      <input class="field-input" maxlength="40" value="{{form.breed}}" data-field="breed" bindinput="onInput" placeholder="例如：金丝雀或豹纹守宫" />
+    </view>
+
+    <view class="field">
+      <text class="field-label">生命阶段</text>
+      <picker mode="selector" range="{{lifeStageOptions}}" range-key="label" value="{{lifeStageIndex}}" bindchange="onLifeStageChange">
+        <view class="picker-value">{{lifeStageOptions[lifeStageIndex].label}} <text class="picker-arrow">⌄</text></view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <view class="field-row"><text class="field-label">体型等级</text><text class="field-help">{{form.sizeLevel}} / 5</text></view>
+      <slider min="1" max="5" step="1" value="{{form.sizeLevel}}" activeColor="#050505" backgroundColor="#dedede" bindchange="onSizeChange" />
+    </view>
+
+    <view class="field">
+      <text class="field-label">环境笔记</text>
+      <textarea class="field-textarea" maxlength="300" value="{{form.environmentNotes}}" data-field="environmentNotes" bindinput="onInput" placeholder="温度、湿度、躲避空间或日常习惯" />
+    </view>
+
+    <view class="field">
+      <text class="field-label">特殊需求</text>
+      <textarea class="field-textarea" maxlength="300" value="{{form.specialNeeds}}" data-field="specialNeeds" bindinput="onInput" placeholder="需要特别留意的健康或照料事项" />
+    </view>
+
+    <button class="primary-button submit-button" loading="{{saving}}" disabled="{{saving}}" bindtap="submit">保存档案</button>
+  </view>
+</view>

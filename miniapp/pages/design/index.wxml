@@ -1,0 +1,33 @@
+<view class="page">
+  <view class="eyebrow">PETSCAPE DESIGN LAB</view>
+  <view class="title">我的栖境</view>
+  <view class="subtitle">从宠物档案理解生活习性，把想法变成可预览、可制作的空间方案。</view>
+
+  <view class="start-card" bindtap="createDesign">
+    <view>
+      <text class="start-label">START A NEW HABITAT</text>
+      <text class="start-title">从一个想法开始</text>
+      <text class="start-note">上传照片、描述习性，生成第一版空间方案。</text>
+    </view>
+    <text class="start-arrow">＋</text>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">最近项目</text><text class="muted">{{projects.length}} 个</text></view>
+    <view wx:if="{{loading}}" class="loading">正在读取项目</view>
+    <view wx:elif="{{projects.length}}">
+      <view wx:for="{{projects}}" wx:key="id" class="project-card card" data-id="{{item.id}}" bindtap="openProject">
+        <view class="project-mark">◒</view>
+        <view class="project-main"><text class="project-title">{{item.title || '未命名宠境项目'}}</text><text class="muted">{{item.status === 'editable' ? '可继续编辑' : item.status}}</text></view>
+        <text class="section-link">打开 →</text>
+      </view>
+    </view>
+    <view wx:else class="empty card"><view class="empty-title">还没有设计项目</view><view class="muted">先为宠物建一处专属空间</view></view>
+  </view>
+
+  <view class="section design-note card">
+    <text class="badge">整合说明</text>
+    <text class="note-title">小程序负责发现与管理，Web 负责重型 3D 计算</text>
+    <text class="muted">生成、模型检查、报价和订单沿用 petscape-ai 服务端；小程序只展示状态、触发任务和承接用户关系。</text>
+  </view>
+</view>

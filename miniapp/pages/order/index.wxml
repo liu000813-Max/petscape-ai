@@ -1,0 +1,16 @@
+<view class="page">
+  <view class="eyebrow">PETSCAPE ORDERS</view>
+  <view class="title">订单与进度</view>
+  <view class="subtitle">从方案确认、报价、付款到制作和发货，都在同一条时间线上查看。</view>
+
+  <view wx:if="{{loading}}" class="loading">正在读取订单</view>
+  <view wx:elif="{{orders.length}}" class="section">
+    <view wx:for="{{orders}}" wx:key="id" class="order-card card" data-id="{{item.id}}" bindtap="openOrder">
+      <view class="order-top"><text class="order-code">{{item.productCode || 'PETSCAPE 定制项目'}}</text><text class="badge">{{item.status}}</text></view>
+      <view class="order-price">¥ {{item.amountYuan}}</view>
+      <view class="timeline"><view class="timeline-dot active"></view><view class="timeline-line"></view><view class="timeline-dot"></view><view class="timeline-line"></view><view class="timeline-dot"></view></view>
+      <view class="timeline-labels"><text>方案</text><text>制作</text><text>交付</text></view>
+    </view>
+  </view>
+  <view wx:else class="empty card section"><view class="empty-title">还没有订单</view><view class="muted">完成一份栖境设计后，报价和订单会出现在这里</view></view>
+</view>

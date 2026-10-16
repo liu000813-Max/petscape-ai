@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getWebAuth } from '../../../lib/auth';
+import { getMiniappAwareSession } from '../../../lib/miniapp-auth';
 import { getWebServerContext, withApiLogging } from '../../../lib/server-context';
 import { createPet, listPets, InvalidPetCoverError, InvalidPetProfileError } from '@petscape/server/application';
 import { CreatePetRequestSchema, PetListResponseSchema, PetResponseSchema } from '@petscape/server/contracts/pets';
@@ -7,7 +7,7 @@ import { invalidPetRequest, petApiError, toPetResponse } from '../../../lib/pet-
 
 export async function POST(req: Request) {
   return withApiLogging(req, async () => {
-    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    const session = await getMiniappAwareSession(req);
     if (!session) return petApiError(401, { error: 'unauthorized' });
 
     let json: unknown;
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   return withApiLogging(req, async () => {
-    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    const session = await getMiniappAwareSession(req);
     if (!session) return petApiError(401, { error: 'unauthorized' });
 
     const context = getWebServerContext();

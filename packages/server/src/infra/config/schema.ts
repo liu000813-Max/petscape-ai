@@ -72,6 +72,10 @@ export const webSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.string().min(1).optional(),
 
+  // 微信小程序登录桥。AppSecret 只在服务端环境变量中存在，绝不进入小程序包。
+  WECHAT_MINIPROGRAM_APP_ID: z.string().min(1).optional(),
+  WECHAT_MINIPROGRAM_APP_SECRET: z.string().min(1).optional(),
+
   // 部署版本标识（WP-4.2）：构建期由 deploy/web.Dockerfile 的 ARG GIT_SHA 注入
   // 同名 ENV，healthz 返回它用于回滚演练的版本可观察性。本地/未注入时缺省。
   GIT_SHA: z.string().min(1).optional(),

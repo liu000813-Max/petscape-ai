@@ -1,0 +1,77 @@
+.community-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.community-head .title {
+  margin-top: 10rpx;
+}
+
+.compose-button {
+  min-width: 142rpx;
+  height: 68rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  background: #050505;
+  color: #ffffff;
+  font-size: 24rpx;
+  line-height: 68rpx;
+}
+
+.topic-scroll {
+  width: 100%;
+  margin-top: 34rpx;
+}
+
+.topic-row {
+  display: flex;
+  gap: 14rpx;
+  width: max-content;
+}
+
+.topic {
+  padding: 14rpx 20rpx;
+  border: 1rpx solid rgba(0, 0, 0, 0.16);
+  border-radius: 999rpx;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 24rpx;
+}
+
+.topic.selected {
+  border-color: #050505;
+  background: #050505;
+  color: #ffffff;
+}
+
+.post-card {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18rpx;
+}
+
+.post-tag {
+  align-self: flex-start;
+}
+
+.post-title {
+  margin-top: 18rpx;
+  font-size: 31rpx;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.post-meta,
+.post-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 18rpx;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 23rpx;
+}
+
+.post-stats {
+  margin-top: 14rpx;
+  color: #050505;
+}

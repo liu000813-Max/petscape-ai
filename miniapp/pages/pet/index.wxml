@@ -1,0 +1,27 @@
+<view class="page">
+  <view class="eyebrow">MY PETS</view>
+  <view class="title">我的宠物</view>
+  <view class="subtitle">档案是知识、养护记录和专属栖境的共同起点。</view>
+
+  <view wx:if="{{loading}}" class="loading">正在读取宠物档案</view>
+  <view wx:elif="{{pets.length}}" class="section">
+    <view wx:for="{{pets}}" wx:key="id" class="pet-card card" data-id="{{item.id}}" bindtap="editPet">
+      <view class="pet-avatar">{{item.speciesEmoji}}</view>
+      <view class="pet-main">
+        <text class="pet-name">{{item.name}}</text>
+        <text class="muted">{{item.speciesLabel}} · {{item.breed || '品种待补充'}} · {{item.lifeStage || '阶段待补充'}}</text>
+        <view class="trait-row"><text wx:for="{{item.behaviorTraits}}" wx:key="*this" class="trait">{{item}}</text></view>
+      </view>
+    </view>
+  </view>
+  <view wx:else class="empty card section">
+    <view class="empty-icon">🐾</view>
+    <view class="empty-title">还没有宠物档案</view>
+    <view class="muted">先记录它的物种、体型和习性</view>
+  </view>
+
+  <view class="section grid-2">
+    <button class="secondary-button" bindtap="addPet">新增档案</button>
+    <button class="primary-button" bindtap="openDesign">开始设计</button>
+  </view>
+</view>
