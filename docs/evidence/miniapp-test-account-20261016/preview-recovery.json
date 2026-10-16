@@ -1,0 +1,102 @@
+{
+  "recordedAt": "2026-10-16T11:45:55.720Z",
+  "baselineCommit": "1ca58f4",
+  "includesUncommittedPreviewFix": true,
+  "scope": "official-wechat-preview-recovery",
+  "account": {
+    "kind": "miniapp-test-account",
+    "mockMode": true,
+    "formalRegistrationVerified": false
+  },
+  "devtools": {
+    "version": "2.02.2608080",
+    "setting": "security.enableServicePort",
+    "before": false,
+    "after": true,
+    "otherSettingsUnchanged": true,
+    "privateBackupCreated": true,
+    "loginDataCopied": false,
+    "authenticationDisabled": false,
+    "cliListenAddress": "127.0.0.1",
+    "cliPort": 50306
+  },
+  "preview": {
+    "runId": "20261016-194003-63805e6c",
+    "recordedAt": "2026-10-16T19:40:11.8020467+08:00",
+    "status": "preview-generated",
+    "reason": null,
+    "cliExitCode": 0,
+    "qrFormat": "jpeg",
+    "qrSha256": "fc468be56ec3a537d86c00a48b981ac6ac8044e38fed1fae1e69632e5eec3a31",
+    "phoneVerified": false,
+    "fileName": "preview.jpg",
+    "bytes": 47464,
+    "width": 470,
+    "height": 470,
+    "officialPackageBytes": 679988,
+    "decodedByImageLibrary": true,
+    "visuallyInspected": true,
+    "experienceUploaded": false
+  },
+  "verification": {
+    "readinessTests": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    "previewWrapperTests": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "platform": "win32",
+      "syntheticFixturesOnly": true
+    },
+    "regressionBeforeFix": {
+      "passed": 4,
+      "failed": 2,
+      "skipped": 0
+    },
+    "businessCodeChanged": false,
+    "webTypecheckBuildAndNativeCompileRerun": false,
+    "priorResults": "receipt.json",
+    "documentation": {
+      "gitIndexSnapshot": "passed",
+      "activeMarkdownFiles": 75,
+      "existingWindowsCheckout": "not-normalized-existing-crlf"
+    },
+    "realWxLoginVerified": false,
+    "skillValidation": "passed",
+    "powershellSyntax": "passed",
+    "javascriptSyntax": "passed",
+    "stagedWhitespace": "passed"
+  },
+  "productionProbes": [
+    {
+      "pathname": "/api/healthz",
+      "status": 503,
+      "ok": false,
+      "databaseHealthy": false
+    },
+    {
+      "pathname": "/api/v1/content/articles",
+      "status": 404,
+      "contentType": "text/html; charset=utf-8"
+    }
+  ],
+  "delivery": {
+    "githubAuthorization": "device-login-pending-user",
+    "githubPushedThisRound": false,
+    "ciVerified": false,
+    "backendDeployedThisRound": false
+  },
+  "sources": [
+    {
+      "file": "scripts/preview-miniapp.ps1",
+      "sha256": "6926585092cc21a1594b650a193163de96cdf7fb934ad6c6f6a23a399314d08c"
+    },
+    {
+      "file": "scripts/tests/preview-miniapp.test.mjs",
+      "sha256": "320606e9d55f34f40f2f6973d3f62ff1bc4264c03f6986ff406eb049cff5752a"
+    }
+  ]
+}

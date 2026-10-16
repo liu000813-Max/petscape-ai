@@ -47,4 +47,6 @@
 
 使用 Node 24 执行 `node --test web/tests/miniapp.test.mjs` 可验证原生页面配置、事件绑定、表单合同、mock 交互、登录合并与错误上报。配置诊断测试为 `node --test scripts/tests/check-miniapp-ready.test.mjs`。
 
-PowerShell 运行 `./scripts/preview-miniapp.ps1` 调用官方工具生成当前项目的微信预览码，要求工具登录、服务端口可连接和当前 AppID 具备预览权限。产物留在仓库外的独立运行目录；失败不复用旧二维码。部分官方 Windows CLI 出错仍返回 0，入口同时检查错误信息与本轮新生成的 PNG。预览码、真机验收与正式体验版上传分别记录；浏览器链接不能替代。
+PowerShell 运行 `./scripts/preview-miniapp.ps1` 调用官方工具生成当前项目的微信预览码，要求工具登录、服务端口可连接和当前 AppID 具备预览权限。产物留在仓库外的独立运行目录；失败不复用旧二维码。部分官方 Windows CLI 出错仍返回 0，入口同时检查错误信息与本轮新图的实际 PNG/JPEG 格式；JPEG 使用 `.jpg` 扩展名，receipt 保存格式和 SHA-256。预览码、真机验收与正式体验版上传分别记录；浏览器链接不能替代。
+
+Windows 下用 Node 24 执行 `node --test scripts/tests/preview-miniapp.test.mjs scripts/tests/check-miniapp-ready.test.mjs`，覆盖预览成功、格式差异、CLI 误报成功和旧图隔离等情况。2026-10-16 已生成实际测试号预览，见 [恢复记录](../docs/operations/miniapp-test-account-2026-10-16.md)；当前仍使用 mock，未完成手机扫码和正式体验版上传。

@@ -34,6 +34,8 @@
 
 ## 微信预览入口
 
-在仓库根 PowerShell 执行 `./scripts/preview-miniapp.ps1`，可用 `-DevtoolsCli` 指定实际安装的官方 `cli.bat`。入口不复制登录数据、不关闭令牌验证、不修改开发者工具安全配置。每轮在 `G:/Max麦麦/codex/petscape-dev-runtime/wechat-previews` 新建私有目录，保存官方输出、预览 PNG 和脱敏 receipt；不会把失败调用或旧二维码当作本轮成功。手机扫码仍须单独验证，测试号预览不称为正式体验版。
+在仓库根 PowerShell 执行 `./scripts/preview-miniapp.ps1`，可用 `-DevtoolsCli` 指定实际安装的官方 `cli.bat`。入口不复制登录数据、不关闭令牌验证、不修改开发者工具安全配置。每轮在 `G:/Max麦麦/codex/petscape-dev-runtime/wechat-previews` 新建私有目录，保存官方输出、预览图和脱敏 receipt；按实际文件格式识别 PNG/JPEG，JPEG 使用 `.jpg` 扩展名。不会把失败调用或旧二维码当作本轮成功。手机扫码仍须单独验证，测试号预览不称为正式体验版。
 
-已完成的本机数据库和 HTTP 验收见 [运行手册](miniapp-local-postgres.md)与 [HTTP 记录](../operations/miniapp-http-2026-10-16.md)。目前没有可供手机扫码进入的 PETSCAPE 微信体验版。
+用户确认开启端口后仍无法连接时，核对当前工具进程、实际 loopback 监听与当前配置目录；单独的 `.ide-status` 不足以证明安全设置开启。只在已有授权范围内处理对应设置，先备份、核对无其他变更，不复制登录资料。2026-10-16 的恢复过程见 [测试号接入记录](../operations/miniapp-test-account-2026-10-16.md)。
+
+已完成的本机数据库和 HTTP 验收见 [运行手册](miniapp-local-postgres.md)与 [HTTP 记录](../operations/miniapp-http-2026-10-16.md)。已生成 PETSCAPE 测试号开发预览码；正式体验版上传仍未完成。
