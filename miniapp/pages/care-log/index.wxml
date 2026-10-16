@@ -6,23 +6,24 @@
   <view wx:elif="{{error}}" class="error-state"><text>{{error}}</text><button class="secondary-button" bindtap="loadData">重试</button></view>
   <view wx:elif="{{pets.length}}" class="form-card card section">
     <text class="field-label">宠物</text>
-    <picker mode="selector" range="{{pets}}" range-key="name" value="{{petIndex}}" bindchange="onPetChange"><view class="picker-value">{{pets[petIndex].name}}　⌄</view></picker>
+    <picker disabled="{{submitting || reminding || completingId}}" mode="selector" range="{{pets}}" range-key="name" value="{{petIndex}}" bindchange="onPetChange"><view class="picker-value">{{pets[petIndex].name}}　⌄</view></picker>
+    <text class="muted">草稿按宠物分别暂存，尚未保存到档案。</text>
     <text class="field-label">记录类型</text>
-    <picker mode="selector" range="{{kinds}}" value="{{kindIndex}}" bindchange="onKindChange"><view class="picker-value">{{kinds[kindIndex]}}　⌄</view></picker>
+    <picker disabled="{{submitting || reminding || completingId}}" mode="selector" range="{{kinds}}" value="{{kindIndex}}" bindchange="onKindChange"><view class="picker-value">{{kinds[kindIndex]}}　⌄</view></picker>
     <text class="field-label">数值（可选）</text>
-    <input class="input" maxlength="200" placeholder="例如 320g、26°C" value="{{value}}" bindinput="onValueInput" />
+    <input disabled="{{submitting || reminding || completingId}}" class="input" maxlength="200" placeholder="例如 320g、26°C" value="{{value}}" bindinput="onValueInput" />
     <text class="field-label">备注</text>
-    <textarea class="textarea" maxlength="2000" placeholder="记录今天观察到的变化" value="{{note}}" bindinput="onNoteInput" />
-    <button class="primary-button section" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">保存记录</button>
+    <textarea disabled="{{submitting || reminding || completingId}}" class="textarea" maxlength="2000" placeholder="记录今天观察到的变化" value="{{note}}" bindinput="onNoteInput" />
+    <button class="primary-button section" loading="{{submitting}}" disabled="{{submitting || reminding || completingId}}" bindtap="submit">保存记录</button>
   </view>
-  <view wx:else class="empty card section">先建立一份宠物档案，再开始记录养护。</view>
-  <view wx:if="{{logs.length}}" class="section">
+  <view wx:else class="empty card section"><view>先建立一份宠物档案，再开始记录养护。</view><button class="primary-button section" bindtap="openPets">建立宠物档案</button></view>
+  <view wx:if="{{!loading && !error && logs.length}}" class="section">
     <view class="section-head"><text class="section-title">最近记录</text></view>
     <view wx:for="{{logs}}" wx:key="id" class="log-card card"><view><text class="badge">{{item.kind}}</text><text class="log-value">{{item.value}}</text></view><text class="muted">{{item.note || '没有备注'}}</text><text class="muted log-time">{{item.displayTime}}</text></view>
   </view>
-  <view wx:if="{{pets.length && !error}}" class="section">
+  <view wx:if="{{!loading && pets.length && !error}}" class="section">
     <view class="section-head"><text class="section-title">养护提醒</text></view><view class="muted">进入此页查看到期事项。</view>
-    <view wx:for="{{reminders}}" wx:key="id" class="log-card card section"><view class="section-head"><text>{{item.title}}</text><text class="badge">{{item.completedAt ? '已完成' : item.overdue ? '已到期' : '待完成'}}</text></view><text class="muted">{{item.displayTime}}</text><button wx:if="{{!item.completedAt}}" class="secondary-button" data-id="{{item.id}}" bindtap="completeReminder">标记完成</button></view>
-    <view class="card section"><text class="field-label">新增提醒</text><input class="input" maxlength="160" placeholder="例如更换饮水、清洁栖境" value="{{reminderTitle}}" bindinput="onReminderTitle" /><view class="grid-2"><picker mode="date" value="{{reminderDate}}" bindchange="onReminderDate"><view class="picker-value">{{reminderDate}}</view></picker><picker mode="time" value="{{reminderTime}}" bindchange="onReminderTime"><view class="picker-value">{{reminderTime}}</view></picker></view><button class="primary-button section" loading="{{reminding}}" disabled="{{reminding}}" bindtap="addReminder">添加提醒</button></view>
+    <view wx:for="{{reminders}}" wx:key="id" class="log-card card section"><view class="section-head"><text>{{item.title}}</text><text class="badge">{{item.completedAt ? '已完成' : item.overdue ? '已到期' : '待完成'}}</text></view><text class="muted">{{item.displayTime}}</text><button wx:if="{{!item.completedAt}}" disabled="{{submitting || reminding || completingId}}" loading="{{completingId === item.id}}" class="secondary-button" data-id="{{item.id}}" bindtap="completeReminder">标记完成</button></view>
+    <view class="card section"><text class="field-label">新增提醒</text><input disabled="{{submitting || reminding || completingId}}" class="input" maxlength="160" placeholder="例如更换饮水、清洁栖境" value="{{reminderTitle}}" bindinput="onReminderTitle" /><view class="grid-2"><picker disabled="{{submitting || reminding || completingId}}" mode="date" value="{{reminderDate}}" bindchange="onReminderDate"><view class="picker-value">{{reminderDate}}</view></picker><picker disabled="{{submitting || reminding || completingId}}" mode="time" value="{{reminderTime}}" bindchange="onReminderTime"><view class="picker-value">{{reminderTime}}</view></picker></view><button class="primary-button section" loading="{{reminding}}" disabled="{{submitting || reminding || completingId}}" bindtap="addReminder">添加提醒</button></view>
   </view>
 </view>

@@ -229,3 +229,139 @@ test('home loads the pet independently of project APIs and exposes native care a
   home.openAction({ currentTarget: { dataset: action } });
   assert.deepEqual(navigation, ['switchTab', '/pages/pet/index']);
 });
+
+function deferred() {
+  let resolve; let reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+const carePets = [{ id: 'pet-a', name: '米粒' }, { id: 'pet-b', name: '团子' }];
+const careApi = {
+  listPets: async () => ({ pets: carePets }),
+  listCareLogs: async () => ({ logs: [] }),
+  listCareReminders: async () => ({ reminders: [] }),
+};
+
+test('care selection follows the same pet after list reorder and clears drafts if that pet disappears', async () => {
+  let pets = carePets;
+  const care = page('care-log', { ...careApi, listPets: async () => ({ pets }) });
+  await care.onShow();
+  await care.onPetChange({ detail: { value: '1' } });
+  care.setData({ note: '团子的记录', value: '320g', reminderTitle: '团子饮水' });
+  pets = [carePets[1], carePets[0]];
+  await care.loadData();
+  assert.equal(care.data.pets[care.data.petIndex].id, 'pet-b');
+  assert.equal(care.data.note, '团子的记录');
+  pets = [carePets[0]];
+  await care.loadData();
+  assert.equal(care.data.pets[care.data.petIndex].id, 'pet-a');
+  for (const field of ['note', 'value', 'reminderTitle']) assert.equal(care.data[field], '', field);
+});
+
+test('switching pets cannot carry an unfinished care or reminder draft to another pet', async () => {
+  const care = page('care-log', careApi);
+  await care.onShow();
+  care.setData({ note: '米粒的记录', value: '200g', reminderTitle: '米粒饮水' });
+  await care.onPetChange({ detail: { value: '1' } });
+  for (const field of ['note', 'value', 'reminderTitle']) assert.equal(care.data[field], '', field);
+  care.onNoteInput({ detail: { value: '团子的记录' } });
+  await care.onPetChange({ detail: { value: '0' } });
+  assert.equal(care.data.note, '米粒的记录'); assert.equal(care.data.reminderTitle, '米粒饮水');
+});
+
+test('outdated pet-list responses cannot start care requests or overwrite the latest selection', async () => {
+  const old = deferred(); let reads = 0; const requested = [];
+  const care = page('care-log', { ...careApi,
+    listPets: () => ++reads === 1 ? old.promise : Promise.resolve({ pets: [carePets[1]] }),
+    listCareLogs: async ({ petId }) => { requested.push(petId); return { logs: [{ id: 'log-b', petId, recordedAt: new Date().toISOString() }] }; },
+  });
+  const first = care.onShow();
+  await care.loadData();
+  old.resolve({ pets: [carePets[0]] }); await first;
+  assert.equal(care.data.pets[care.data.petIndex].id, 'pet-b');
+  assert.equal(care.data.logs[0].petId, 'pet-b');
+  assert.deepEqual(requested, ['pet-b']);
+});
+
+test('care save keeps its pet fixed, ignores edits and duplicate actions until refresh finishes', async () => {
+  const pending = deferred(); const writes = []; let reminders = 0;
+  const care = page('care-log', { ...careApi,
+    createCareLog: async (data) => { writes.push(data); await pending.promise; },
+    createCareReminder: async () => { reminders += 1; },
+  });
+  await care.onShow();
+  care.setData({ note: '米粒的记录', reminderTitle: '饮水' });
+  const first = care.submit();
+  await care.onPetChange({ detail: { value: '1' } });
+  care.onNoteInput({ detail: { value: '新记录' } });
+  const duplicate = care.submit(); const otherAction = care.addReminder();
+  pending.resolve(); await Promise.all([first, duplicate, otherAction]);
+  assert.equal(writes.length, 1); assert.equal(reminders, 0);
+  assert.equal(writes[0].petId, 'pet-a'); assert.equal(writes[0].note, '米粒的记录');
+  assert.equal(care.data.pets[care.data.petIndex].id, 'pet-a');
+});
+
+test('failed care reads clear stale lists, block writes and recover on explicit retry', async () => {
+  let fail = false; let writes = 0;
+  const care = page('care-log', { ...careApi,
+    listCareLogs: async () => { if (fail) throw new Error('offline'); return { logs: [{ id: 'old', recordedAt: new Date().toISOString() }] }; },
+    listCareReminders: async () => ({ reminders: [{ id: 'old-reminder', title: '饮水', dueAt: new Date().toISOString() }] }),
+    createCareLog: async () => { writes += 1; },
+  });
+  await care.onShow(); fail = true;
+  await care.loadData();
+  assert.ok(care.data.error); assert.deepEqual(care.data.logs, []); assert.deepEqual(care.data.reminders, []);
+  await care.submit(); assert.equal(writes, 0);
+  fail = false; await care.loadData();
+  assert.equal(care.data.error, ''); assert.equal(care.data.logs[0].id, 'old');
+});
+
+test('failed care save preserves the draft for a retry and empty state opens pet profiles', async () => {
+  let tries = 0;
+  const care = page('care-log', { ...careApi, createCareLog: async () => { if (++tries === 1) throw new Error('offline'); } });
+  await care.onShow(); care.onNoteInput({ detail: { value: '观察记录' } });
+  await care.submit(); assert.equal(care.data.note, '观察记录'); assert.equal(care.data.submitting, false);
+  await care.submit(); assert.equal(tries, 2); assert.equal(care.data.note, '');
+  care.openPets(); assert.deepEqual(navigation, ['switchTab', '/pages/pet/index']);
+});
+
+test('reminder creation keeps the pet and draft fixed while pending and blocks other mutations', async () => {
+  const pending = deferred(); const writes = []; let completions = 0;
+  const care = page('care-log', { ...careApi,
+    createCareReminder: async (data) => { writes.push(data); await pending.promise; },
+    completeCareReminder: async () => { completions += 1; },
+  });
+  await care.onShow(); care.setData({ reminderTitle: '米粒饮水' });
+  const first = care.addReminder();
+  await care.onPetChange({ detail: { value: '1' } });
+  care.onReminderTitle({ detail: { value: '另一只宠物' } });
+  const duplicate = care.addReminder(); const completion = care.completeReminder({ currentTarget: { dataset: { id: 'old-reminder' } } });
+  pending.resolve(); await Promise.all([first, duplicate, completion]);
+  assert.equal(writes.length, 1); assert.equal(completions, 0);
+  assert.equal(writes[0].petId, 'pet-a'); assert.equal(writes[0].title, '米粒饮水');
+  assert.equal(care.data.pets[care.data.petIndex].id, 'pet-a'); assert.equal(care.data.reminding, false);
+});
+
+test('completion ignores reminders outside the visible list and already completed items', async () => {
+  let completions = 0;
+  const care = page('care-log', { ...careApi,
+    listCareReminders: async () => ({ reminders: [{ id: 'done', petId: 'pet-a', completedAt: new Date().toISOString() }] }),
+    completeCareReminder: async () => { completions += 1; },
+  });
+  await care.onShow();
+  for (const id of ['not-visible', 'done']) await care.completeReminder({ currentTarget: { dataset: { id } } });
+  assert.equal(completions, 0);
+});
+
+test('service filters keep the latest response when an older success or failure arrives last', async () => {
+  for (const fails of [false, true]) {
+    const old = deferred(); let reads = 0;
+    const services = page('services', { listServiceProviders: () => ++reads === 1 ? old.promise : Promise.resolve({ providers: [{ id: 'new', serviceType: '护理' }] }) });
+    const first = services.loadProviders();
+    await services.onTypeChange({ detail: { value: '2' } });
+    if (fails) old.reject(new Error('offline')); else old.resolve({ providers: [{ id: 'old' }] });
+    await first;
+    assert.equal(services.data.typeIndex, 2); assert.equal(services.data.providers[0].id, 'new');
+    assert.equal(services.data.error, ''); assert.equal(services.data.loading, false);
+  }
+});

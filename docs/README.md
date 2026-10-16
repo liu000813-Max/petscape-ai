@@ -15,6 +15,7 @@
 | Windows 本机如何做真实数据库联调 | [运行手册](runbooks/miniapp-local-postgres.md) | [数据库验收记录](operations/miniapp-database-2026-10-16.md)、独立运行目录中的原始日志 |
 | 小程序 HTTP 是否已连真实库、怎样准备账号 | [HTTP 验收记录](operations/miniapp-http-2026-10-16.md) | [账号准备指引](runbooks/miniapp-account-setup.md)、[整合说明](miniapp-integration.md) |
 | 个人版入口与宠物表单是否可用 | [个人版验收](operations/miniapp-personal-2026-10-16.md) | [客户端说明](../miniapp/README.md)、配置诊断与真实 HTTP 证据 |
+| 多宠物养护和快速筛选是否会串数据 | [养护与筛选验收](operations/miniapp-care-2026-10-16.md) | 原生页面竞态回归、真实 HTTP 与 PostgreSQL 证据 |
 | 旧原型是否可以删除 | [prototype retirement ledger](governance/prototype-retirement-ledger.md) | 当前 import、路由、consumer 和行为回归证据 |
 | 如何部署、迁移或回滚 | [ADR-0001](decisions/0001-deployment-runtime.md) | [workflows](../.github/workflows/)、[deploy](../deploy/) 与对应运行 receipt |
 | 一项工作是否已经完成 | 当前 Spec/Ticket 的验收终点 | tests、CI、exact SHA、真实依赖行为与 `operations/` / `evidence/` receipt |

@@ -79,10 +79,15 @@ async function nativeClient(role) {
   async function loadPage(name) {
     const source = new URL(`../../miniapp/pages/${name}/index.js`, import.meta.url);
     const localRequire = createRequire(source);
+    const analytics = { exports: {} };
+    vm.runInNewContext(await readFile(new URL('../../miniapp/utils/analytics.js', import.meta.url), 'utf8'), {
+      ...sandbox, module: analytics, require: (id) => id === './request' ? nativeModule.exports : localRequire(id),
+      getCurrentPages: () => [{ route: `pages/${name}/index` }],
+    });
     let definition;
     vm.runInNewContext(await readFile(source, 'utf8'), {
       ...sandbox,
-      require: (id) => id === '../../utils/request' ? nativeModule.exports : localRequire(id),
+      require: (id) => id === '../../utils/request' ? nativeModule.exports : id === '../../utils/analytics' ? analytics.exports : localRequire(id),
       Page: (page) => { definition = page; },
       setTimeout: (callback) => callback(),
     }, { filename: source.pathname });
@@ -269,5 +274,37 @@ test('native client clears expired cached credentials after a real HTTP 401', as
   try {
     await assert.rejects(client.api.listPets(), (error) => error.statusCode === 401 && Boolean(error.requestId));
     assert.equal(client.storage.has('petscape_session_token'), false);
+  } finally { await client.drain(); }
+});
+
+test('native care page saves to the selected pet after list changes and completes a persisted reminder', async () => {
+  const client = await nativeClient('owner');
+  try {
+    const pet = await client.api.createPet({ name: run + '-care-page', speciesCode: 'rat' });
+    const care = await client.loadPage('care-log');
+    await care.onShow();
+    await care.onPetChange({ detail: { value: String(care.data.pets.findIndex((item) => item.id === pet.id)) } });
+    care.onNoteInput({ detail: { value: run + '-selected-note' } });
+    care.onValueInput({ detail: { value: '320g' } });
+    // A newly created pet changes server ordering; selection must follow its ID.
+    await client.api.createPet({ name: run + '-inserted-later', speciesCode: 'parrot' });
+    await care.loadData();
+    assert.equal(care.data.pets[care.data.petIndex].id, pet.id);
+    assert.equal(care.data.note, run + '-selected-note');
+    await Promise.all([care.submit(), care.submit()]);
+    const logs = await prisma.careLog.findMany({ where: { ownerUserId: users.owner, note: run + '-selected-note' } });
+    assert.equal(logs.length, 1); assert.equal(logs[0].petId, pet.id); assert.equal(logs[0].value, '320g');
+    assert.equal(care.data.logs[0].petId, pet.id);
+    care.onReminderTitle({ detail: { value: run + '-daily-water' } });
+    await Promise.all([care.addReminder(), care.addReminder()]);
+    const reminders = await prisma.careReminder.findMany({ where: { ownerUserId: users.owner, title: run + '-daily-water' } });
+    assert.equal(reminders.length, 1); assert.equal(reminders[0].petId, pet.id);
+    const event = { currentTarget: { dataset: { id: reminders[0].id } } };
+    await Promise.all([care.completeReminder(event), care.completeReminder(event)]);
+    const completed = await prisma.careReminder.findUniqueOrThrow({ where: { id: reminders[0].id } });
+    assert.ok(completed.completedAt);
+    assert.equal(care.data.reminders[0].completedAt, completed.completedAt.toISOString());
+    await care.completeReminder(event);
+    assert.equal((await prisma.careReminder.findUniqueOrThrow({ where: { id: completed.id } })).completedAt.getTime(), completed.completedAt.getTime());
   } finally { await client.drain(); }
 });

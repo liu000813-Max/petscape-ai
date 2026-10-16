@@ -1,0 +1,69 @@
+{
+  "at": "2026-10-16T10:18:21.973Z",
+  "baseCommit": "e60cb07fb3c2449b40b9df33cdd4a4b80302b83c",
+  "run": "20261016101500365_29ffc1",
+  "http": {
+    "at": "2026-10-16T10:16:19.937Z",
+    "node": "v24.19.0",
+    "database": "petscape_http_20261016101500365_29ffc1",
+    "transport": "HTTP on loopback; native request.js with wx HTTP/storage adapter",
+    "ossConfigured": false,
+    "wechatConfigured": false,
+    "fixtureSessions": true,
+    "realWechatLogin": false,
+    "integration": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "logs": {
+    "http-receipt.json": "71b0077911484e6baf48dec1361188124171834411fd5285dc5f505b7e49077b",
+    "http-build.log": "1d177a5ce159ac2ecb07bb24e29f639af5de20bc11268c79b1306b739cb23aa4",
+    "http-server.log": "0a90d91f73ff4650a6aeb5ac876eee7efda8d415f6b31019d6444d9c0445b6ee",
+    "http-tests.tap": "08fbb879a094187021fd45fbc9294ad95ec4aa7bd5328c55b2d1a4ce6fd9e51f"
+  },
+  "validation": {
+    "webUnitTests": {
+      "pass": 54,
+      "fail": 0,
+      "skipped": 0,
+      "nativePageCases": 24
+    },
+    "lint": [
+      "web/tests/miniapp.test.mjs",
+      "web/tests/e2e-miniapp-content.test.mjs"
+    ],
+    "productionBuild": true,
+    "typecheck": "Next production build TypeScript check",
+    "nativeCompile": {
+      "wxml": 13,
+      "wxss": 14,
+      "compilerDirectory": "resources/app.asar.unpacked/node_modules/wcc-exec"
+    },
+    "realDevice": false,
+    "simulatorVisual": false,
+    "uploaded": false,
+    "deployed": false,
+    "databaseStoppedAfterRun": true
+  },
+  "regressionEvidence": {
+    "beforeImplementation": {
+      "firstBatchFailed": 7,
+      "secondBatchFailed": 2,
+      "source": "observed Node test output in this task"
+    },
+    "afterImplementation": {
+      "newPageCasesPassed": 9
+    }
+  },
+  "sourceSha256": {
+    "miniapp/pages/care-log/index.js": "67e9776cbc82ba93b6d15bb353fe9db474714b2b756b9f87fcf540e5e004984a",
+    "miniapp/pages/care-log/index.wxml": "c47bf2a0f6333393515dd08647276b4c1b0eea4524400de34036a43af82a5f48",
+    "miniapp/pages/services/index.js": "a2259926c5736832411036128dbe02cd2d79d5089188e29c018a82a9728b6351",
+    "miniapp/pages/services/index.wxml": "29958324a150bc4c905ebf81c3fc569b66150a0b848c1277dc8185ae5e1111e1",
+    "web/tests/e2e-miniapp-content.test.mjs": "45fdf49fa9d01cc71ad13657b7ab5a3e4f9e65e56b8c588c5b2568be4cd8a807",
+    "web/tests/miniapp.test.mjs": "179e4cff30ec4aab3e29e20acde87a61104475655d7b59475f9bc8d93172434c"
+  }
+}

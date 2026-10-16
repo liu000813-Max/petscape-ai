@@ -4,7 +4,7 @@
   <view class="subtitle">发现寄养、护理和环境检查服务，先看公开信息，再自行联系确认。</view>
   <view class="section"><input class="input" maxlength="80" value="{{city}}" bindinput="onCityInput" placeholder="城市，例如深圳；留空查看全部" /><picker mode="selector" range="{{types}}" value="{{typeIndex}}" bindchange="onTypeChange"><view class="picker-value">{{types[typeIndex]}}　⌄</view></picker><button class="secondary-button" bindtap="loadProviders">筛选服务</button></view>
   <view wx:if="{{loading}}" class="loading">正在读取服务目录</view>
-  <view wx:elif="{{error}}" class="error-state">{{error}}</view>
+  <view wx:elif="{{error}}" class="error-state"><text>{{error}}</text><button class="secondary-button" bindtap="loadProviders">重试</button></view>
   <view wx:elif="{{providers.length}}" class="section">
     <view wx:for="{{providers}}" wx:key="id" class="provider-card card" data-id="{{item.id}}" data-url="{{item.contactUrl}}" bindtap="contact"><view class="provider-head"><text class="provider-name">{{item.name}}</text><text class="badge">{{item.serviceType}}</text></view><text class="muted">{{item.city}}</text><text class="provider-description">{{item.description}}</text><text class="provider-link" wx:if="{{item.contactUrl}}">复制联系方式 →</text></view>
   </view>
