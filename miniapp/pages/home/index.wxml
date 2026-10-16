@@ -1,7 +1,8 @@
 <view class="page home-page">
   <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
+  <view wx:if="{{mockMode}}" class="badge">演示模式 · 示例内容与服务</view>
   <view class="eyebrow">PETSCAPE HABITAT</view>
-  <view class="title">给每一只宠物，<br />一处合适的栖境。</view>
+  <view class="title"><view>给每一只宠物，</view><view>一处合适的栖境。</view></view>
   <view class="subtitle">从宠物档案、养护知识到 AI Habitat 设计，把日常照料和空间创造放进一个小程序。</view>
 
   <view class="hero-card" bindtap="openProject">
@@ -17,7 +18,7 @@
 
   <view wx:if="{{loading}}" class="loading">正在读取你的宠物空间</view>
   <view wx:elif="{{pet}}" class="pet-strip card" bindtap="openPet">
-    <view class="pet-avatar">{{pet.speciesEmoji}}</view>
+    <view class="pet-avatar"><image wx:if="{{pet.speciesImage}}" class="species-image" src="{{pet.speciesImage}}" mode="aspectFill" /><text wx:else>{{pet.speciesEmoji}}</text></view>
     <view class="pet-info">
       <text class="pet-name">{{pet.name}}</text>
       <text class="muted">{{pet.speciesLabel}} · {{pet.breed || '品种待补充'}} · {{pet.environmentNotes || '还没有环境笔记'}}</text>

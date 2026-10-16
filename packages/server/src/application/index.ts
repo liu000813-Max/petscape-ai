@@ -174,3 +174,26 @@ export {
   OrderConflictError,
   ORDER_RECOVERY_JOB_TYPE,
 } from './orders.ts';
+
+// P1/P2：内容、社区、养护记录、服务商和埋点 MVP。
+export {
+  listContentArticles,
+  getContentArticle,
+  getCommunityPost,
+  listCommunityPosts,
+  createCommunityPost,
+  listCommunityComments,
+  createCommunityComment,
+  toggleCommunityPostLike,
+  listCareLogs,
+  createCareLog,
+  listServiceProviders,
+  recordAnalyticsEvent,
+  moderateContent,
+  listAdminContent,
+  saveAdminContent,
+  listCareReminders,
+  createCareReminder,
+  completeCareReminder,
+  getContentAnalytics,
+} from './content-community.ts';

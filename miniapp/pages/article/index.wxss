@@ -1,0 +1,2 @@
+.article-title { font-size: 44rpx; line-height: 1.3; }
+.article-body { display: block; margin-top: 36rpx; white-space: pre-wrap; line-height: 1.85; }

@@ -62,6 +62,7 @@ export async function withApiLogging(
       durationMs,
       ...(res._loggedUserId ? { userId: res._loggedUserId } : {}),
     });
+    res.headers.set('x-request-id', requestId);
     return res;
   } catch (err) {
     const durationMs = Date.now() - startedAt;

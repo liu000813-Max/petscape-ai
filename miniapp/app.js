@@ -1,4 +1,5 @@
 const config = require('./utils/config');
+const { track } = require('./utils/analytics');
 
 App({
   globalData: {
@@ -13,5 +14,9 @@ App({
     if (typeof storedMode === 'boolean') {
       this.globalData.mockMode = storedMode;
     }
+    track('app.launch');
   },
+
+  onError() { track('client.error', { code: 'runtime' }); },
+  onUnhandledRejection() { track('client.error', { code: 'unhandled_rejection' }); },
 });

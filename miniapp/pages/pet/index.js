@@ -16,6 +16,7 @@ Page({
         ...pet,
         speciesLabel: getSpeciesMeta(pet.speciesCode).label,
         speciesEmoji: getSpeciesMeta(pet.speciesCode).emoji,
+        speciesImage: getSpeciesMeta(pet.speciesCode).image,
       }));
       this.setData({ pets, loading: false });
     } catch (error) {
@@ -36,4 +37,6 @@ Page({
   openDesign() {
     wx.navigateTo({ url: '/pages/design/index' });
   },
+
+  openCareLog() { wx.navigateTo({ url: '/pages/care-log/index' }); },
 });

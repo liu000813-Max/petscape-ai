@@ -6,7 +6,7 @@
   <view wx:if="{{loading}}" class="loading">正在读取宠物档案</view>
   <view wx:elif="{{pets.length}}" class="section">
     <view wx:for="{{pets}}" wx:key="id" class="pet-card card" data-id="{{item.id}}" bindtap="editPet">
-      <view class="pet-avatar">{{item.speciesEmoji}}</view>
+      <view class="pet-avatar"><image wx:if="{{item.speciesImage}}" class="species-image" src="{{item.speciesImage}}" mode="aspectFill" /><text wx:else>{{item.speciesEmoji}}</text></view>
       <view class="pet-main">
         <text class="pet-name">{{item.name}}</text>
         <text class="muted">{{item.speciesLabel}} · {{item.breed || '品种待补充'}} · {{item.lifeStage || '阶段待补充'}}</text>
@@ -24,4 +24,5 @@
     <button class="secondary-button" bindtap="addPet">新增档案</button>
     <button class="primary-button" bindtap="openDesign">开始设计</button>
   </view>
+  <button class="secondary-button section" bindtap="openCareLog">打开养护记录与提醒</button>
 </view>

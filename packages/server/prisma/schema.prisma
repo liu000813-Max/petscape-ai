@@ -67,6 +67,13 @@ model User {
   paymentIntents        PaymentIntent[]
   orders                Order[]
   orderStatusHistory    OrderStatusHistory[]
+  authoredArticles      ContentArticle[]      @relation("ContentArticleAuthor")
+  communityPosts        CommunityPost[]
+  communityComments     CommunityComment[]
+  communityPostLikes    CommunityPostLike[]
+  careLogs              CareLog[]
+  careReminders         CareReminder[]
+  analyticsEvents       AnalyticsEvent[]
 
   @@map("user")
 }
@@ -181,6 +188,7 @@ model Job {
 
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+
   startedAt  DateTime?
   finishedAt DateTime?
   archivedAt DateTime?
@@ -416,6 +424,9 @@ model Pet {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  careLogs CareLog[]
+  careReminders CareReminder[]
 
   @@index([ownerUserId, deletedAt])
   @@index([coverAssetId])
@@ -810,4 +821,137 @@ model OrderStatusHistory {
   @@index([orderId, sequence])
   @@index([actorUserId, createdAt])
   @@map("order_status_history")
+}
+
+// PETSCAPE 内容、社区、养护和服务商 MVP。状态由服务端写入，客户端不能提交发布状态。
+model ContentArticle {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  summary      String
+  body         String
+  category     String
+  speciesCode  PetSpeciesCode?
+  coverUrl     String?
+  status       String   @default("draft")
+  authorUserId String?
+  author       User?   @relation("ContentArticleAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  publishedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([category, speciesCode])
+  @@map("content_article")
+}
+
+model CommunityPost {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  owner       User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  title       String
+  body        String
+  topic       String
+  speciesCode PetSpeciesCode?
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  comments CommunityComment[]
+  likes    CommunityPostLike[]
+
+  @@index([status, createdAt])
+  @@index([topic, speciesCode])
+  @@map("community_post")
+}
+
+model CommunityComment {
+  id          String        @id @default(cuid())
+  postId      String
+  post        CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  ownerUserId String
+  owner       User          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  body        String
+  status      String        @default("pending")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([postId, status, createdAt])
+  @@map("community_comment")
+}
+
+model CommunityPostLike {
+  id          String        @id @default(cuid())
+  postId      String
+  post        CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  ownerUserId String
+  owner       User          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+
+  @@unique([postId, ownerUserId])
+  @@index([postId, createdAt])
+  @@map("community_post_like")
+}
+
+model CareLog {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  owner       User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  petId       String
+  pet         Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  kind        String
+  note        String?
+  value       String?
+  recordedAt  DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerUserId, recordedAt])
+  @@index([petId, recordedAt])
+  @@map("care_log")
+}
+
+model CareReminder {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  owner       User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  petId       String
+  pet         Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  title       String
+  dueAt       DateTime
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([ownerUserId, completedAt, dueAt])
+  @@map("care_reminder")
+}
+
+model ServiceProvider {
+  id          String   @id @default(cuid())
+  name        String
+  serviceType String
+  city        String
+  description String
+  contactUrl  String?
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, city, serviceType])
+  @@map("service_provider")
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId   String?
+  eventName   String
+  path        String?
+  properties  Json?
+  createdAt   DateTime @default(now())
+
+  @@index([eventName, createdAt])
+  @@index([userId, createdAt])
+  @@map("analytics_event")
 }

@@ -1,7 +1,12 @@
 {
   "description": "PETSCAPE 宠境微信小程序",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "tests"
+      }
+    ],
     "include": []
   },
   "setting": {

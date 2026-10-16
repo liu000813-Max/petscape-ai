@@ -14,12 +14,16 @@
     </view>
   </scroll-view>
 
-  <view class="section post-list">
-    <view wx:for="{{posts}}" wx:key="title" wx:if="{{active === '全部' || active === item.tag}}" class="post-card card" data-title="{{item.title}}" bindtap="openPost">
+  <view wx:if="{{loading}}" class="loading">正在读取社区动态</view>
+  <view wx:elif="{{error}}" class="error-state"><text>{{error}}</text><button class="secondary-button" bindtap="loadPosts">重新读取</button></view>
+  <view wx:elif="{{posts.length}}" class="section post-list">
+    <view wx:for="{{posts}}" wx:key="id" wx:if="{{active === '全部' || active === item.tag}}" class="post-card card" data-id="{{item.id}}" bindtap="openPost">
       <view class="post-tag badge">{{item.tag}}</view>
       <text class="post-title">{{item.title}}</text>
       <view class="post-meta"><text>{{item.author}}</text><text>{{item.time}}</text></view>
-      <view class="post-stats"><text>♡ {{item.likes}}</text><text>评论 {{item.comments}}</text></view>
+      <view class="post-stats"><text data-id="{{item.id}}" catchtap="likePost">{{item.liked ? '♥' : '♡'}} {{item.likes}}</text><text>评论 {{item.comments}}</text></view>
     </view>
   </view>
+  <view wx:else class="empty card section">还没有公开动态</view>
+  <view class="section"><button class="secondary-button" bindtap="openServices">查看同城服务</button></view>
 </view>

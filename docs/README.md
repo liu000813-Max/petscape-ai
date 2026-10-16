@@ -11,6 +11,7 @@
 | 一个领域名词承诺什么 | [领域词典](context/glossary.md) | schema、contract 与调用方；词典不定义字段 |
 | 数据库目前实现了什么 | [Prisma schema](../packages/server/prisma/schema.prisma) | [migrations](../packages/server/prisma/migrations/)、集成测试和真实数据库 evidence |
 | API 或跨进程输入目前长什么样 | [Zod contracts](../packages/server/src/contracts/) | Route Handler、应用层、调用方和契约测试 |
+| 原生小程序内容/社区与养护如何验收 | [小程序内容规范](specs/miniapp-content.md) | [整合说明](miniapp-integration.md)、`miniapp/`、对应单元与集成用例 |
 | 旧原型是否可以删除 | [prototype retirement ledger](governance/prototype-retirement-ledger.md) | 当前 import、路由、consumer 和行为回归证据 |
 | 如何部署、迁移或回滚 | [ADR-0001](decisions/0001-deployment-runtime.md) | [workflows](../.github/workflows/)、[deploy](../deploy/) 与对应运行 receipt |
 | 一项工作是否已经完成 | 当前 Spec/Ticket 的验收终点 | tests、CI、exact SHA、真实依赖行为与 `operations/` / `evidence/` receipt |

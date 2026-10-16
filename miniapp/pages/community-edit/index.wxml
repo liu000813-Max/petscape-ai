@@ -1,0 +1,13 @@
+<view class="page">
+  <view class="eyebrow">PETSCAPE COMMUNITY</view>
+  <view class="title">发布动态</view>
+  <view class="form-card card section">
+    <text class="field-label">主题</text>
+    <picker mode="selector" range="{{topics}}" value="{{topicIndex}}" bindchange="onTopicChange"><view class="picker-value">{{topics[topicIndex]}}　⌄</view></picker>
+    <text class="field-label">标题</text>
+    <input class="input" maxlength="160" placeholder="给这次分享起个标题" value="{{title}}" bindinput="onTitleInput" />
+    <text class="field-label">内容</text>
+    <textarea class="textarea" maxlength="10000" placeholder="记录你的问题、经验或栖境方案" value="{{body}}" bindinput="onBodyInput" />
+  </view>
+  <button class="primary-button section" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交审核</button>
+</view>

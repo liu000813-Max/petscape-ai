@@ -1,11 +1,13 @@
 const { listPets, listProjects } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
+const { track } = require('../../utils/analytics');
 
 Page({
   data: {
     pet: null,
     project: null,
     loading: true,
+    mockMode: true,
     quickActions: [
       { title: '创建专属栖境', note: '从宠物照片开始', path: '/pages/design/index', tone: 'dark' },
       { title: '查看养护知识', note: '按物种快速查找', path: '/pages/knowledge/index', tone: 'light' },
@@ -17,7 +19,9 @@ Page({
   },
 
   onShow() {
-    this.loadSummary();
+    this.setData({ mockMode: getApp().globalData.mockMode });
+    track('home.view');
+    return this.loadSummary();
   },
 
   async loadSummary() {
@@ -26,7 +30,7 @@ Page({
       const [pets, projects] = await Promise.all([listPets(), listProjects()]);
       const pet = pets.pets && pets.pets[0] ? pets.pets[0] : null;
       this.setData({
-        pet: pet ? { ...pet, speciesLabel: getSpeciesMeta(pet.speciesCode).label, speciesEmoji: getSpeciesMeta(pet.speciesCode).emoji } : null,
+        pet: pet ? { ...pet, speciesLabel: getSpeciesMeta(pet.speciesCode).label, speciesEmoji: getSpeciesMeta(pet.speciesCode).emoji, speciesImage: getSpeciesMeta(pet.speciesCode).image } : null,
         project: projects.projects && projects.projects[0] ? projects.projects[0] : null,
         loading: false,
       });
@@ -39,7 +43,9 @@ Page({
   },
 
   openAction(event) {
-    wx.navigateTo({ url: event.currentTarget.dataset.path });
+    const url = event.currentTarget.dataset.path;
+    if (url === '/pages/knowledge/index') wx.switchTab({ url });
+    else wx.navigateTo({ url });
   },
 
   openPet() {

@@ -9,7 +9,9 @@
     </view>
   </scroll-view>
 
-  <view class="section article-list">
+  <view wx:if="{{loading}}" class="loading">正在读取知识内容</view>
+  <view wx:elif="{{error}}" class="error-state"><text>{{error}}</text><button class="secondary-button" bindtap="loadArticles">重新读取</button></view>
+  <view wx:elif="{{articles.length}}" class="section article-list">
     <view wx:for="{{articles}}" wx:key="title" wx:if="{{active === '全部' || active === item.category}}" class="article-card card" data-title="{{item.title}}" bindtap="openArticle">
       <view class="article-top"><text class="badge">{{item.category}}</text><text class="muted">{{item.read}}</text></view>
       <text class="article-title">{{item.title}}</text>
@@ -17,4 +19,5 @@
       <text class="article-link">打开文章 →</text>
     </view>
   </view>
+  <view wx:else class="empty card section">暂时没有匹配的知识内容</view>
 </view>

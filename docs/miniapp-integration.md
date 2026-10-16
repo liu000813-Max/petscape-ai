@@ -12,7 +12,7 @@
 | 设计入口 | 创建项目、展示项目列表、引导用户开始设计 | AI 生图、三视图、图生 3D、模型检查、场景确认 |
 | 3D 预览 | 通过 `web-view` 打开项目预览 | Next.js Web 工作台、Three.js/模型查看器 |
 | 交易 | 展示报价、订单和制作进度 | Quote、PaymentIntent、Order、Worker 状态机 |
-| 内容服务 | 知识、社区、养护、同城服务入口 | 当前仓库尚未实现，需要新增内容域和审核后台 |
+| 内容服务 | 知识详情、发帖/评论/点赞、养护记录与提醒、同城筛选 | 新增内容域、审核运营台及匿名事件/错误汇总；真实数据库与微信联调待完成 |
 
 ## 关键数据流
 
@@ -37,7 +37,7 @@ flowchart LR
 
 ## 当前边界
 
-`miniapp/utils/request.js` 在本地预览默认走 mock 数据；切换 `miniapp/utils/config.js` 的 `mockMode=false` 后，会在首次真实请求前调用 `wx.login`。宠物档案已经支持新增、编辑、列表读取；项目和订单已接入已有 API。知识/社区 API、微信支付和正式 3D web-view 域名仍需接入。
+`miniapp/utils/request.js` 在本地预览默认走 mock 数据，并标注示例内容与服务；切换 `miniapp/utils/config.js` 的 `mockMode=false` 后，会在首次受保护请求前调用 `wx.login`。知识、社区、养护和服务目录已接入统一请求层，公开读取无需先登录；发布内容默认待审。接口合同、状态与限制见 [小程序内容规范](specs/miniapp-content.md)。正式环境仍需迁移数据库、完成微信登录和域名联调；微信支付与正式 3D web-view 不因本轮内容功能而自动开放。
 
 ## 本次联调所需环境变量
 

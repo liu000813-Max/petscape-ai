@@ -143,6 +143,9 @@ jobs:
       - name: Test (web)
         run: pnpm --filter web run test
 
+      - name: Test content contracts and permissions without database
+        run: node --test packages/server/tests/community-content.test.mjs
+
       - name: Build web (production Next)
         run: pnpm --filter web run build
 

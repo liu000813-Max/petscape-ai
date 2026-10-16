@@ -1,0 +1,11 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">正在读取动态</view>
+  <view wx:elif="{{error}}" class="error-state"><text>{{error}}</text><button class="secondary-button section" bindtap="loadPost">重新读取</button></view>
+  <view wx:else><view class="eyebrow">PETSCAPE COMMUNITY</view><view class="badge section">{{post.topic}}</view><view class="title post-title">{{post.title}}</view><view class="subtitle">{{post.authorName || 'PETSCAPE 用户'}}</view><text class="post-body">{{post.body}}</text>
+    <view class="section-head section"><text class="section-title">评论</text></view>
+    <view wx:for="{{comments}}" wx:key="id" class="comment card"><text class="muted">{{item.authorName || 'PETSCAPE 用户'}}</text><text class="comment-body">{{item.body}}</text></view>
+    <view wx:if="{{!comments.length}}" class="muted">还没有公开评论，分享你的想法吧。</view>
+    <textarea class="textarea section" maxlength="5000" value="{{body}}" bindinput="onBodyInput" placeholder="写下你的建议或经验" />
+    <button class="primary-button section" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitComment">提交评论审核</button>
+  </view>
+</view>

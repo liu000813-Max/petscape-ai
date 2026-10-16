@@ -1,0 +1,5 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">正在读取文章</view>
+  <view wx:elif="{{error}}" class="error-state"><text>{{error}}</text><button class="secondary-button section" bindtap="loadArticle">重新读取</button></view>
+  <view wx:else><view class="eyebrow">PETSCAPE FIELD NOTES</view><view class="badge section">{{article.category}}</view><view class="title article-title">{{article.title}}</view><view class="subtitle">{{article.summary}}</view><text class="article-body">{{article.body}}</text></view>
+</view>
