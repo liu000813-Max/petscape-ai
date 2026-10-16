@@ -6,8 +6,8 @@
   <view wx:if="{{loading}}" class="loading">正在读取档案</view>
   <view wx:else class="form-card card section">
     <view class="field">
-      <text class="field-label">名字</text>
-      <input class="field-input" maxlength="20" value="{{form.name}}" data-field="name" bindinput="onInput" placeholder="例如：米粒" />
+      <text class="field-label">名字 · 必填</text>
+      <input class="field-input" maxlength="80" value="{{form.name}}" data-field="name" bindinput="onInput" placeholder="例如：米粒" />
     </view>
 
     <view class="field">
@@ -15,6 +15,11 @@
       <picker mode="selector" range="{{speciesOptions}}" range-key="label" value="{{speciesIndex}}" bindchange="onSpeciesChange">
         <view class="picker-value">{{speciesOptions[speciesIndex].label}} <text class="picker-arrow">⌄</text></view>
       </picker>
+    </view>
+
+    <view wx:if="{{form.speciesCode === 'other'}}" class="field">
+      <text class="field-label">具体物种 · 必填</text>
+      <input class="field-input" maxlength="120" value="{{form.customSpeciesName}}" data-field="customSpeciesName" bindinput="onInput" placeholder="例如：刺猬、蜜袋鼯" />
     </view>
 
     <view class="field">

@@ -1,20 +1,19 @@
-const { listPets, listProjects } = require('../../utils/request');
+const { listPets } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
 const { track } = require('../../utils/analytics');
 
 Page({
   data: {
     pet: null,
-    project: null,
     loading: true,
     mockMode: true,
     quickActions: [
-      { title: '创建专属栖境', note: '从宠物照片开始', path: '/pages/design/index', tone: 'dark' },
+      { title: '完善宠物档案', note: '记录物种与生活习性', path: '/pages/pet/index', tone: 'dark' },
       { title: '查看养护知识', note: '按物种快速查找', path: '/pages/knowledge/index', tone: 'light' },
     ],
     highlights: [
       { tag: '今日养护', title: '温度、湿度和躲避空间', note: '把知识变成每天能执行的小动作。' },
-      { tag: '设计灵感', title: '让宠物的生活空间更像它自己', note: 'AI 生成方案，3D 预览后再决定制作。' },
+      { tag: '栖境观察', title: '让宠物的生活空间更像它自己', note: '从体型、习性和环境笔记开始了解它。' },
     ],
   },
 
@@ -27,11 +26,10 @@ Page({
   async loadSummary() {
     this.setData({ loading: true });
     try {
-      const [pets, projects] = await Promise.all([listPets(), listProjects()]);
+      const pets = await listPets();
       const pet = pets.pets && pets.pets[0] ? pets.pets[0] : null;
       this.setData({
-        pet: pet ? { ...pet, speciesLabel: getSpeciesMeta(pet.speciesCode).label, speciesEmoji: getSpeciesMeta(pet.speciesCode).emoji, speciesImage: getSpeciesMeta(pet.speciesCode).image } : null,
-        project: projects.projects && projects.projects[0] ? projects.projects[0] : null,
+        pet: pet ? { ...pet, speciesLabel: pet.speciesCode === 'other' && pet.customSpeciesName ? pet.customSpeciesName : getSpeciesMeta(pet.speciesCode).label, speciesEmoji: getSpeciesMeta(pet.speciesCode).emoji, speciesImage: getSpeciesMeta(pet.speciesCode).image } : null,
         loading: false,
       });
     } catch (error) {
@@ -44,7 +42,7 @@ Page({
 
   openAction(event) {
     const url = event.currentTarget.dataset.path;
-    if (url === '/pages/knowledge/index') wx.switchTab({ url });
+    if (url === '/pages/knowledge/index' || url === '/pages/pet/index') wx.switchTab({ url });
     else wx.navigateTo({ url });
   },
 
@@ -52,7 +50,7 @@ Page({
     wx.switchTab({ url: '/pages/pet/index' });
   },
 
-  openProject() {
-    wx.navigateTo({ url: '/pages/design/index' });
+  openCare() {
+    wx.navigateTo({ url: '/pages/care-log/index' });
   },
 });

@@ -1,0 +1,129 @@
+{
+  "at": "2026-10-16T09:54:25.163Z",
+  "baseCommit": "6250971d352c770a2129633e7c991505f04b531c",
+  "run": "20261016095001245_c9f1d7",
+  "http": {
+    "at": "2026-10-16T09:51:15.344Z",
+    "node": "v24.19.0",
+    "database": "petscape_http_20261016095001245_c9f1d7",
+    "transport": "HTTP on loopback; native request.js with wx HTTP/storage adapter",
+    "ossConfigured": false,
+    "wechatConfigured": false,
+    "fixtureSessions": true,
+    "realWechatLogin": false,
+    "integration": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "logs": {
+    "http-receipt.json": "512e7f5b10a9247ee6e51ad61d4e8f0a6ddef7c764321ce6246772fb01ec4e42",
+    "http-build.log": "9b41393b93d45a2743c635a03db3491b9fa7ca6fe299677613d6ae27640454fa",
+    "http-server.log": "b16ec8288bc01fdd35eb4a9b78afeb66a4a7bfa8129af6ecf2fe9cf3f86c8e7e",
+    "http-tests.tap": "c9148c11d597c33f97e26defb43860467460d210b6ce2a812936016bdc5fc7db"
+  },
+  "validation": {
+    "webUnitTests": {
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0,
+      "nativePageCases": 15
+    },
+    "configurationTests": {
+      "pass": 8,
+      "fail": 0,
+      "skipped": 0
+    },
+    "typecheck": [
+      "web"
+    ],
+    "lint": [
+      "web/tests/miniapp.test.mjs",
+      "web/tests/e2e-miniapp-content.test.mjs"
+    ],
+    "productionBuild": true,
+    "nativeCompile": {
+      "wxml": 13,
+      "wxss": 14
+    },
+    "realDevice": false,
+    "simulatorVisual": false,
+    "uploaded": false,
+    "deployed": false
+  },
+  "localConfiguration": {
+    "configurationReady": false,
+    "checks": [
+      {
+        "id": "appid",
+        "status": "missing",
+        "message": "尚无正式 AppID；注册后替换 touristappid"
+      },
+      {
+        "id": "backend-appid",
+        "status": "missing",
+        "message": "本机服务端尚未配置一致的 WECHAT_MINIPROGRAM_APP_ID"
+      },
+      {
+        "id": "backend-secret",
+        "status": "missing",
+        "message": "本机 AppSecret 未配置或格式不完整；仅写入根 .env 或部署密钥"
+      },
+      {
+        "id": "mock-mode",
+        "status": "missing",
+        "message": "当前仍为 mock；接通正式后端后再关闭"
+      },
+      {
+        "id": "api-origin",
+        "status": "pass",
+        "message": "已填写 HTTPS API 源地址，线上可用性待验收"
+      },
+      {
+        "id": "url-check",
+        "status": "pass",
+        "message": "项目与本机配置均启用域名校验"
+      },
+      {
+        "id": "account-capabilities",
+        "status": "pass",
+        "message": "主体与网页能力开关一致"
+      },
+      {
+        "id": "secret-location",
+        "status": "pass",
+        "message": "客户端源文件未发现当前配置的 AppSecret"
+      }
+    ],
+    "externalVerification": [
+      "注册账号并核对个人主体实际可选类目和内容范围",
+      "微信后台配置 request 合法域名并验证正式后端",
+      "本人登录开发者工具，完成 wx.login、真机和隐私授权验收",
+      "上传体验版、设置体验成员并验证微信体验二维码"
+    ]
+  },
+  "sourceSha256": {
+    ".github/workflows/ci.yml": "0ff54142cbfb5165a339ab7065434c1bcfb0ce26fd2dbc5f908352d6debe444b",
+    "miniapp/pages/design/index.js": "cd7cd6a9c78a3b718b6d54f695fe94f6faf94a57d9ad0a823ff51aedbea622ed",
+    "miniapp/pages/design/index.json": "8666b4e59ac5e4e61559f0864a2f0aa21405459149de332d11b837eb0614e288",
+    "miniapp/pages/design/index.wxml": "14bc02779068289e6e66bfadd409ea22447a627ee1f3ec3d38d6858bf90e0990",
+    "miniapp/pages/home/index.js": "16eb463511567918b2e43ee5b2e7280e3392dbfc7fdd8ed01592ea8caca3d607",
+    "miniapp/pages/home/index.wxml": "befffdf2dded74c3a6504d2b6dc55c5b266c8d4288245c74ed5a65a708144a24",
+    "miniapp/pages/pet-edit/index.js": "8025b52ebf0547187cb2b8519c374cf7e5f00c076348a0e0a71d803ee9ccf118",
+    "miniapp/pages/pet-edit/index.wxml": "a3b05713a7a98388298651686d89d9b019b250147fc0535f33f116b97ca1f048",
+    "miniapp/pages/pet/index.js": "ad3f251c2dd23cc8b7b47cc4629749015f575f73545bdc7eb1ad5ae40c9591f2",
+    "miniapp/pages/pet/index.wxml": "67be80c8d7d5fb752d47f5ec74650885940061d8d43ad69c55d356bd57a93ea8",
+    "miniapp/pages/viewer/index.js": "0fc8b207e07467d1f09beb1b1d9be9b18c73dec14c00cb38932ecdcf9ad84862",
+    "miniapp/pages/viewer/index.json": "e95ca7a998cbfc3dd0741ac99d1fe658ff23a5076353235cd74798fede912e7b",
+    "miniapp/pages/viewer/index.wxml": "617595bf4604cad48cf561dc1e123933d7bc8f6bd60f3e8ffbbd0c729dbcfe68",
+    "miniapp/pages/viewer/index.wxss": "eb2123aedd60274251c78b86713ea6b4bcffa3ed0bfaf7ee01491e531f5f287b",
+    "miniapp/utils/config.js": "3b31ed85d6eaa70e7abd2b4380d813b77ed95d1c7c8ee8f15647bd5d7903fa39",
+    "web/tests/e2e-miniapp-content.test.mjs": "3c22b16436a59c54ab3231d9ef1e7d6c72403f09eca97589c19e86fb70f3c6d2",
+    "web/tests/miniapp.test.mjs": "6f1fa2cb0fb14dc715e24091dfb831c409361a60b4f3784d6fad967cff67599c",
+    "miniapp/utils/capabilities.js": "f24b3304be992aca9d58a683e93931587df8ffb73dc586d3e82af8bcf1f7a25d",
+    "scripts/check-miniapp-ready.mjs": "192c36600d5b2e8e4459a4fad2233e546ac7f1e821216c73764e73c48f8d9fe0",
+    "scripts/tests/check-miniapp-ready.test.mjs": "02926df1fbc2f19db90fda442b623b45dedc58a07ca3cdc054ed1006b2c760c6"
+  }
+}

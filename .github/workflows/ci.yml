@@ -146,6 +146,9 @@ jobs:
       - name: Test content contracts and permissions without database
         run: node --test packages/server/tests/community-content.test.mjs
 
+      - name: Test miniapp configuration diagnostics
+        run: node --test scripts/tests/check-miniapp-ready.test.mjs
+
       - name: Build web (production Next)
         run: pnpm --filter web run build
 

@@ -5,6 +5,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { CreatePetRequestSchema, UpdatePetRequestSchema } from '../../packages/server/src/contracts/pets.ts';
 
 const root = fileURLToPath(new URL('../../miniapp/', import.meta.url));
 const require = createRequire(path.join(root, 'app.js'));
@@ -24,14 +25,22 @@ function resetWx() {
 }
 resetWx();
 const api = require(path.join(root, 'utils/request.js'));
-function page(name) {
+function page(name, overrides = {}) {
   const filename = path.join(root, `pages/${name}/index.js`);
   delete require.cache[require.resolve(filename)];
   let result;
   globalThis.Page = (definition) => { result = definition; };
-  require(filename);
+  const original = Object.fromEntries(Object.keys(overrides).map((key) => [key, api[key]]));
+  Object.assign(api, overrides);
+  try { require(filename); } finally { Object.assign(api, original); }
   result.data = structuredClone(result.data);
-  result.setData = function (data) { Object.assign(this.data, data); };
+  result.setData = function (data) {
+    for (const [key, value] of Object.entries(data)) {
+      const parts = key.split('.');
+      const target = parts.slice(0, -1).reduce((object, part) => object[part], this.data);
+      target[parts.at(-1)] = value;
+    }
+  };
   return result;
 }
 function files(directory) { return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? files(path.join(directory, entry.name)) : [path.join(directory, entry.name)]); }
@@ -135,4 +144,88 @@ test('parallel protected requests share one wx.login exchange', async () => {
     options.success({ statusCode: 200, data: auth ? { sessionToken: 'server-session' } : { pets: [] } });
   };
   await Promise.all([api.listPets(), api.listPets()]); assert.equal(logins, 1);
+});
+
+test('native pet form submits all six species including the required custom species name', async () => {
+  const saved = [];
+  for (const [index, speciesCode] of ['rat', 'gecko', 'snake', 'parrot', 'spider', 'other'].entries()) {
+    const form = page('pet-edit', { createPet: async (payload) => { CreatePetRequestSchema.parse(payload); saved.push(payload); return { id: 'saved' }; } });
+    form.onInput({ currentTarget: { dataset: { field: 'name' } }, detail: { value: '小团子' } });
+    form.onSpeciesChange({ detail: { value: String(index) } });
+    if (speciesCode === 'other') form.onInput({ currentTarget: { dataset: { field: 'customSpeciesName' } }, detail: { value: ' 刺猬 ' } });
+    await form.submit();
+  }
+  assert.equal(saved.length, 6);
+  assert.equal(saved.at(-1).customSpeciesName, '刺猬');
+});
+
+test('native edit form restores other species and clears optional fields in the API contract', async () => {
+  const saved = [];
+  const form = page('pet-edit', {
+    getPet: async () => ({ name: '团子', speciesCode: 'other', customSpeciesName: '刺猬', breed: '原品种', environmentNotes: '原环境', specialNeeds: '原需求' }),
+    updatePet: async (id, payload) => { UpdatePetRequestSchema.parse(payload); saved.push({ id, payload }); },
+  });
+  wx.setNavigationBarTitle = () => {};
+  await form.onLoad({ id: 'own-pet' });
+  assert.equal(form.data.form.customSpeciesName, '刺猬');
+  assert.equal(form.data.speciesOptions[form.data.speciesIndex].value, 'other');
+  assert.equal(form.data.lifeStageOptions[form.data.lifeStageIndex].value, 'unknown');
+  form.onSpeciesChange({ detail: { value: '0' } });
+  for (const field of ['breed', 'environmentNotes', 'specialNeeds']) form.onInput({ currentTarget: { dataset: { field } }, detail: { value: ' ' } });
+  await form.submit();
+  assert.equal(saved[0].id, 'own-pet');
+  for (const key of ['customSpeciesName', 'breed', 'environmentNotes', 'specialNeeds']) assert.equal(saved[0].payload[key], null, key);
+});
+
+test('native form rejects unnamed other species before sending', async () => {
+  let requests = 0;
+  let finish;
+  const pending = new Promise((resolve) => { finish = resolve; });
+  const form = page('pet-edit', { createPet: async () => { requests += 1; return pending; } });
+  form.onInput({ currentTarget: { dataset: { field: 'name' } }, detail: { value: '团子' } });
+  form.onSpeciesChange({ detail: { value: '5' } });
+  // Do not hang the test if the old implementation sends the invalid form.
+  const invalid = form.submit(); finish({ id: 'saved' }); await invalid;
+  assert.equal(requests, 0);
+  assert.match(notices.at(-1).title, /物种/);
+});
+
+test('native form ignores repeated save taps while a request is pending', async () => {
+  let requests = 0;
+  let finish;
+  const pending = new Promise((resolve) => { finish = resolve; });
+  const form = page('pet-edit', { createPet: async () => { requests += 1; return pending; } });
+  form.onInput({ currentTarget: { dataset: { field: 'name' } }, detail: { value: '团子' } });
+  const first = form.submit(); const second = form.submit();
+  finish({ id: 'saved' });
+  await Promise.all([first, second]);
+  assert.equal(requests, 1);
+});
+
+test('personal account blocks embedded workbench even if its flag is accidentally enabled', () => {
+  const { canUseEmbeddedWorkbench } = require(path.join(root, 'utils/capabilities.js'));
+  assert.equal(canUseEmbeddedWorkbench({ accountType: 'personal', webViewEnabled: true }), false);
+  assert.equal(canUseEmbeddedWorkbench({ accountType: 'organization', webViewEnabled: false }), false);
+  assert.equal(canUseEmbeddedWorkbench({ accountType: 'organization', webViewEnabled: true }), true);
+  const viewer = page('viewer'); viewer.onLoad({ projectId: 'saved-project', title: '米粒的栖境' });
+  assert.equal(viewer.data.url, '');
+  assert.equal(viewer.data.projectTitle, '米粒的栖境');
+  viewer.openPets(); assert.deepEqual(navigation, ['switchTab', '/pages/pet/index']);
+  viewer.openCare(); assert.deepEqual(navigation, ['navigateTo', '/pages/care-log/index']);
+});
+
+test('home loads the pet independently of project APIs and exposes native care and profile entries', async () => {
+  let projectRequests = 0;
+  const home = page('home', {
+    listPets: async () => ({ pets: [{ id: 'pet', name: '团子', speciesCode: 'other', customSpeciesName: '刺猬' }] }),
+    listProjects: async () => { projectRequests += 1; throw new Error('unavailable'); },
+  });
+  await home.onShow();
+  assert.equal(home.data.pet.speciesLabel, '刺猬');
+  assert.equal(home.data.loading, false);
+  assert.equal(projectRequests, 0);
+  home.openCare(); assert.deepEqual(navigation, ['navigateTo', '/pages/care-log/index']);
+  const action = home.data.quickActions.find((item) => item.path === '/pages/pet/index'); assert.ok(action);
+  home.openAction({ currentTarget: { dataset: action } });
+  assert.deepEqual(navigation, ['switchTab', '/pages/pet/index']);
 });

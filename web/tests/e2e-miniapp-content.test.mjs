@@ -52,6 +52,7 @@ async function nativeClient(role) {
     module: nativeModule, require: createRequire(new URL('../../miniapp/utils/request.js', import.meta.url)),
     getApp: () => ({ globalData: { mockMode: false, apiBaseUrl: base.origin } }),
     wx: {
+      showToast() {}, setNavigationBarTitle() {}, navigateBack() {},
       getStorageSync: (key) => storage.get(key),
       setStorageSync: (key, value) => storage.set(key, value),
       removeStorageSync: (key) => storage.delete(key),
@@ -75,7 +76,31 @@ async function nativeClient(role) {
     },
   };
   vm.runInNewContext(await readFile(new URL('../../miniapp/utils/request.js', import.meta.url), 'utf8'), sandbox);
-  return { api: nativeModule.exports, storage, drain: async () => { while (pending.size) await Promise.all([...pending]); } };
+  async function loadPage(name) {
+    const source = new URL(`../../miniapp/pages/${name}/index.js`, import.meta.url);
+    const localRequire = createRequire(source);
+    let definition;
+    vm.runInNewContext(await readFile(source, 'utf8'), {
+      ...sandbox,
+      require: (id) => id === '../../utils/request' ? nativeModule.exports : localRequire(id),
+      Page: (page) => { definition = page; },
+      setTimeout: (callback) => callback(),
+    }, { filename: source.pathname });
+    definition.data = structuredClone(definition.data);
+    definition.setData = function (values) {
+      for (const [key, value] of Object.entries(values)) {
+        const parts = key.split('.');
+        const target = parts.slice(0, -1).reduce((object, part) => object[part], this.data);
+        target[parts.at(-1)] = value;
+      }
+    };
+    return definition;
+  }
+  return { api: nativeModule.exports, storage, loadPage, drain: async () => { while (pending.size) await Promise.all([...pending]); } };
+}
+
+function input(page, field, value) {
+  page.onInput({ currentTarget: { dataset: { field } }, detail: { value } });
 }
 
 const moderate = (contentType, id, status) => http('/api/v1/admin/content/moderate', {
@@ -105,20 +130,41 @@ test('health, missing/invalid/expired sessions and unconfigured WeChat login hav
   assert.equal((await http('/api/miniapp/auth/login', { method: 'POST', data: { code: 'fixture-not-a-wechat-code' } }, 503)).error, 'wechat_login_not_configured');
 });
 
-test('native request module persists all six pet categories and rejects cross-owner access', async () => {
+test('native pet form persists all six categories, clears edited fields and rejects cross-owner access', async () => {
   const owner = await nativeClient('owner');
   const other = await nativeClient('other');
   try {
-    for (const speciesCode of ['rat', 'gecko', 'snake', 'parrot', 'spider', 'other']) {
-      const pet = await owner.api.createPet({ name: 'HTTP ' + speciesCode, speciesCode, ...(speciesCode === 'other' ? { customSpeciesName: '刺猬' } : {}) });
+    for (const [index, speciesCode] of ['rat', 'gecko', 'snake', 'parrot', 'spider', 'other'].entries()) {
+      const form = await owner.loadPage('pet-edit');
+      const name = run + '-' + speciesCode;
+      input(form, 'name', name);
+      form.onSpeciesChange({ detail: { value: String(index) } });
+      if (speciesCode === 'other') {
+        input(form, 'customSpeciesName', ' 刺猬 ');
+        for (const field of ['breed', 'environmentNotes', 'specialNeeds']) input(form, field, '原资料');
+      }
+      await form.submit();
+      const stored = await prisma.pet.findFirstOrThrow({ where: { name, ownerUserId: users.owner } });
+      const pet = await owner.api.getPet(stored.id);
       PetResponseSchema.parse(pet);
       assert.equal(pet.coverUrl, null);
-      assert.equal((await prisma.pet.findUniqueOrThrow({ where: { id: pet.id } })).ownerUserId, users.owner);
-      assert.equal((await owner.api.getPet(pet.id)).speciesCode, speciesCode);
+      assert.equal(pet.speciesCode, speciesCode);
       await assert.rejects(other.api.getPet(pet.id), (error) => error.statusCode === 404 && Boolean(error.requestId));
       await http('/api/v1/pets/' + pet.id, { method: 'PATCH', headers: nativeHeaders('other'), data: { name: '越权' } }, 404);
       await http('/api/v1/pets/' + pet.id, { method: 'DELETE', headers: nativeHeaders('other') }, 404);
       assert.equal((await owner.api.updatePet(pet.id, { name: '已更新' })).name, '已更新');
+      if (speciesCode === 'other') {
+        assert.equal(stored.customSpeciesName, '刺猬');
+        const edit = await owner.loadPage('pet-edit');
+        await edit.onLoad({ id: pet.id });
+        assert.equal(edit.data.form.customSpeciesName, '刺猬');
+        edit.onSpeciesChange({ detail: { value: '0' } });
+        for (const field of ['breed', 'environmentNotes', 'specialNeeds']) input(edit, field, ' ');
+        await edit.submit();
+        const updated = await prisma.pet.findUniqueOrThrow({ where: { id: pet.id } });
+        assert.equal(updated.speciesCode, 'rat');
+        for (const field of ['customSpeciesName', 'breed', 'environmentNotes', 'specialNeeds']) assert.equal(updated[field], null, field);
+      }
     }
     assert.equal((await owner.api.listPets()).pets.length, 6);
     assert.equal((await other.api.listPets()).pets.length, 0);

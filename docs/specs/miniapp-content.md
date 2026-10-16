@@ -65,5 +65,6 @@ flowchart LR
 - Node 24 运行无数据库用例与原生交互回归；CI 的 PostgreSQL job 执行真实所有权、审核、并发点赞和提醒测试。缺数据库时本地明确 skip，CI 不允许静默 skip。
 - Windows 独立 PostgreSQL 的迁移、旧数据升级和真实集成测试使用 [本机运行手册](../runbooks/miniapp-local-postgres.md)；本轮已完成的本机行为证据见 [数据库验收记录](../operations/miniapp-database-2026-10-16.md)，线上与真机分别验收。
 - 实际 HTTP 与非 mock 请求层的验收见 [HTTP 记录](../operations/miniapp-http-2026-10-16.md)；该范围覆盖无 OSS 的数据库功能，不包含图片上传、微信 code2Session 或设备渲染。
+- 个人版入口与六类宠物表单见 [后续验收](../operations/miniapp-personal-2026-10-16.md)；个人主体不承诺内嵌 3D 网页，其他异宠必须填写具体物种，清空选填资料按合同发送 null。
 - 官方 WXML/WXSS 编译不等同于开发者工具模拟器、真机截图或上线验收；后续还需真实微信登录、接口域名和机型测试。
 - 正式体验码需要有效 AppID、开发者工具登录及上传权限；当前游客配置无法提供微信真机体验链接。

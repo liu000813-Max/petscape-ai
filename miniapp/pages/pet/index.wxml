@@ -22,7 +22,7 @@
 
   <view class="section grid-2">
     <button class="secondary-button" bindtap="addPet">新增档案</button>
-    <button class="primary-button" bindtap="openDesign">开始设计</button>
+    <button class="primary-button" bindtap="openDesign">记录栖境想法</button>
   </view>
   <button class="secondary-button section" bindtap="openCareLog">打开养护记录与提醒</button>
 </view>

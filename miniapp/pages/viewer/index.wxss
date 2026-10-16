@@ -1,3 +1,8 @@
 page {
-  background: #050505;
+  background: #ffffff;
 }
+
+.viewer-empty { padding-top: 100rpx; }
+.viewer-species { display: block; width: 180rpx; height: 180rpx; margin-bottom: 38rpx; }
+.project-label { margin-top: 28rpx; font-size: 30rpx; font-weight: 700; overflow-wrap: break-word; }
+.secondary-button { margin-top: 18rpx; }

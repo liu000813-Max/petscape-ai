@@ -14,7 +14,7 @@ Page({
       const result = await listPets();
       const pets = (result.pets || []).map((pet) => ({
         ...pet,
-        speciesLabel: getSpeciesMeta(pet.speciesCode).label,
+        speciesLabel: pet.speciesCode === 'other' && pet.customSpeciesName ? pet.customSpeciesName : getSpeciesMeta(pet.speciesCode).label,
         speciesEmoji: getSpeciesMeta(pet.speciesCode).emoji,
         speciesImage: getSpeciesMeta(pet.speciesCode).image,
       }));

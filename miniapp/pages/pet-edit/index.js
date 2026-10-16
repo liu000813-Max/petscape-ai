@@ -17,6 +17,7 @@ Page({
     form: {
       name: '',
       speciesCode: 'rat',
+      customSpeciesName: '',
       breed: '',
       lifeStage: 'unknown',
       sizeLevel: 3,
@@ -33,19 +34,22 @@ Page({
     if (!query.id) return;
     this.setData({ id: query.id, isEdit: true, loading: true });
     wx.setNavigationBarTitle({ title: '编辑档案' });
-    getPet(query.id)
+    return getPet(query.id)
       .then((pet) => {
-        const speciesIndex = Math.max(0, speciesOptions.findIndex((item) => item.value === pet.speciesCode));
-        const lifeStageIndex = Math.max(0, lifeStageOptions.findIndex((item) => item.value === pet.lifeStage));
+        const speciesCode = pet.speciesCode || 'other';
+        const lifeStage = pet.lifeStage || 'unknown';
+        const speciesIndex = Math.max(0, speciesOptions.findIndex((item) => item.value === speciesCode));
+        const lifeStageIndex = Math.max(0, lifeStageOptions.findIndex((item) => item.value === lifeStage));
         this.setData({
           loading: false,
           speciesIndex,
           lifeStageIndex,
           form: {
             name: pet.name || '',
-            speciesCode: pet.speciesCode || 'other',
+            speciesCode,
+            customSpeciesName: pet.customSpeciesName || '',
             breed: pet.breed || '',
-            lifeStage: pet.lifeStage || 'unknown',
+            lifeStage,
             sizeLevel: Number(pet.sizeLevel || 3),
             environmentNotes: pet.environmentNotes || '',
             specialNeeds: pet.specialNeeds || '',
@@ -65,7 +69,10 @@ Page({
 
   onSpeciesChange(event) {
     const index = Number(event.detail.value);
-    this.setData({ speciesIndex: index, 'form.speciesCode': speciesOptions[index].value });
+    if (!speciesOptions[index]) return;
+    this.setData({ speciesIndex: index, 'form.speciesCode': speciesOptions[index].value,
+      ...(speciesOptions[index].value !== 'other' ? { 'form.customSpeciesName': '' } : {}),
+    });
   },
 
   onLifeStageChange(event) {
@@ -78,20 +85,26 @@ Page({
   },
 
   async submit() {
+    if (this.data.saving || this.data.loading) return;
     const form = this.data.form;
     if (!form.name.trim()) {
       wx.showToast({ title: '先填写宠物名字', icon: 'none' });
+      return;
+    }
+    if (form.speciesCode === 'other' && !form.customSpeciesName.trim()) {
+      wx.showToast({ title: '请填写具体物种名称', icon: 'none' });
       return;
     }
     this.setData({ saving: true });
     const payload = {
       name: form.name.trim(),
       speciesCode: form.speciesCode,
-      breed: form.breed.trim() || undefined,
+      customSpeciesName: form.speciesCode === 'other' ? form.customSpeciesName.trim() : null,
+      breed: form.breed.trim() || null,
       lifeStage: form.lifeStage,
       sizeLevel: Number(form.sizeLevel),
-      environmentNotes: form.environmentNotes.trim() || undefined,
-      specialNeeds: form.specialNeeds.trim() || undefined,
+      environmentNotes: form.environmentNotes.trim() || null,
+      specialNeeds: form.specialNeeds.trim() || null,
     };
     try {
       if (this.data.isEdit) {

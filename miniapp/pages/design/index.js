@@ -1,10 +1,12 @@
 const { listProjects, createProject } = require('../../utils/request');
+const { canUseEmbeddedWorkbench } = require('../../utils/capabilities');
 
 Page({
-  data: { projects: [], loading: true, creating: false },
+  data: { projects: [], loading: true, creating: false, embeddedWorkbench: false },
 
   onShow() {
-    this.loadProjects();
+    this.setData({ embeddedWorkbench: canUseEmbeddedWorkbench() });
+    return this.loadProjects();
   },
 
   async loadProjects() {
@@ -19,8 +21,9 @@ Page({
   },
 
   createDesign() {
+    if (this.data.creating) return;
     wx.showModal({
-      title: '新建栖境项目',
+      title: '记录栖境想法',
       editable: true,
       placeholderText: '例如：小岩的星云栖境',
       success: async (result) => {
@@ -40,6 +43,7 @@ Page({
 
   openProject(event) {
     const id = event.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/viewer/index?projectId=${id}` });
+    const project = this.data.projects.find((item) => item.id === id);
+    wx.navigateTo({ url: `/pages/viewer/index?projectId=${encodeURIComponent(id)}&title=${encodeURIComponent(project ? project.title || '' : '')}` });
   },
 });

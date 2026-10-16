@@ -1,1 +1,10 @@
-<web-view src="{{url}}"></web-view>
+<web-view wx:if="{{url}}" src="{{url}}"></web-view>
+<view wx:else class="page viewer-empty">
+  <image class="viewer-species" src="/assets/species-rat.png" mode="aspectFit" />
+  <view class="eyebrow">PETSCAPE HABITAT</view>
+  <view class="title">先照顾好每一天</view>
+  <view wx:if="{{projectTitle}}" class="project-label">{{projectTitle}}</view>
+  <view class="subtitle">{{message}}</view>
+  <button class="primary-button section" bindtap="openCare">记录今天的养护</button>
+  <button class="secondary-button" bindtap="openPets">查看宠物档案</button>
+</view>

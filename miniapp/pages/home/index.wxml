@@ -3,15 +3,15 @@
   <view wx:if="{{mockMode}}" class="badge">演示模式 · 示例内容与服务</view>
   <view class="eyebrow">PETSCAPE HABITAT</view>
   <view class="title"><view>给每一只宠物，</view><view>一处合适的栖境。</view></view>
-  <view class="subtitle">从宠物档案、养护知识到 AI Habitat 设计，把日常照料和空间创造放进一个小程序。</view>
+  <view class="subtitle">记录宠物档案，查找养护知识，把每天的照料留在这里。</view>
 
-  <view class="hero-card" bindtap="openProject">
+  <view class="hero-card" bindtap="openCare">
     <view class="hero-orbit orbit-one"></view>
     <view class="hero-orbit orbit-two"></view>
     <view class="hero-copy">
-      <text class="hero-label">PETSCAPE HABITAT</text>
-      <text class="hero-title">为 {{pet ? pet.name : '你的宠物'}} 设计一处专属栖境</text>
-      <text class="hero-note">上传照片 · 描述习性 · 预览 3D · 提交定制</text>
+      <text class="hero-label">PETSCAPE DAILY CARE</text>
+      <text class="hero-title">记录 {{pet ? pet.name : '你的宠物'}} 的每一天</text>
+      <text class="hero-note">喂食 · 饮水 · 清洁 · 体重 · 观察</text>
     </view>
     <view class="hero-arrow">→</view>
   </view>
@@ -27,7 +27,7 @@
   </view>
   <view wx:else class="empty card" bindtap="openPet">
     <view class="empty-title">先建立一份宠物档案</view>
-    <view class="muted">后续的知识、设计和订单都会围绕它展开</view>
+    <view class="muted">从物种、体型和习性开始，照顾好它的每一天</view>
   </view>
 
   <view class="section">

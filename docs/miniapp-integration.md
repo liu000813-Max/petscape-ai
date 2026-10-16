@@ -9,8 +9,8 @@
 | 层 | 小程序承担 | 现有 PetScape 承担 |
 |---|---|---|
 | 用户关系 | 首页、知识、社区、宠物档案、消息入口 | Better Auth 账户基础能力；小程序通过微信会话桥接到同一 User/Session 模型 |
-| 设计入口 | 创建项目、展示项目列表、引导用户开始设计 | AI 生图、三视图、图生 3D、模型检查、场景确认 |
-| 3D 预览 | 通过 `web-view` 打开项目预览 | Next.js Web 工作台、Three.js/模型查看器 |
+| 设计入口 | 个人版保存栖境想法名称、展示项目列表 | AI 生图、三视图、图生 3D、模型检查、场景确认在既有 Web 链路 |
+| 3D 预览 | 个人版显示原生说明及养护/档案入口；组织版候选路径单独验证 | Next.js Web 工作台、Three.js/模型查看器 |
 | 交易 | 展示报价、订单和制作进度 | Quote、PaymentIntent、Order、Worker 状态机 |
 | 内容服务 | 知识详情、发帖/评论/点赞、养护记录与提醒、同城筛选 | 内容域、审核运营台及匿名事件/错误汇总；本机真实数据库已验收，线上与微信联调待完成 |
 
@@ -27,8 +27,9 @@ flowchart LR
   JOB --> GEN[生图/图生3D/模型检查]
   GEN --> WEB[现有 Web 3D 工作台]
   API --> COM[Quote / Payment / Order]
-  MP --> WEBVIEW[web-view 3D 预览]
-  WEBVIEW --> WEB
+  MP --> NOTES[个人版 栖境想法与原生说明]
+  MP -. 仅组织主体并完成验证 .-> WEBVIEW[web-view 候选路径]
+  WEBVIEW -. 待单独联调 .-> WEB
 ```
 
 ## 鉴权决策
@@ -46,6 +47,8 @@ flowchart LR
 随后完成的 [实际 HTTP 验收](operations/miniapp-http-2026-10-16.md)通过数据库 Session fixture 驱动非 mock 请求层，未使用微信和 OSS 凭据。用户已确认尚未注册微信小程序账号，正式 AppID 暂不存在；先按 [账号准备指引](runbooks/miniapp-account-setup.md)注册，不能用公众号 AppID 或游客配置替代。
 
 2026-10-16 用户选择个人主体。上文 `web-view` 的 3D 工作台整合是技术设计，不能作为个人版开放承诺：[微信官方文档](https://developers.weixin.qq.com/miniprogram/dev/component/web-view.html)明确个人类型暂不支持该组件。原生 3D 替代尚未实现；社区发帖/评论是否能开放仍需核对实际账号类目。
+
+个人版入口调整和六类宠物表单修复见 [验收记录](operations/miniapp-personal-2026-10-16.md)。本机配置诊断入口为 `node scripts/check-miniapp-ready.mjs`，其报告不代替微信后台、真机或线上验收。
 
 ```text
 WECHAT_MINIPROGRAM_APP_ID=微信小程序 AppID

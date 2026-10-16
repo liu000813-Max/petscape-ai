@@ -1,13 +1,13 @@
 <view class="page">
   <view class="eyebrow">PETSCAPE DESIGN LAB</view>
-  <view class="title">我的栖境</view>
-  <view class="subtitle">从宠物档案理解生活习性，把想法变成可预览、可制作的空间方案。</view>
+  <view class="title">栖境想法</view>
+  <view class="subtitle">{{embeddedWorkbench ? '从宠物档案理解生活习性，再探索适合它的空间。' : '先记录宠物的空间需求和项目名称。3D 预览与定制制作尚未开放。'}}</view>
 
   <view class="start-card" bindtap="createDesign">
     <view>
       <text class="start-label">START A NEW HABITAT</text>
       <text class="start-title">从一个想法开始</text>
-      <text class="start-note">上传照片、描述习性，生成第一版空间方案。</text>
+      <text class="start-note">{{embeddedWorkbench ? '为宠物创建一份栖境项目。' : '为想法起个名字，之后继续完善。'}}</text>
     </view>
     <text class="start-arrow">＋</text>
   </view>
@@ -18,16 +18,16 @@
     <view wx:elif="{{projects.length}}">
       <view wx:for="{{projects}}" wx:key="id" class="project-card card" data-id="{{item.id}}" bindtap="openProject">
         <view class="project-mark">◒</view>
-        <view class="project-main"><text class="project-title">{{item.title || '未命名宠境项目'}}</text><text class="muted">{{item.status === 'editable' ? '可继续编辑' : item.status}}</text></view>
-        <text class="section-link">打开 →</text>
+        <view class="project-main"><text class="project-title">{{item.title || '未命名宠境项目'}}</text><text class="muted">{{embeddedWorkbench ? '查看项目' : '想法已保存 · 3D 预览待开放'}}</text></view>
+        <text class="section-link">查看 →</text>
       </view>
     </view>
     <view wx:else class="empty card"><view class="empty-title">还没有设计项目</view><view class="muted">先为宠物建一处专属空间</view></view>
   </view>
 
   <view class="section design-note card">
-    <text class="badge">整合说明</text>
-    <text class="note-title">小程序负责发现与管理，Web 负责重型 3D 计算</text>
-    <text class="muted">生成、模型检查、报价和订单沿用 petscape-ai 服务端；小程序只展示状态、触发任务和承接用户关系。</text>
+    <text class="badge">让空间更适合它</text>
+    <text class="note-title">先了解习性，再考虑栖境</text>
+    <text class="muted">在宠物档案里记下体型、环境和特殊需求。记录越具体，之后规划空间时越有依据。</text>
   </view>
 </view>
