@@ -1,0 +1,87 @@
+{
+  "at": "2026-10-16T09:30:51.012Z",
+  "baseCommit": "cdcf0d7c4dc6b4d2382e1c1a6c10b448a005a7ec",
+  "runs": [
+    {
+      "run": "20261016092043309_b02f52",
+      "receipt": {
+        "at": "2026-10-16T09:22:04.497Z",
+        "node": "v24.19.0",
+        "database": "petscape_http_20261016092043309_b02f52",
+        "transport": "HTTP on loopback; native request.js with wx HTTP/storage adapter",
+        "ossConfigured": false,
+        "wechatConfigured": false,
+        "fixtureSessions": true,
+        "realWechatLogin": false,
+        "integration": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "skipped": 0
+        }
+      },
+      "logs": {
+        "http-receipt.json": "1862f4c6ebeae6b61c20a6caaead3dcac5f013eb7d48c2ab7a133b1649deee96",
+        "http-build.log": "e79c2cf02aa645381597b55c09296677f08ed849229b7db14dc459c42b36548e",
+        "http-server.log": "f87de6f143f0327fb9c69f923ae608830eaa83c2b803ecebcca5db112ddca857",
+        "http-tests.tap": "3584161a5928c10caff3a91e1262b414f163cbefa72b853c8b4ff3afc8e1043a"
+      }
+    },
+    {
+      "run": "20261016092715815_fbb4cf",
+      "receipt": {
+        "at": "2026-10-16T09:28:42.351Z",
+        "node": "v24.19.0",
+        "database": "petscape_http_20261016092715815_fbb4cf",
+        "transport": "HTTP on loopback; native request.js with wx HTTP/storage adapter",
+        "ossConfigured": false,
+        "wechatConfigured": false,
+        "fixtureSessions": true,
+        "realWechatLogin": false,
+        "integration": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "skipped": 0
+        }
+      },
+      "logs": {
+        "http-receipt.json": "cf0da668681ca5336daa95aeada55c844b8611d8b92b0b5502fd7635ff747bd2",
+        "http-build.log": "e93031b7bfde9421395fa3d72f37ef7927b3f724e0895179307a64eca97dcac0",
+        "http-server.log": "03a2008d0c823a812a60905b11139471d9f08878975e7dd2b52762c0d08c51b3",
+        "http-tests.tap": "3bdb8f35a595b4bbf1f512d2d2e1b8275f8fbcb691209f10be2497ca8ca58003"
+      }
+    }
+  ],
+  "localValidation": {
+    "serverTests": {
+      "pass": 8,
+      "fail": 0,
+      "skipped": 0
+    },
+    "webUnitTests": {
+      "pass": 39,
+      "fail": 0,
+      "skipped": 0
+    },
+    "typecheck": [
+      "server",
+      "web",
+      "worker"
+    ],
+    "nativeCompile": {
+      "wxml": 13,
+      "wxss": 14
+    },
+    "cloudConfigGuard": "rejected before build; original file unchanged"
+  },
+  "sourceSha256": {
+    "packages/server/src/application/context.ts": "ce84c5c3d93face9d4f5dcc3c47f9971e0a6ae685784c4e5a5e09ffc317362d6",
+    "packages/server/tests/server-context.test.mjs": "be0014aefd7025b2d5092695d95bf2258b3f8e37d39f9c8825326ad047463b1a",
+    "web/app/api/miniapp/auth/login/route.ts": "6e197d07ea42fcd8facbbb092163fd06fbb4eacc5b166156a0a5cad13bbae788",
+    "web/tests/e2e-miniapp-content.test.mjs": "8fba635190c5d4ff3717b101af861f513455e7ff42ab2b07497f52cadef00c55",
+    "scripts/verify-miniapp-http.mjs": "772be296bfef25cefa1e2bd07eb8697dd89f5205efa2ae56f2eea5d6a9724f41",
+    "scripts/local-postgres.mjs": "37c424fe328b509ffc9bc798feb9f925d31df272f12cd37d221472b58b5962b8",
+    "scripts/local-postgres.ps1": "c7d54835044a7776db5a6fcc7f292fccc9d3c4ebe505b29c1317b8f5fd1d4d60"
+  }
+}

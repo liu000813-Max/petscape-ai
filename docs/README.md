@@ -13,6 +13,7 @@
 | API 或跨进程输入目前长什么样 | [Zod contracts](../packages/server/src/contracts/) | Route Handler、应用层、调用方和契约测试 |
 | 原生小程序内容/社区与养护如何验收 | [小程序内容规范](specs/miniapp-content.md) | [整合说明](miniapp-integration.md)、`miniapp/`、对应单元与集成用例 |
 | Windows 本机如何做真实数据库联调 | [运行手册](runbooks/miniapp-local-postgres.md) | [数据库验收记录](operations/miniapp-database-2026-10-16.md)、独立运行目录中的原始日志 |
+| 小程序 HTTP 是否已连真实库、怎样准备账号 | [HTTP 验收记录](operations/miniapp-http-2026-10-16.md) | [账号准备指引](runbooks/miniapp-account-setup.md)、[整合说明](miniapp-integration.md) |
 | 旧原型是否可以删除 | [prototype retirement ledger](governance/prototype-retirement-ledger.md) | 当前 import、路由、consumer 和行为回归证据 |
 | 如何部署、迁移或回滚 | [ADR-0001](decisions/0001-deployment-runtime.md) | [workflows](../.github/workflows/)、[deploy](../deploy/) 与对应运行 receipt |
 | 一项工作是否已经完成 | 当前 Spec/Ticket 的验收终点 | tests、CI、exact SHA、真实依赖行为与 `operations/` / `evidence/` receipt |

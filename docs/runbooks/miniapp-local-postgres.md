@@ -19,6 +19,7 @@
 .\scripts\local-postgres.ps1 install
 .\scripts\local-postgres.ps1 start
 .\scripts\local-postgres.ps1 test
+.\scripts\local-postgres.ps1 http
 .\scripts\local-postgres.ps1 status
 .\scripts\local-postgres.ps1 stop
 ```
@@ -28,6 +29,7 @@
 - `install`：校验固定 ZIP 后提取服务器运行文件，不覆盖已有文件。
 - `start`：仅在未初始化时创建数据目录；已启动时复用同一实例。端口被别的进程占用时失败，不接管其他实例。
 - `test`：每轮新建独立 fresh/upgrade 库，执行迁移验收与两份真实集成测试；任何失败或跳过均不算通过。通过后迁移固定开发库 `petscape_miniapp_dev`。
+- `http`：每轮新建独立 HTTP 库并迁移，重新构建当前 Web API，仅在 loopback 的临时端口启动，运行实际 HTTP 验收。结束关闭本轮 Web 进程；数据库原先未运行时也关闭数据库，保留数据。日志与 `http-receipt.json` 写入本轮运行目录。
 - `status`：报告本项目数据库进程状态。
 - `stop`：正常停止数据库，保留数据和密码；可以重复调用。
 
@@ -45,6 +47,8 @@
 
 ## 微信联调衔接
 
-开发库只供后续本地联调，不包含真实微信账户。真实 HTTP API 还需要 Web 服务运行配置；共享服务上下文当前要求 OSS 配置，不用虚假云凭据绕过。
+开发库只供本地联调，不包含真实微信账户。`http` 使用随机临时服务密钥和数据库 Session fixture，关闭小程序请求层的 mock，经实际 HTTP 验证社区、养护和宠物档案；wx 的 HTTP/存储用 Node 适配，不模拟真实微信登录成功。
+
+数据库功能可以在无 OSS 配置时运行；文件操作首次访问 OSS 时才校验完整配置。HTTP 入口移除继承的阿里云/微信环境变量；若项目根或 `web/` 的生产 `.env*` 含这类键则直接拒绝，不编辑配置文件，也不使用虚假云凭据。独立验收不能复用已有管理员、测试库或其他监听进程。
 
 微信 AppID/AppSecret、合法域名和开发者工具登录仍按 [整合说明](../miniapp-integration.md)完成。保持小程序默认 mock 配置，待真实环境具备后再切换；数据库通过不等于微信登录或真机验收通过。

@@ -16,14 +16,16 @@ interface WechatCode2SessionResponse {
 
 /** wx.login code -> 微信身份 -> PetScape Session。AppSecret 永远只在服务端读取。 */
 export async function POST(req: Request) {
-  let body: { code?: unknown };
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
   }
 
-  const code = typeof body.code === 'string' ? body.code.trim() : '';
+  const code = body && typeof body === 'object' && 'code' in body && typeof body.code === 'string'
+    ? body.code.trim()
+    : '';
   if (!code) return NextResponse.json({ error: 'missing_code' }, { status: 400 });
 
   const config = loadWebConfig();

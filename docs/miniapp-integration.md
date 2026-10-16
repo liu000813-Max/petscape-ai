@@ -43,6 +43,10 @@ flowchart LR
 
 独立本机数据库的迁移、旧数据升级与真实集成测试已完成，入口见 [本机运行手册](runbooks/miniapp-local-postgres.md)，结果见 [数据库验收记录](operations/miniapp-database-2026-10-16.md)。这些结果不替代正式环境迁移或微信真机验收。
 
+随后完成的 [实际 HTTP 验收](operations/miniapp-http-2026-10-16.md)通过数据库 Session fixture 驱动非 mock 请求层，未使用微信和 OSS 凭据。用户已确认尚未注册微信小程序账号，正式 AppID 暂不存在；先按 [账号准备指引](runbooks/miniapp-account-setup.md)注册，不能用公众号 AppID 或游客配置替代。
+
+2026-10-16 用户选择个人主体。上文 `web-view` 的 3D 工作台整合是技术设计，不能作为个人版开放承诺：[微信官方文档](https://developers.weixin.qq.com/miniprogram/dev/component/web-view.html)明确个人类型暂不支持该组件。原生 3D 替代尚未实现；社区发帖/评论是否能开放仍需核对实际账号类目。
+
 ```text
 WECHAT_MINIPROGRAM_APP_ID=微信小程序 AppID
 WECHAT_MINIPROGRAM_APP_SECRET=微信小程序 AppSecret

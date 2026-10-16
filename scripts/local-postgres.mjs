@@ -12,6 +12,7 @@ import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { verifyLocalMigrations } from './verify-local-migrations.mjs';
+import { verifyMiniappHttp } from './verify-miniapp-http.mjs';
 
 const exec = promisify(execFile);
 const repo = fileURLToPath(new URL('../', import.meta.url));
@@ -273,6 +274,32 @@ async function testDatabase() {
   console.log(`PASS: ${summary.pass} integration tests, zero skips. Receipt: ${path.join(runDirectory, 'receipt.json')}`);
 }
 
+async function stop() {
+  await loadCredentials();
+  await preparePgPaths();
+  if (await status()) await command(path.join(bin, 'pg_ctl.exe'), ['stop', '-D', data, '-m', 'fast', '-w', '-t', '30']);
+  if (runtimeDrive) await command('subst.exe', [runtimeDrive, '/d']);
+  console.log('PostgreSQL stopped; all data retained.');
+}
+
+async function testHttp() {
+  const wasRunning = await status();
+  await start();
+  try {
+    const run = new Date().toISOString().replace(/[-:.TZ]/g, '') + '_' + randomBytes(3).toString('hex');
+    const database = 'petscape_http_' + run;
+    const runDirectory = path.join(runtime, 'runs', run);
+    await mkdir(runDirectory, { recursive: true });
+    prismaLogDirectory = runDirectory;
+    await createDatabase(database);
+    await runPrisma(database, ['generate']);
+    await runPrisma(database, ['migrate', 'deploy']);
+    const receipt = await verifyMiniappHttp({ repo, runDirectory, databaseUrl: databaseUrl(database), redact });
+    await writeFile(path.join(runDirectory, 'http-receipt.json'), JSON.stringify(receipt, null, 2) + '\n', { flag: 'wx' });
+    console.log(`HTTP receipt: ${path.join(runDirectory, 'http-receipt.json')}`);
+  } finally { if (!wasRunning) await stop(); }
+}
+
 try {
   assert.equal(process.platform, 'win32', 'This runtime launcher targets Windows');
   const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
@@ -283,16 +310,13 @@ try {
   if (action === 'install') await install();
   else if (action === 'start') await start();
   else if (action === 'test') await testDatabase();
+  else if (action === 'http') await testHttp();
   else if (action === 'status') {
     await loadCredentials();
     console.log(await status() ? 'running' : 'stopped');
   } else if (action === 'stop') {
-    await loadCredentials();
-    await preparePgPaths();
-    if (await status()) await command(path.join(bin, 'pg_ctl.exe'), ['stop', '-D', data, '-m', 'fast', '-w', '-t', '30']);
-    if (runtimeDrive) await command('subst.exe', [runtimeDrive, '/d']);
-    console.log('PostgreSQL stopped; all data retained.');
-  } else throw new Error('Usage: node scripts/local-postgres.mjs install|start|test|status|stop');
+    await stop();
+  } else throw new Error('Usage: node scripts/local-postgres.mjs install|start|test|http|status|stop');
 } catch (error) {
   console.error(redact(error.message));
   process.exitCode = 1;

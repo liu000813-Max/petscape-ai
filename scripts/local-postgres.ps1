@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('install', 'start', 'test', 'status', 'stop')]
+    [ValidateSet('install', 'start', 'test', 'http', 'status', 'stop')]
     [string]$Action = 'status',
     [string]$NodePath
 )

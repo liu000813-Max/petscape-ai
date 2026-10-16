@@ -17,8 +17,8 @@ let cached: ServerContext | undefined;
 
 /**
  * 返回本进程唯一的 { prisma, oss } 上下文（懒初始化 + 缓存）。
- * 需要完整 OSS 凭证与 bucket/endpoint 配置齐全，缺失时抛出说明性错误
- * （fail-fast，指出具体缺失键——WP-2.2 统一配置入口原则的延续）。
+ * 数据库配置在构造时校验；OSS 仅在首次访问时装配并校验，
+ * 让不涉及文件的接口独立运行。文件操作缺少配置时仍明确报错。
  */
 export function getServerContext(config: WebConfig): ServerContext {
   if (cached) return cached;
@@ -26,6 +26,23 @@ export function getServerContext(config: WebConfig): ServerContext {
   if (!config.DATABASE_URL) {
     throw new Error('getServerContext() 需要 DATABASE_URL。');
   }
+  const prisma = createPrismaClient({
+    connectionString: config.DATABASE_URL,
+    poolMax: config.WEB_DB_POOL_MAX,
+  });
+  let oss: OssStorage | undefined;
+
+  cached = {
+    prisma,
+    get oss() {
+      oss ??= createConfiguredOss(config);
+      return oss;
+    },
+  };
+  return cached;
+}
+
+function createConfiguredOss(config: WebConfig): OssStorage {
   const missingOssKeys = (
     [
       ['ALIBABA_CLOUD_ACCESS_KEY_ID', config.ALIBABA_CLOUD_ACCESS_KEY_ID],
@@ -38,16 +55,11 @@ export function getServerContext(config: WebConfig): ServerContext {
   ).filter(([, value]) => !value);
   if (missingOssKeys.length > 0) {
     throw new Error(
-      `getServerContext() 需要以下 OSS 配置键：${missingOssKeys.map(([key]) => key).join(', ')}`,
+      `文件存储需要以下 OSS 配置键：${missingOssKeys.map(([key]) => key).join(', ')}`,
     );
   }
 
-  const prisma = createPrismaClient({
-    connectionString: config.DATABASE_URL,
-    poolMax: config.WEB_DB_POOL_MAX,
-  });
-
-  const oss = new OssStorage({
+  return new OssStorage({
     accessKeyId: config.ALIBABA_CLOUD_ACCESS_KEY_ID!,
     accessKeySecret: config.ALIBABA_CLOUD_ACCESS_KEY_SECRET!,
     bucket: config.ALIBABA_CLOUD_OSS_BUCKET!,
@@ -55,6 +67,4 @@ export function getServerContext(config: WebConfig): ServerContext {
     region: config.ALIBABA_CLOUD_REGION!,
   });
 
-  cached = { prisma, oss };
-  return cached;
 }
