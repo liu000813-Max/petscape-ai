@@ -20,7 +20,8 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-const child = spawn('node', ['--test', ...files.map((f) => `tests/${f}`)], {
+// Keep the selected Node runtime when Windows PATH still points to an older one.
+const child = spawn(process.execPath, ['--test', ...files.map((f) => `tests/${f}`)], {
   cwd: fileURLToPath(new URL('../', import.meta.url)),
   stdio: 'inherit',
 });

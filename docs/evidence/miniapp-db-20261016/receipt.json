@@ -1,0 +1,78 @@
+{
+  "at": "2026-10-16T08:45:37.948Z",
+  "node": "v24.19.0",
+  "postgres": "postgres (PostgreSQL) 16.15",
+  "host": "127.0.0.1",
+  "port": 55432,
+  "fresh": "petscape_fresh_20261016084509765_53933b",
+  "upgrade": "petscape_upgrade_20261016084509765_53933b",
+  "migration": {
+    "migrations": 16,
+    "newTables": 8,
+    "foreignKeys": 11,
+    "statusChecks": 4,
+    "sqlRejections": 6,
+    "repeatedDeploy": "unchanged",
+    "oldDataUpgrade": "preserved",
+    "migrationSha256": "f636f4d112f4890577e8c4a783409c71153963413f47376cf66d6d861427c2ba"
+  },
+  "integration": {
+    "tests": 14,
+    "pass": 14,
+    "fail": 0,
+    "skipped": 0
+  },
+  "devDatabase": "petscape_miniapp_dev",
+  "repoBase": "b5a8193",
+  "sourceSha256": {
+    "scripts/local-postgres.ps1": "69bc69c7c796aba50ae84761fa675400eb166e28d39e5ccff6c5218f4b447ca6",
+    "scripts/local-postgres.mjs": "0c8eee4420b481eed0d8a755137afa73dfe7dea5a7d80766fc030eca49fb75d8",
+    "scripts/verify-local-migrations.mjs": "ecaa115b6c9e3d0e8bb01b20244a389b9b7599facd8a8f8a51c5d9c281e0e96d",
+    "packages/server/tests/community-content.integration.test.mjs": "19e029dc906c8aaa25077306b047c96b7042769e252da673a8228891d588396b",
+    "web/scripts/run-unit-tests.mjs": "603fb89677d5709f1333a03f53c9343fb60f4c9c69381d8866fd97a7917deaee"
+  },
+  "lifecycle": {
+    "at": "2026-10-16T08:49:49.296Z",
+    "restartDataPreserved": true,
+    "repeatedStart": true,
+    "repeatedIntegrationPass": 14,
+    "skipped": 0,
+    "listenAddress": "127.0.0.1",
+    "port": 55432,
+    "repeatedStop": true,
+    "finalState": "stopped",
+    "runtimeDriveRemoved": true
+  },
+  "checks": {
+    "webUnit": {
+      "pass": 39,
+      "fail": 0,
+      "skipped": 0
+    },
+    "types": [
+      "server",
+      "web",
+      "worker"
+    ],
+    "prismaValidate": true,
+    "modifiedFileLint": true,
+    "webProductionBuild": true,
+    "nativeCompiler": {
+      "wxml": 13,
+      "wxss": 14
+    }
+  },
+  "boundaries": {
+    "productionDatabase": false,
+    "httpE2E": false,
+    "wechatLogin": false,
+    "wechatDeviceE2E": false,
+    "githubPush": false,
+    "onlineDeploy": false
+  },
+  "sourceHashEncoding": "UTF-8 with LF normalized line endings",
+  "guards": {
+    "occupiedPortUntouched": true,
+    "runtimeInsideCheckoutRejectedBeforeWrites": true
+  }
+}

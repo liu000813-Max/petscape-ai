@@ -63,5 +63,6 @@ flowchart LR
 - mock 仅用于界面与交互体验；示例服务商不代表实际入驻；待审内容在 mock 中也不公开。
 - 新 migration 从上一个 schema 经 `prisma migrate diff --script` 生成，附加状态约束。尚未对生产数据库执行。
 - Node 24 运行无数据库用例与原生交互回归；CI 的 PostgreSQL job 执行真实所有权、审核、并发点赞和提醒测试。缺数据库时本地明确 skip，CI 不允许静默 skip。
+- Windows 独立 PostgreSQL 的迁移、旧数据升级和真实集成测试使用 [本机运行手册](../runbooks/miniapp-local-postgres.md)；本轮已完成的本机行为证据见 [数据库验收记录](../operations/miniapp-database-2026-10-16.md)，线上与真机分别验收。
 - 官方 WXML/WXSS 编译不等同于开发者工具模拟器、真机截图或上线验收；后续还需真实微信登录、接口域名和机型测试。
 - 正式体验码需要有效 AppID、开发者工具登录及上传权限；当前游客配置无法提供微信真机体验链接。

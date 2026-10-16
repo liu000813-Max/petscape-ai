@@ -12,7 +12,7 @@
 | 设计入口 | 创建项目、展示项目列表、引导用户开始设计 | AI 生图、三视图、图生 3D、模型检查、场景确认 |
 | 3D 预览 | 通过 `web-view` 打开项目预览 | Next.js Web 工作台、Three.js/模型查看器 |
 | 交易 | 展示报价、订单和制作进度 | Quote、PaymentIntent、Order、Worker 状态机 |
-| 内容服务 | 知识详情、发帖/评论/点赞、养护记录与提醒、同城筛选 | 新增内容域、审核运营台及匿名事件/错误汇总；真实数据库与微信联调待完成 |
+| 内容服务 | 知识详情、发帖/评论/点赞、养护记录与提醒、同城筛选 | 内容域、审核运营台及匿名事件/错误汇总；本机真实数据库已验收，线上与微信联调待完成 |
 
 ## 关键数据流
 
@@ -40,6 +40,8 @@ flowchart LR
 `miniapp/utils/request.js` 在本地预览默认走 mock 数据，并标注示例内容与服务；切换 `miniapp/utils/config.js` 的 `mockMode=false` 后，会在首次受保护请求前调用 `wx.login`。知识、社区、养护和服务目录已接入统一请求层，公开读取无需先登录；发布内容默认待审。接口合同、状态与限制见 [小程序内容规范](specs/miniapp-content.md)。正式环境仍需迁移数据库、完成微信登录和域名联调；微信支付与正式 3D web-view 不因本轮内容功能而自动开放。
 
 ## 本次联调所需环境变量
+
+独立本机数据库的迁移、旧数据升级与真实集成测试已完成，入口见 [本机运行手册](runbooks/miniapp-local-postgres.md)，结果见 [数据库验收记录](operations/miniapp-database-2026-10-16.md)。这些结果不替代正式环境迁移或微信真机验收。
 
 ```text
 WECHAT_MINIPROGRAM_APP_ID=微信小程序 AppID
