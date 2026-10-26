@@ -228,23 +228,32 @@ jobs:
           echo "release.fresh stage=production target=$TARGET_SHA"
 
       - name: Set up SSH
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
         run: |
+          set -euo pipefail
+          test -n "$DEPLOY_SSH_PRIVATE_KEY"
+          test -n "$DEPLOY_SSH_HOST"
+          test -n "$DEPLOY_SSH_KNOWN_HOSTS"
+          umask 077
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.DEPLOY_SSH_HOST }}" >> ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh-keygen -F "$DEPLOY_SSH_HOST" -f ~/.ssh/known_hosts > /dev/null
 
       - name: Upload exact-SHA release scripts and preflight
         run: |
-          scp -i ~/.ssh/deploy_key deploy/ecs-image-retention.sh deploy/ecs-release.sh \
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o BatchMode=yes deploy/ecs-image-retention.sh deploy/ecs-release.sh \
             "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}:/tmp/"
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o BatchMode=yes "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
             "chmod 700 /tmp/ecs-image-retention.sh /tmp/ecs-release.sh && /tmp/ecs-image-retention.sh pre"
 
       - name: Log in to ECS ACR mirror
         run: |
           printf '%s' '${{ secrets.ALIBABA_CLOUD_ACR_PASSWORD }}' | \
-            ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o BatchMode=yes "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
               "docker --config /root/.docker-acr login '${{ secrets.ACR_REGISTRY_VPC }}' --username '${{ secrets.ALIBABA_CLOUD_ACR_USERNAME }}' --password-stdin"
 
       # ecs-release.sh runs migrations from the exact-SHA worker image first. Any migrate
@@ -254,12 +263,12 @@ jobs:
         env:
           TARGET_SHA: ${{ needs.resolve.outputs.target_sha }}
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o BatchMode=yes "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
             "/tmp/ecs-release.sh '$TARGET_SHA' '${{ secrets.ACR_REGISTRY_VPC }}'"
 
       - name: Verify exact-SHA containers healthy
         env:
           TARGET_SHA: ${{ needs.resolve.outputs.target_sha }}
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o BatchMode=yes "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
             "/tmp/ecs-image-retention.sh post '$TARGET_SHA'"

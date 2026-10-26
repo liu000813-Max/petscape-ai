@@ -121,6 +121,25 @@ test('Deploy is manual, verifies current main exact-SHA gates, and serializes th
   assert.doesNotMatch(workflow, /skip_regression/i);
 });
 
+test('Deploy pins the approved SSH host before transmitting credentials or scripts', async () => {
+  const workflow = await readFile(workflowPath, 'utf8');
+  const setupAt = workflow.indexOf('- name: Set up SSH');
+  const uploadAt = workflow.indexOf('- name: Upload exact-SHA release scripts and preflight');
+  const setup = workflow.slice(setupAt, uploadAt);
+  assert.ok(setupAt >= 0 && uploadAt > setupAt);
+  assert.match(setup, /DEPLOY_SSH_KNOWN_HOSTS:\s*\$\{\{ secrets\.DEPLOY_SSH_KNOWN_HOSTS \}\}/);
+  assert.match(setup, /test -n "\$DEPLOY_SSH_KNOWN_HOSTS"/);
+  assert.match(setup, /ssh-keygen -F "\$DEPLOY_SSH_HOST" -f ~\/\.ssh\/known_hosts/);
+  assert.doesNotMatch(workflow, /ssh-keyscan|StrictHostKeyChecking=(?:no|accept-new)/);
+  const connections = workflow.split('\n').filter((line) => /^\s*(?:ssh|scp) -i /.test(line));
+  assert.ok(connections.length >= 5);
+  for (const connection of connections) {
+    assert.match(connection, /-o StrictHostKeyChecking=yes/);
+    assert.match(connection, /-o IdentitiesOnly=yes/);
+    assert.match(connection, /-o BatchMode=yes/);
+  }
+});
+
 test('migration failure stops before application pull or restart', async () => {
   const result = await runRelease({ migrateExit: 42 });
   assert.equal(result.code, 42, result.stderr);
