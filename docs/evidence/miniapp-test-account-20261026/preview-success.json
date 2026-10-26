@@ -1,0 +1,15 @@
+{
+  "recordedAt": "2026-10-26T16:15:39+08:00",
+  "scope": "official-wechat-test-preview",
+  "runId": "20261026-161526-c494b81d",
+  "status": "preview-generated",
+  "cliExitCode": 0,
+  "qrFormat": "jpeg",
+  "qrDimensions": {"width": 470, "height": 470},
+  "officialPackageBytes": 679988,
+  "qrSha256": "0be5486501c237590b4c010756693532ecef1f08b9a32002b83faaf14aa42ad0",
+  "phoneVerified": false,
+  "experienceUploaded": false,
+  "mockMode": true,
+  "rawOutputCommitted": false
+}
