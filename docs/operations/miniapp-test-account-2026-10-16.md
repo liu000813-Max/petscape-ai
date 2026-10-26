@@ -50,3 +50,13 @@
 4. 验证真实微信登录、真机数据保存与权限，上传并核对体验成员，交付最新微信体验二维码。
 
 GitHub 接入阶段推送因没有可用凭据失败；恢复阶段启动了官方凭据助手的设备授权，等待本人登录，未修改全局凭据配置。恢复阶段再次探测：线上旧站 `/api/healthz` 返回 503、`/api/v1/content/articles` 返回 404，客户端继续显示演示数据。各项实际结果以证据和最终交付消息为准。
+
+## 2026-10-26 继续上线检查
+
+- 本机 `.env` 已有测试号 AppID 和服务端密钥，文件被 Git 忽略并限制为当前 Windows 用户；本次没有把密钥写入代码或证据。`miniapp/project.config.json` 的 AppID 与本机配置一致。
+- `scripts/check-miniapp-ready.mjs --check` 仍按预期失败：正式账号注册缺失、`mockMode` 仍为 `true`。这不是密钥格式错误。
+- `https://petscape3d.com/api/healthz` 当前返回 200，数据库健康；但线上 `/api/miniapp/auth/login`（POST 无效测试码）、`/api/v1/content/articles`、社区、服务和养护公开路径仍返回 404。当前线上版本标识不是本地 `9f45e37`，不能把健康检查当作小程序接口已部署。
+- GitHub fork 的 Actions 已启用，但没有 ACR/ECS/部署 secrets，也没有工作流运行记录；因此没有从 fork 伪造或强行触发生产部署。
+- 2026-10-26 重启官方开发者工具并运行预览入口；官方 CLI 返回“需要重新登录（code 10）”，本轮没有新二维码。登录和手机扫码必须由本人完成。
+
+本轮脱敏记录见 [2026-10-26 上线检查](../evidence/miniapp-test-account-20261026/receipt.json)。

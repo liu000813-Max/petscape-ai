@@ -1,0 +1,36 @@
+{
+  "recordedAt": "2026-10-26",
+  "scope": "miniapp-launch-readiness-follow-up",
+  "local": {
+    "head": "9f45e37c249026c644953edf904a8cd2746b45fb",
+    "appidMatchesProject": true,
+    "secretInIgnoredEnv": true,
+    "secretPrintedOrCommitted": false,
+    "configurationReady": false,
+    "missingChecks": ["account-registration", "mock-mode"]
+  },
+  "productionProbes": [
+    {"pathname": "/api/healthz", "status": 200, "ok": true, "databaseHealthy": true, "version": "a3e4eb171a36f9348dc8811483fc350758fd3323"},
+    {"pathname": "/api/miniapp/auth/login", "method": "POST", "input": "invalid-test-code", "status": 404},
+    {"pathname": "/api/v1/content/articles", "status": 404},
+    {"pathname": "/api/v1/community/posts", "status": 404},
+    {"pathname": "/api/v1/service-providers", "status": 404},
+    {"pathname": "/api/v1/care-logs", "status": 404}
+  ],
+  "githubFork": {
+    "repository": "liu000813-Max/petscape-ai",
+    "mainSha": "9f45e37c249026c644953edf904a8cd2746b45fb",
+    "actionsEnabled": true,
+    "workflowRunsObserved": 0,
+    "deploymentSecretsConfigured": false,
+    "productionDeployAttempted": false
+  },
+  "wechatPreview": {
+    "attempted": true,
+    "status": "failed",
+    "reason": "official-tool-requires-login-code-10",
+    "newQrDelivered": false,
+    "phoneVerified": false
+  },
+  "nextHumanStep": "登录当前微信开发者工具并完成本人手机扫码；正式上线仍需注册个人小程序并提供正式 AppID"
+}
