@@ -25,9 +25,9 @@
 ## 本地预览
 
 1. 使用微信开发者工具打开本目录。
-2. 当前 `miniapp/utils/config.js` 默认使用 mock 数据，便于直接评审 PETSCAPE 界面和物种分类。
+2. 当前 `miniapp/utils/config.js` 使用 `/miniapp-api` 独立 API 前缀，默认发起真实请求；需要纯界面演示时可在本机显式开启 mock。
    当前 AppID 已接入微信后台提供的测试号，`accountMode: 'test'`；它不代表正式注册或上传体验版完成。
-3. 接入正式 AppID、服务端会话和线上接口后，将 `mockMode` 改为 `false`。
+3. 正式发布前核对正式 AppID、服务端会话、request 合法域名和真机行为；`mockMode: false` 本身不证明这些工作已经完成。
 4. 个人版保留 `accountType: 'personal'`、`webViewEnabled: false`。演示内容不能作为线上真实服务。
 
 ## 必须补的接入工作
@@ -49,4 +49,4 @@
 
 PowerShell 运行 `./scripts/preview-miniapp.ps1` 调用官方工具生成当前项目的微信预览码，要求工具登录、服务端口可连接和当前 AppID 具备预览权限。产物留在仓库外的独立运行目录；失败不复用旧二维码。部分官方 Windows CLI 出错仍返回 0，入口同时检查错误信息与本轮新图的实际 PNG/JPEG 格式；JPEG 使用 `.jpg` 扩展名，receipt 保存格式和 SHA-256。预览码、真机验收与正式体验版上传分别记录；浏览器链接不能替代。
 
-Windows 下用 Node 24 执行 `node --test scripts/tests/preview-miniapp.test.mjs scripts/tests/check-miniapp-ready.test.mjs`，覆盖预览成功、格式差异、CLI 误报成功和旧图隔离等情况。2026-10-16 已生成实际测试号预览，见 [恢复记录](../docs/operations/miniapp-test-account-2026-10-16.md)；当前仍使用 mock，未完成手机扫码和正式体验版上传。
+Windows 下用 Node 24 执行 `node --test scripts/tests/preview-miniapp.test.mjs scripts/tests/check-miniapp-ready.test.mjs`，覆盖预览成功、格式差异、CLI 误报成功和旧图隔离等情况。2026-10-16 的测试号预览使用 mock，见 [恢复记录](../docs/operations/miniapp-test-account-2026-10-16.md)；独立真实后端的最新状态见 [发布记录](../docs/operations/miniapp-backend-2026-10-28.md)。手机扫码和正式体验版上传分别验收。

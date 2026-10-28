@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { databaseTarget } from '../src/infra/config/database-target.mjs';
 
 // Read-only release gate. An older image must not silently deploy against a
 // database whose applied migration history that image does not contain.
@@ -40,7 +41,8 @@ export async function readImageMigrations(directory = fileURLToPath(new URL('../
 export async function readDatabaseHistory(connectionString) {
   if (!connectionString) throw new Error('database_url_missing');
   const { Client } = await import('pg');
-  const client = new Client({ connectionString, connectionTimeoutMillis: 10000, statement_timeout: 15000 });
+  const target = databaseTarget(connectionString);
+  const client = new Client({ connectionString: target.connectionString, connectionTimeoutMillis: 10000, statement_timeout: 15000 });
   try {
     await client.connect();
     await client.query('BEGIN READ ONLY');

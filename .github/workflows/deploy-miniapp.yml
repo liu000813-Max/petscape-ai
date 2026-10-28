@@ -1,0 +1,137 @@
+name: Deploy Miniapp Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: Prepare immutable images and backup, or release after verified restore
+        required: true
+        default: prepare
+        type: choice
+        options: [prepare, release]
+
+concurrency:
+  group: miniapp-production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - name: Require current main and its exact successful push CI
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const env = process.env;
+          if (env.GITHUB_REF !== 'refs/heads/main' || !/^[0-9a-f]{40}$/.test(env.GITHUB_SHA)) throw Error('main required');
+          const api = async path => {
+            const r = await fetch(`${env.GITHUB_API_URL}/repos/${env.GITHUB_REPOSITORY}${path}`, {headers: {Authorization: `Bearer ${env.GH_TOKEN}`, Accept: 'application/vnd.github+json'}});
+            if (!r.ok) throw Error(`GitHub HTTP ${r.status}`);
+            return r.json();
+          };
+          if ((await api('/branches/main')).commit.sha !== env.GITHUB_SHA) throw Error('stale main');
+          const runs = await api(`/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&head_sha=${env.GITHUB_SHA}`);
+          let gated = false;
+          for (const run of runs.workflow_runs) {
+            if (run.head_sha !== env.GITHUB_SHA || run.head_repository.full_name !== env.GITHUB_REPOSITORY) continue;
+            const jobs = await api(`/actions/runs/${run.id}/jobs?per_page=100`);
+            if (jobs.jobs.some(j => j.name === 'ci-gate' && j.head_sha === env.GITHUB_SHA && j.conclusion === 'success')) { gated = true; break; }
+          }
+          if (!gated) throw Error('exact-SHA ci-gate required');
+          appendFileSync(env.GITHUB_OUTPUT, `sha=${env.GITHUB_SHA}\n`);
+          NODE
+
+  full-regression:
+    needs: resolve
+    uses: ./.github/workflows/full-regression.yml
+    with:
+      target_sha: ${{ needs.resolve.outputs.sha }}
+
+  build:
+    needs: [resolve, full-regression]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ALIBABA_CLOUD_ACR_USERNAME }}
+          password: ${{ secrets.ALIBABA_CLOUD_ACR_PASSWORD }}
+      - name: Build immutable miniapp API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/web.Dockerfile
+          platforms: linux/amd64
+          push: true
+          build-args: GIT_SHA=${{ needs.resolve.outputs.sha }}
+          tags: ${{ secrets.ACR_REGISTRY }}/petscape/miniapp-api:${{ needs.resolve.outputs.sha }}
+          cache-from: type=gha,scope=miniapp-api
+          cache-to: type=gha,mode=max,scope=miniapp-api
+      - name: Build PostgreSQL 16 backup and migration image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/miniapp-migrate.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ secrets.ACR_REGISTRY }}/petscape/miniapp-migrate:${{ needs.resolve.outputs.sha }}
+          cache-from: type=gha,scope=miniapp-migrate
+          cache-to: type=gha,mode=max,scope=miniapp-migrate
+
+  deploy:
+    needs: [resolve, full-regression, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - name: Reject stale main before server mutation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_SHA: ${{ needs.resolve.outputs.sha }}
+        run: |
+          CURRENT=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/branches/main" | jq -r .commit.sha)
+          test "$CURRENT" = "$TARGET_SHA"
+      - name: Pin the verified server and dedicated deploy identity
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          HOST_KEYS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          TARGET_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$PRIVATE_KEY" && test -n "$HOST_KEYS"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$PRIVATE_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$HOST_KEYS" > ~/.ssh/known_hosts
+          ssh-keygen -F "$TARGET_HOST" -f ~/.ssh/known_hosts >/dev/null
+      - name: Upload and run only the isolated miniapp release
+        env:
+          PHASE: ${{ inputs.phase }}
+          TARGET_SHA: ${{ needs.resolve.outputs.sha }}
+          HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          USER: ${{ secrets.DEPLOY_SSH_USER }}
+          REGISTRY: ${{ secrets.ACR_REGISTRY_VPC }}
+        run: |
+          set -euo pipefail
+          test "$PHASE" = prepare || test "$PHASE" = release
+          SSH=(-i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o BatchMode=yes)
+          scp "${SSH[@]}" deploy/miniapp-release.py "$USER@$HOST:/tmp/petscape-miniapp-release.py"
+          scp "${SSH[@]}" deploy/miniapp-nginx.conf "$USER@$HOST:/tmp/petscape-miniapp-nginx.conf"
+          ssh "${SSH[@]}" "$USER@$HOST" "python3 /tmp/petscape-miniapp-release.py '$PHASE' '$TARGET_SHA' '$REGISTRY'"

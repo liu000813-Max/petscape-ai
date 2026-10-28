@@ -19,6 +19,7 @@
 | 微信测试号是否已接入，预览在哪里阻塞 | [测试号接入记录](operations/miniapp-test-account-2026-10-16.md) | [账号准备指引](runbooks/miniapp-account-setup.md)、脱敏 receipt 和原生预览入口 |
 | 旧原型是否可以删除 | [prototype retirement ledger](governance/prototype-retirement-ledger.md) | 当前 import、路由、consumer 和行为回归证据 |
 | 如何部署、迁移或回滚 | [ADR-0001](decisions/0001-deployment-runtime.md) | [workflows](../.github/workflows/)、[deploy](../deploy/) 与对应运行 receipt |
+| 小程序后端如何与既有官网分别发布 | [独立后端发布记录](operations/miniapp-backend-2026-10-28.md) | prepare、备份实际恢复、release 与原生真机证据分别验收 |
 | 一项工作是否已经完成 | 当前 Spec/Ticket 的验收终点 | tests、CI、exact SHA、真实依赖行为与 `operations/` / `evidence/` receipt |
 
 只读最少的一组正本即可开始；需要证明当前状态时再下钻到实现和证据。会议、历史计划和归档只能解释来源，不能替代正本或当前行为。
