@@ -15,6 +15,8 @@ test('miniapp release requires exact-main-push CI and a no-skip aggregate CI gat
   assert.match(workflow, /ci-gate/);
   assert.match(workflow, /needs: resolve/);
   assert.match(workflow, /needs: \[resolve, build\]/);
+  assert.equal((workflow.match(/provenance: false/g) ?? []).length, 2);
+  assert.equal((workflow.match(/sbom: false/g) ?? []).length, 2);
   assert.match(workflow, /StrictHostKeyChecking=yes/);
   assert.doesNotMatch(workflow, /ssh-keyscan|StrictHostKeyChecking=no/);
 });

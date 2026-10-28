@@ -12,6 +12,9 @@ RUN pnpm --filter @petscape/server exec prisma generate
 # Matching PostgreSQL 16 tools provide an actual pre-release dump, even when
 # the host still has PostgreSQL 14 clients. No host package upgrade is needed.
 FROM postgres:16-bookworm
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /usr/local/bin/node /usr/local/bin/node
 RUN node --version && pg_dump --version
 WORKDIR /workspace

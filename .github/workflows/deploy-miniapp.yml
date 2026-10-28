@@ -74,6 +74,9 @@ jobs:
           push: true
           build-args: GIT_SHA=${{ needs.resolve.outputs.sha }}
           tags: ${{ secrets.ACR_REGISTRY }}/petscape/miniapp-api:${{ needs.resolve.outputs.sha }}
+          # The current personal ACR rejects BuildKit's OCI empty-manifest provenance attestations.
+          provenance: false
+          sbom: false
           cache-from: type=gha,scope=miniapp-api
           cache-to: type=gha,mode=max,scope=miniapp-api
       - name: Build PostgreSQL 16 backup and migration image
@@ -84,6 +87,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ secrets.ACR_REGISTRY }}/petscape/miniapp-migrate:${{ needs.resolve.outputs.sha }}
+          provenance: false
+          sbom: false
           cache-from: type=gha,scope=miniapp-migrate
           cache-to: type=gha,mode=max,scope=miniapp-migrate
 
