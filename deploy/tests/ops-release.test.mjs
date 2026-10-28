@@ -140,6 +140,12 @@ test('Deploy pins the approved SSH host before transmitting credentials or scrip
   }
 });
 
+test('release rejects database history ahead of the image before invoking Prisma', async () => {
+  const release = await readFile(releaseScript, 'utf8');
+  assert.match(release, /node scripts\/verify-deploy-migration-history\.mjs && \.\/node_modules\/\.bin\/prisma migrate deploy/);
+  assert.ok(release.indexOf('verify-deploy-migration-history.mjs') < release.indexOf('deploy.switch start'));
+});
+
 test('migration failure stops before application pull or restart', async () => {
   const result = await runRelease({ migrateExit: 42 });
   assert.equal(result.code, 42, result.stderr);

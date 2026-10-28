@@ -36,7 +36,7 @@ echo "deploy.migrate start target=$IMAGE_TAG image=$WORKER_IMAGE"
 "$DOCKER_BIN" --config "$DOCKER_CONFIG_DIR" pull "$WORKER_IMAGE"
 "$DOCKER_BIN" run --rm --env-file "$REMOTE_DIR/web.env" \
   --entrypoint /bin/sh "$WORKER_IMAGE" -lc \
-  'cd /workspace/packages/server && ./node_modules/.bin/prisma migrate deploy'
+  'cd /workspace/packages/server && node scripts/verify-deploy-migration-history.mjs && ./node_modules/.bin/prisma migrate deploy'
 echo "deploy.migrate complete target=$IMAGE_TAG"
 
 echo "deploy.switch start target=$IMAGE_TAG"
