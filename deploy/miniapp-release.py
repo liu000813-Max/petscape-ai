@@ -53,6 +53,20 @@ def public_history():
     return json.loads(data)
 
 
+def miniapp_history():
+    query = "SELECT coalesce(json_agg(row_to_json(t)), '[]'::json) FROM (SELECT migration_name,checksum FROM petscape_miniapp._prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY migration_name) t"
+    if run(['psql', '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-c', "SELECT to_regclass('petscape_miniapp._prisma_migrations') IS NOT NULL"], env={**os.environ, **pg_env()}, timeout=20).strip() != b't':
+        return []
+    return json.loads(run(['psql', '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-c', query], env={**os.environ, **pg_env()}, timeout=20))
+
+
+def dump_schemas():
+    found = run(['psql', '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-c', "SELECT nspname FROM pg_namespace WHERE nspname IN ('public','petscape_miniapp') ORDER BY nspname"], env={**os.environ, **pg_env()}, timeout=20).decode().splitlines()
+    if 'public' not in found or any(item not in ('public', 'petscape_miniapp') for item in found):
+        raise RuntimeError('unexpected_backup_schema_set')
+    return found
+
+
 def probe(path):
     try:
         with urllib.request.urlopen('http://127.0.0.1:3011' + path, timeout=5) as response:
@@ -99,10 +113,13 @@ def main():
                 args = docker + ['run', '--rm', '--network', 'host', '--memory=192m', '--cpus=0.5',
                                  '--env-file', str(pg_file), '--entrypoint', 'pg_dump', migrate,
                                  '--format=custom', '--no-owner', '--no-acl']
+                for schema in dump_schemas():
+                    args.extend(['--schema', schema])
                 result = subprocess.run(args, stdout=output, stderr=subprocess.PIPE, timeout=180)
                 if result.returncode:
                     raise RuntimeError('postgres16_backup_failed')
-            info = {'target': target, 'sha256': sha256(folder / 'backup.dump'), 'publicHistory': public_history(),
+            info = {'target': target, 'sha256': sha256(folder / 'backup.dump'), 'schemas': dump_schemas(),
+                    'publicHistory': public_history(), 'miniappHistory': miniapp_history(),
                     'at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'restoreVerified': False}
             receipt.write_text(json.dumps(info, indent=2) + '\n')
             shutil.copy2('/opt/petscape-compose/compose.yml', folder / 'website-compose.before')
@@ -116,15 +133,23 @@ def main():
     proof = json.loads((folder / 'restore-verified.json').read_text())
     if proof.get('restored') is not True or proof.get('target') != target or proof.get('sha256') != backup['sha256'] or sha256(folder / 'backup.dump') != backup['sha256']:
         raise RuntimeError('backup_restore_proof_missing_or_mismatched')
-    if proof.get('publicMigrations') != len(backup['publicHistory']) or public_history() != backup['publicHistory']:
+    if (proof.get('publicMigrations') != len(backup['publicHistory']) or public_history() != backup['publicHistory']
+            or proof.get('miniappMigrations') != len(backup['miniappHistory'])):
         raise RuntimeError('website_history_changed_since_backup')
+    deployed = folder / 'release.json'
+    if deployed.exists():
+        current = json.loads(deployed.read_text())
+        if current.get('target') != target or probe('/api/healthz') != (200, {'ok': True, 'db': True, 'version': target}):
+            raise RuntimeError('existing_release_requires_review')
+        print(json.dumps(current))
+        return
     api_env = values(ENV)
     if api_env.get('WEB_DB_POOL_MAX') != '2':
         raise RuntimeError('miniapp_pool_budget_required')
     command = 'node scripts/verify-deploy-migration-history.mjs && ./node_modules/.bin/prisma migrate deploy'
     run(docker + ['run', '--rm', '--network', 'host', '--memory=256m', '--cpus=0.5', '--env-file', str(ENV),
                   '--entrypoint', '/bin/sh', migrate, '-lc', command], timeout=180)
-    if public_history() != backup['publicHistory']:
+    if public_history() != backup['publicHistory'] or miniapp_history() != backup['miniappHistory']:
         raise RuntimeError('website_history_changed_during_miniapp_migration')
     old = subprocess.run(['docker', 'inspect', NAME], capture_output=True).returncode == 0
     if old:
@@ -135,6 +160,8 @@ def main():
     nginx_file = Path('/etc/nginx/sites-enabled/petscape').resolve()
     nginx_before = nginx_file.read_bytes()
     (folder / 'nginx.before').write_bytes(nginx_before)
+    snippet = Path('/etc/nginx/snippets/petscape-miniapp-' + target + '.conf')
+    snippet_created = False
     try:
         run(docker + ['run', '-d', '--name', NAME, '--restart', 'unless-stopped', '--init',
                       '--memory=256m', '--cpus=0.75', '--cap-drop=ALL', '--security-opt=no-new-privileges',
@@ -156,19 +183,32 @@ def main():
                                 ('/api/v1/service-providers', 200), ('/api/v1/pets', 401), ('/api/v1/care-logs', 401)]:
             if probe(route)[0] != expected:
                 raise RuntimeError('miniapp_api_acceptance_failed')
-        snippet = Path('/etc/nginx/snippets/petscape-miniapp.conf')
+        if snippet.exists():
+            raise RuntimeError('nginx_snippet_path_exists')
         snippet.write_bytes(Path('/tmp/petscape-miniapp-nginx.conf').read_bytes())
+        snippet_created = True
         os.chmod(snippet, 0o644)
-        include = '    include /etc/nginx/snippets/petscape-miniapp.conf;'
+        include = '    include ' + str(snippet) + ';'
+        begin_marker = '    # BEGIN PETSCAPE MINIAPP API MANAGED'
+        end_marker = '    # END PETSCAPE MINIAPP API MANAGED'
+        managed_block = begin_marker + '\n' + include + '\n' + end_marker
         text = nginx_before.decode()
         anchor = '    server_name petscape3d.com;'
-        if include not in text:
+        begin_count, end_count = text.count(begin_marker), text.count(end_marker)
+        if begin_count != end_count or begin_count > 1:
+            raise RuntimeError('nginx_managed_block_ambiguous')
+        if begin_count == 1:
+            start = text.index(begin_marker)
+            finish = text.index(end_marker, start) + len(end_marker)
+            text = text[:start] + managed_block + text[finish:]
+        else:
             if text.count(anchor) != 1:
                 raise RuntimeError('nginx_target_ambiguous')
-            nginx_file.write_text(text.replace(anchor, anchor + '\n' + include, 1))
+            text = text.replace(anchor, anchor + '\n' + managed_block, 1)
+        nginx_file.write_text(text)
         run(['nginx', '-t'], timeout=15)
         run(['systemctl', 'reload', 'nginx'], timeout=20)
-        if public_history() != backup['publicHistory']:
+        if public_history() != backup['publicHistory'] or len(miniapp_history()) == 0:
             raise RuntimeError('website_history_changed')
         result = {'target': target, 'status': 'deployed', 'url': 'https://petscape3d.com/miniapp-api/api/healthz',
                   'websiteHistoryUnchanged': True, 'backupRestoreVerified': True, 'logicalSchema': 'petscape_miniapp'}
@@ -176,6 +216,8 @@ def main():
         print(json.dumps(result))
     except Exception:
         nginx_file.write_bytes(nginx_before)
+        if snippet_created:
+            snippet.unlink(missing_ok=True)
         subprocess.run(['nginx', '-t'], capture_output=True)
         subprocess.run(['systemctl', 'reload', 'nginx'], capture_output=True)
         subprocess.run(['docker', 'rm', '-f', NAME], capture_output=True)

@@ -10,7 +10,7 @@
 
 ## 发布门禁
 
-1. main 精确 SHA 的 push CI 与完整回归成功。
+1. main 精确 SHA 的 push CI 成功；发布工作流检查精确 SHA 对应 push 事件的聚合 `ci-gate`。发布隔离的小程序 Route Handler 与数据区；CI 的静态检查、单元测试、真实 PostgreSQL、Prisma、web 构建和 worker 镜像，加上独立 PostgreSQL 集成测试、备份恢复证明和线上 HTTP 验收覆盖本发布范围。官网 3D Viewer 浏览器分片属于另一部署，不作为此隔离后端的发布门禁。
 2. GitHub 构建 API 镜像及带 PostgreSQL 16 工具的迁移镜像，推送既有 ACR。
 3. prepare 阶段只备份，不执行迁移或变更入口。
 4. 下载备份，在本机隔离 PostgreSQL 16 实际恢复，核对备份校验和和 public 迁移历史；将绑定目标 SHA 的恢复证明送回私有运行目录。

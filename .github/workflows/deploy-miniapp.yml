@@ -125,6 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$PHASE" = prepare || test "$PHASE" = release
+          [[ "$REGISTRY" =~ ^[a-z0-9-]+-vpc\.cn-hangzhou\.personal\.cr\.aliyuncs\.com$ ]]
           SSH=(-i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o BatchMode=yes)
           scp "${SSH[@]}" deploy/miniapp-release.py "$USER@$HOST:/tmp/petscape-miniapp-release.py"
           scp "${SSH[@]}" deploy/miniapp-nginx.conf "$USER@$HOST:/tmp/petscape-miniapp-nginx.conf"

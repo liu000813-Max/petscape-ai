@@ -3,14 +3,15 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const root = new URL('../../', import.meta.url);
-test('miniapp release preserves exact-SHA CI and full regression gates', async () => {
+test('miniapp release requires exact-main-push CI and a no-skip aggregate CI gate', async () => {
   const workflow = await readFile(new URL('.github/workflows/deploy-miniapp.yml', root), 'utf8');
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /refs\/heads\/main/);
   assert.match(workflow, /head_sha=\$\{env.GITHUB_SHA\}/);
   assert.match(workflow, /j.name === 'ci-gate'/);
   assert.match(workflow, /name: Deploy Miniapp Backend/);
-  assert.match(workflow, /server-integration/);
+  assert.match(workflow, /actions\/workflows\/ci\.yml\/runs\?branch=main&event=push&status=success&head_sha=\$\{env\.GITHUB_SHA\}/);
+  assert.match(workflow, /head_sha === env\.GITHUB_SHA/);
   assert.match(workflow, /ci-gate/);
   assert.match(workflow, /needs: resolve/);
   assert.match(workflow, /needs: \[resolve, build\]/);
@@ -26,6 +27,8 @@ test('miniapp release requires bound restore proof before migration and has a se
   assert.match(release, /NAME = 'petscape-miniapp-api'/);
   assert.doesNotMatch(release, /\['docker', 'stop', 'petscape-compose/);
   assert.match(release, /website_history_changed_during_miniapp_migration/);
+  assert.match(release, /def dump_schemas\(\):/);
+  assert.match(release, /backup\['miniappHistory'\]/);
   assert.match(release, /BEGIN PETSCAPE MINIAPP API MANAGED/);
   assert.match(release, /END PETSCAPE MINIAPP API MANAGED/);
   assert.match(release, /nginx_snippet_path_exists/);
