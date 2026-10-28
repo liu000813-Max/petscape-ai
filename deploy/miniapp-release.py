@@ -73,6 +73,8 @@ def probe(path):
             return response.status, json.load(response)
     except urllib.error.HTTPError as error:
         return error.code, None
+    except OSError:
+        return 0, None
 
 
 def main():
@@ -139,7 +141,8 @@ def main():
     deployed = folder / 'release.json'
     if deployed.exists():
         current = json.loads(deployed.read_text())
-        if current.get('target') != target or probe('/api/healthz') != (200, {'ok': True, 'db': True, 'version': target}):
+        if (current.get('target') != target or subprocess.run(['docker', 'inspect', NAME], capture_output=True).returncode != 0
+                or probe('/api/healthz') != (200, {'ok': True, 'db': True, 'version': target})):
             raise RuntimeError('existing_release_requires_review')
         print(json.dumps(current))
         return

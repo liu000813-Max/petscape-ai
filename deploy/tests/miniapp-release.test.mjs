@@ -35,6 +35,7 @@ test('miniapp release requires bound restore proof before migration and has a se
   assert.match(release, /BEGIN PETSCAPE MINIAPP API MANAGED/);
   assert.match(release, /END PETSCAPE MINIAPP API MANAGED/);
   assert.match(release, /nginx_snippet_path_exists/);
+  assert.match(release, /subprocess\.run\(\['docker', 'inspect', NAME\]/);
 });
 
 test('public ingress allows only the miniapp API prefix and blocks application pages', async () => {
