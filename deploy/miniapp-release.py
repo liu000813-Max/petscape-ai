@@ -149,7 +149,7 @@ def main():
     command = 'node scripts/verify-deploy-migration-history.mjs && ./node_modules/.bin/prisma migrate deploy'
     run(docker + ['run', '--rm', '--network', 'host', '--memory=256m', '--cpus=0.5', '--env-file', str(ENV),
                   '--entrypoint', '/bin/sh', migrate, '-lc', command], timeout=180)
-    if public_history() != backup['publicHistory'] or miniapp_history() != backup['miniappHistory']:
+    if public_history() != backup['publicHistory']:
         raise RuntimeError('website_history_changed_during_miniapp_migration')
     old = subprocess.run(['docker', 'inspect', NAME], capture_output=True).returncode == 0
     if old:

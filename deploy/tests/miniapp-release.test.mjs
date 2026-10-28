@@ -31,6 +31,7 @@ test('miniapp release requires bound restore proof before migration and has a se
   assert.match(release, /website_history_changed_during_miniapp_migration/);
   assert.match(release, /def dump_schemas\(\):/);
   assert.match(release, /backup\['miniappHistory'\]/);
+  assert.match(release, /if public_history\(\) != backup\['publicHistory'\]:/);
   assert.match(release, /BEGIN PETSCAPE MINIAPP API MANAGED/);
   assert.match(release, /END PETSCAPE MINIAPP API MANAGED/);
   assert.match(release, /nginx_snippet_path_exists/);
