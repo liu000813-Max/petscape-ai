@@ -4,6 +4,11 @@
   <view class="subtitle">档案是知识、养护记录和专属栖境的共同起点。</view>
 
   <view wx:if="{{loading}}" class="loading">正在读取宠物档案</view>
+  <view wx:elif="{{loadError}}" class="empty card error-state">
+    <view class="empty-title">宠物档案暂未加载</view>
+    <view class="muted">{{loadError}}</view>
+    <button class="secondary-button section" bindtap="loadPets">重试读取</button>
+  </view>
   <view wx:elif="{{pets.length}}" class="section">
     <view wx:for="{{pets}}" wx:key="id" class="pet-card card" data-id="{{item.id}}" bindtap="editPet">
       <view class="pet-avatar"><image wx:if="{{item.speciesImage}}" class="species-image" src="{{item.speciesImage}}" mode="aspectFill" /><text wx:else>{{item.speciesEmoji}}</text></view>

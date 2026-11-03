@@ -66,7 +66,7 @@ test('private settings cannot disable domain checks and personal accounts cannot
 });
 
 test('API origin rejects URL credentials, paths, queries and local addresses', async (t) => {
-  for (const apiBaseUrl of ['http://api.example.com', 'https://user:password@api.example.com', 'https://api.example.com/api', 'https://api.example.com?token=private', 'https://127.0.0.1', 'https://local.invalid']) {
+  for (const apiBaseUrl of ['http://api.example.com', 'https://user:password@api.example.com', 'https://api.example.com/api', 'https://api.example.com?token=private', 'https://127.0.0.1', 'https://local.invalid', 'https://api.example.com/miniapp-api/', 'https://api.example.com/miniapp-api?token=private', 'https://api.example.com/miniapp-api#fragment', 'https://user:password@api.example.com/miniapp-api']) {
     const root = await fixture(t, { config: { apiBaseUrl } });
     assert.deepEqual(missing(await checkMiniappReady(root, {})), ['api-origin']);
   }
@@ -92,4 +92,10 @@ test('malformed private config returns a fixed message without input values', as
 test('organization web-view requires a configured web origin', async (t) => {
   const root = await fixture(t, { config: { accountType: 'organization', webViewEnabled: true } });
   assert.deepEqual(missing(await checkMiniappReady(root, {})), ['web-origin']);
+});
+
+
+test('API base accepts the deployed miniapp prefix while keeping the request origin separate', async (t) => {
+  const root = await fixture(t, { config: { apiBaseUrl: 'https://petscape3d.com/miniapp-api' } });
+  assert.deepEqual(missing(await checkMiniappReady(root, {})), []);
 });

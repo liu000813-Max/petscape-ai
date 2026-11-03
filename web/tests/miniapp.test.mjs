@@ -365,3 +365,45 @@ test('service filters keep the latest response when an older success or failure 
     assert.equal(services.data.error, ''); assert.equal(services.data.loading, false);
   }
 });
+
+
+test('home and pet list distinguish a failed read from an empty account and recover on retry', async () => {
+  for (const name of ['home', 'pet']) {
+    let failed = true;
+    const view = page(name, { listPets: async () => {
+      if (failed) throw new Error('network unavailable');
+      return { pets: [] };
+    } });
+    const load = name === 'home' ? 'loadSummary' : 'loadPets';
+    if (name === 'home') view.data.pet = { id: 'stale' };
+    else view.data.pets = [{ id: 'stale' }];
+    await view[load]();
+    assert.equal(view.data.loading, false);
+    assert.match(view.data.loadError, /重试/);
+    assert.equal(name === 'home' ? view.data.pet : view.data.pets.length, name === 'home' ? null : 0);
+    failed = false;
+    await view[load]();
+    assert.equal(view.data.loadError, '');
+    assert.equal(view.data.loading, false);
+    assert.equal(name === 'home' ? view.data.pet : view.data.pets.length, name === 'home' ? null : 0);
+  }
+});
+
+test('home and pet list display a login retry message for an unauthorized read', async () => {
+  for (const name of ['home', 'pet']) {
+    const view = page(name, { listPets: async () => { throw { statusCode: 401 }; } });
+    await view[name === 'home' ? 'loadSummary' : 'loadPets']();
+    assert.match(view.data.loadError, /登录/);
+  }
+});
+
+test('release mock mode is controlled by project config despite a stale local toggle', () => {
+  let definition;
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'app.js'), 'utf8'), {
+    App: (value) => { definition = value; },
+    wx: { getStorageSync: () => true },
+    require: (id) => id === './utils/config' ? { mockMode: false } : { track() {} },
+  });
+  definition.onLaunch();
+  assert.equal(definition.globalData.mockMode, false);
+});

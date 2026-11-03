@@ -19,10 +19,10 @@ async function clientContains(directory, secret) {
   return false;
 }
 
-function onlineOrigin(value) {
+function onlineOrigin(value, allowMiniappPrefix = false) {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && value === url.origin && url.hostname.includes('.')
+    return url.protocol === 'https:' && (value === url.origin || (allowMiniappPrefix && value === url.origin + '/miniapp-api')) && url.hostname.includes('.')
       && !/^(localhost|127\.)/u.test(url.hostname) && !url.hostname.endsWith('.invalid');
   } catch { return false; }
 }
@@ -58,7 +58,7 @@ export async function checkMiniappReady(root, environment = process.env) {
     check('backend-secret', typeof secret === 'string' && /^[0-9a-f]{32}$/iu.test(secret),
       '本机已填写 AppSecret 格式，未输出值', '本机 AppSecret 未配置或格式不完整；仅写入根 .env 或部署密钥');
     check('mock-mode', config.mockMode === false, '已关闭 mock', '当前仍为 mock；接通正式后端后再关闭');
-    check('api-origin', onlineOrigin(config.apiBaseUrl), '已填写 HTTPS API 源地址，线上可用性待验收', 'API 地址须为不带路径、查询或结尾斜杠的 HTTPS 源地址');
+    check('api-origin', onlineOrigin(config.apiBaseUrl, true), '已填写 HTTPS API 地址，允许独立 /miniapp-api 前缀；request 域名填写其源地址', 'API 地址须为 HTTPS 源地址或该地址加 /miniapp-api，不带凭据、查询或结尾斜杠');
     check('url-check', project.setting?.urlCheck === true && (privateProject.setting?.urlCheck ?? true) === true,
       '项目与本机配置均启用域名校验', '开启项目及 private 配置的 urlCheck，勿跳过合法域名校验');
     check('account-capabilities', ['personal', 'organization'].includes(config.accountType)

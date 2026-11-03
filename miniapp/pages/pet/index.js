@@ -2,14 +2,14 @@ const { listPets } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
 
 Page({
-  data: { pets: [], loading: true },
+  data: { pets: [], loading: true, loadError: '' },
 
   onShow() {
-    this.loadPets();
+    return this.loadPets();
   },
 
   async loadPets() {
-    this.setData({ loading: true });
+    this.setData({ pets: [], loading: true, loadError: '' });
     try {
       const result = await listPets();
       const pets = (result.pets || []).map((pet) => ({
@@ -20,8 +20,10 @@ Page({
       }));
       this.setData({ pets, loading: false });
     } catch (error) {
-      this.setData({ loading: false });
-      wx.showToast({ title: error.statusCode === 401 ? '登录后管理档案' : '读取失败', icon: 'none' });
+      this.setData({
+        loading: false,
+        loadError: error && error.statusCode === 401 ? '微信登录未完成，请重试' : '暂时无法读取宠物档案，请检查网络后重试',
+      });
     }
   },
 

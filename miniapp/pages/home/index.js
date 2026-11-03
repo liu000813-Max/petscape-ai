@@ -6,6 +6,7 @@ Page({
   data: {
     pet: null,
     loading: true,
+    loadError: '',
     mockMode: true,
     quickActions: [
       { title: '完善宠物档案', note: '记录物种与生活习性', path: '/pages/pet/index', tone: 'dark' },
@@ -24,7 +25,7 @@ Page({
   },
 
   async loadSummary() {
-    this.setData({ loading: true });
+    this.setData({ pet: null, loading: true, loadError: '' });
     try {
       const pets = await listPets();
       const pet = pets.pets && pets.pets[0] ? pets.pets[0] : null;
@@ -33,10 +34,10 @@ Page({
         loading: false,
       });
     } catch (error) {
-      this.setData({ loading: false });
-      if (error && error.statusCode === 401) {
-        wx.showToast({ title: '登录后同步档案', icon: 'none' });
-      }
+      this.setData({
+        loading: false,
+        loadError: error && error.statusCode === 401 ? '微信登录未完成，请重试' : '暂时无法读取宠物档案，请检查网络后重试',
+      });
     }
   },
 

@@ -17,6 +17,11 @@
   </view>
 
   <view wx:if="{{loading}}" class="loading">正在读取你的宠物空间</view>
+  <view wx:elif="{{loadError}}" class="empty card error-state">
+    <view class="empty-title">宠物档案暂未加载</view>
+    <view class="muted">{{loadError}}</view>
+    <button class="secondary-button section" bindtap="loadSummary">重试读取</button>
+  </view>
   <view wx:elif="{{pet}}" class="pet-strip card" bindtap="openPet">
     <view class="pet-avatar"><image wx:if="{{pet.speciesImage}}" class="species-image" src="{{pet.speciesImage}}" mode="aspectFill" /><text wx:else>{{pet.speciesEmoji}}</text></view>
     <view class="pet-info">

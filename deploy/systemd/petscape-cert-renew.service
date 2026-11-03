@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew the PETSCAPE HTTPS certificate when due
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/letsencrypt/renewal/petscape3d.com.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/certbot renew --cert-name petscape3d.com --non-interactive --quiet
+TimeoutStartSec=20min
