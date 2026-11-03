@@ -28,8 +28,23 @@
 - 官方编译器通过 13 个 WXML、14 个 WXSS；本轮未修改服务端业务 API、数据库结构或既有官网镜像。
 - 本机就绪检查仍报告 account-registration 缺项；这来自 accountMode=test 的本机标记。当前微信后台实际发布资格和版本状态尚未重新读取。
 
+## 本轮交付回执
+
+| 项目 | 结果 |
+| --- | --- |
+| 小程序代码提交 | ef1fbe915579a97e587b203b4b11edd4610973f7；已推送到 liu000813-Max/petscape-ai main 并核对远端 SHA |
+| 开发版本上传 | 0.1.1；2026-11-03 18:51 CST，官方 CLI upload 成功且退出码 0，包体 681015 bytes |
+| 上传私有证据 | G:/Max麦麦/codex/petscape-dev-runtime/wechat-uploads/20261103-185132-57780dbf；官方 info、日志及脱敏 receipt 保存在仓库外 |
+| 新预览码 | 2026-11-03 18:51 CST 生成；JPEG；SHA-256 75e7ac4379dccd32c3a29973a3325dfdecf1b16e5bb32df59f5370120c1254c2 |
+| 预览私有证据 | G:/Max麦麦/codex/petscape-dev-runtime/wechat-previews/20261103-185043-d27fc762；二维码和扫码令牌不进入 Git |
+| 本轮手机扫码 | 尚未确认，不能由 CLI 成功推断 |
+| GitHub CI | 精确代码提交的 push CI 41622579303 的 ci-gate 成功；static-and-unit、server-integration、worker-image 均成功 |
+| 微信后台 | 尚未确认“设为体验版”、成员配置、审核或正式发布 |
+
+用户下一步使用已授权微信扫码，打开“我的宠物”，确认档案可读；若失败，保留页面提示，再按时间核对服务器登录链路。Windows 预览脚本本轮通过 PowerShell 7 运行；旧版 Windows PowerShell 按本机代码页读取无 BOM 中文脚本会报语法错误，不能据此要求重新扫码登录。
+
 ## 部署与交付边界
 
 自动续期单元已保存在 [deploy/systemd](../../deploy/systemd/)，安装和检查方式见 [HTTPS 维护](../runbooks/petscape-https.md)。timer 每日两次检查、最多随机延迟 1 小时，仅在到期窗口续期；现有 renew_hook 验证 Nginx 后 reload。
 
-本轮后续预览、上传和 GitHub 提交证据在完成后补充。官方 CLI 上传成功只证明开发版本上传，后台“设为体验版”及体验成员二维码需单独核实；正式审核与发布仍待实际账号资格和后台流程完成。
+官方 CLI 上传成功只证明开发版本上传，后台“设为体验版”及体验成员二维码需单独核实；正式审核与发布仍待实际账号资格和后台流程完成。
