@@ -1,12 +1,15 @@
 const { listPets } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
 const { track } = require('../../utils/analytics');
+const { describeError } = require('../../utils/errors');
 
 Page({
   data: {
     pet: null,
     loading: true,
     loadError: '',
+    loadErrorTitle: '',
+    loadErrorDetail: '',
     mockMode: true,
     quickActions: [
       { title: '完善宠物档案', note: '记录物种与生活习性', path: '/pages/pet/index', tone: 'dark' },
@@ -25,7 +28,7 @@ Page({
   },
 
   async loadSummary() {
-    this.setData({ pet: null, loading: true, loadError: '' });
+    this.setData({ pet: null, loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '' });
     try {
       const pets = await listPets();
       const pet = pets.pets && pets.pets[0] ? pets.pets[0] : null;
@@ -36,7 +39,7 @@ Page({
     } catch (error) {
       this.setData({
         loading: false,
-        loadError: error && error.statusCode === 401 ? '微信登录未完成，请重试' : '暂时无法读取宠物档案，请检查网络后重试',
+        ...describeError(error),
       });
     }
   },

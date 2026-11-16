@@ -1,4 +1,5 @@
 const { mockPets, mockProjects, mockOrders, mockArticles, mockPosts, mockCareLogs, mockProviders, mockComments, mockReminders } = require('./mock');
+const { normalizeError, safeRequestId } = require('./errors');
 
 const SESSION_STORAGE_KEY = 'petscape_session_token';
 let loginPromise = null;
@@ -15,16 +16,29 @@ function request(path, options = {}) {
 
   const needsAuth = options.auth !== false && path !== '/api/miniapp/auth/login';
   const ready = needsAuth ? ensureSession() : Promise.resolve();
-  return ready.then(() => requestOnce(path, options));
+  return ready.then(async () => {
+    const sentToken = wx.getStorageSync(SESSION_STORAGE_KEY);
+    try {
+      return await requestOnce(path, options, sentToken);
+    } catch (error) {
+      // All current protected routes return this guard response before mutation.
+      // Never replay transport failures, arbitrary 401s or an already retried request.
+      if (!needsAuth || error.statusCode !== 401 || !error.data || error.data.error !== 'unauthorized') throw error;
+      const currentToken = wx.getStorageSync(SESSION_STORAGE_KEY);
+      if (!currentToken || currentToken === sentToken) await login();
+      return requestOnce(path, options);
+    }
+  });
 }
 
-function requestOnce(path, options = {}) {
-  const sessionToken = wx.getStorageSync(SESSION_STORAGE_KEY);
+function requestOnce(path, options = {}, sessionToken = wx.getStorageSync(SESSION_STORAGE_KEY)) {
+  const stage = path === '/api/miniapp/auth/login' ? 'session-exchange' : 'api';
 
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${app().globalData.apiBaseUrl}${path}`,
       method: options.method || 'GET',
+      timeout: 15000,
       data: options.data,
       header: {
         'content-type': 'application/json',
@@ -37,20 +51,27 @@ function requestOnce(path, options = {}) {
           resolve(response.data);
           return;
         }
-        if (response.statusCode === 401) {
+        if (response.statusCode === 401 && options.auth !== false && sessionToken
+            && sessionToken === wx.getStorageSync(SESSION_STORAGE_KEY)) {
           wx.removeStorageSync(SESSION_STORAGE_KEY);
         }
         const requestId = response.header && (response.header['x-request-id'] || response.header['X-Request-Id']);
         reportRequestError(path, response.statusCode, 'http', requestId);
-        reject({ statusCode: response.statusCode, data: response.data, requestId });
+        reject(normalizeError({ statusCode: response.statusCode, data: response.data, requestId }, stage));
       },
-      fail(error) { reportRequestError(path, 0, 'network'); reject(error); },
+      fail(error) {
+        const failure = normalizeError(error, stage);
+        // Keep the existing server analytics enum; detailed categories stay local.
+        reportRequestError(path, 0, 'network');
+        reject(failure);
+      },
     });
   });
 }
 
 function reportRequestError(path, statusCode, code, requestId) {
   if (path === '/api/v1/analytics/events') return;
+  requestId = safeRequestId(requestId);
   requestOnce('/api/v1/analytics/events', { method: 'POST', auth: false, data: { eventName: 'client.request_error', path: '/miniapp', properties: { statusCode, code, ...(requestId ? { requestId } : {}) } } }).catch(() => undefined);
 }
 
@@ -58,9 +79,10 @@ function login() {
   if (loginPromise) return loginPromise;
   loginPromise = new Promise((resolve, reject) => {
     wx.login({
+      timeout: 10000,
       success: ({ code }) => {
         if (!code) {
-          reject({ statusCode: 400, data: { error: 'missing_wx_login_code' } });
+          reject({ statusCode: 400, code: 'WX_LOGIN_CODE_MISSING', stage: 'wx-login', data: { error: 'missing_wx_login_code' } });
           return;
         }
         requestOnce('/api/miniapp/auth/login', {
@@ -69,8 +91,8 @@ function login() {
           data: { code },
         })
           .then((result) => {
-            if (!result.sessionToken) {
-              reject({ statusCode: 502, data: { error: 'missing_session_token' } });
+            if (!result || typeof result.sessionToken !== 'string' || !result.sessionToken.trim()) {
+              reject({ statusCode: 502, code: 'SESSION_INVALID', stage: 'session-exchange', data: { error: 'missing_session_token' } });
               return;
             }
             wx.setStorageSync(SESSION_STORAGE_KEY, result.sessionToken);
@@ -78,7 +100,7 @@ function login() {
           })
           .catch(reject);
       },
-      fail: reject,
+      fail: (error) => reject(normalizeError(error, 'wx-login')),
     });
   }).finally(() => {
     loginPromise = null;

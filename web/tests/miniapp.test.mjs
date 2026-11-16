@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { CreatePetRequestSchema, UpdatePetRequestSchema } from '../../packages/server/src/contracts/pets.ts';
+import { AnalyticsEventSchema } from '../../packages/server/src/contracts/community-content.ts';
 
 const root = fileURLToPath(new URL('../../miniapp/', import.meta.url));
 const require = createRequire(path.join(root, 'app.js'));
@@ -144,6 +145,21 @@ test('parallel protected requests share one wx.login exchange', async () => {
     options.success({ statusCode: 200, data: auth ? { sessionToken: 'server-session' } : { pets: [] } });
   };
   await Promise.all([api.listPets(), api.listPets()]); assert.equal(logins, 1);
+});
+
+test('classified native failures retain the existing server analytics contract', async () => {
+  app.globalData.mockMode = false;
+  const events = [];
+  wx.request = (options) => {
+    if (options.url.endsWith('/analytics/events')) {
+      AnalyticsEventSchema.parse(options.data); events.push(options.data);
+      options.success({ statusCode: 202, data: {} });
+    } else options.fail({ errMsg: 'request:fail ssl hand shake error private-value' });
+  };
+  await assert.rejects(api.listArticles(), (error) => error.code === 'TLS_FAILED');
+  assert.equal(events.length, 1);
+  assert.equal(events[0].properties.code, 'network');
+  assert.equal(JSON.stringify(events).includes('private-value'), false);
 });
 
 test('native pet form submits all six species including the required custom species name', async () => {
@@ -406,4 +422,23 @@ test('release mock mode is controlled by project config despite a stale local to
   });
   definition.onLaunch();
   assert.equal(definition.globalData.mockMode, false);
+});
+
+test('pet pages expose categorized diagnostics without private native errors and clear them on recovery', async () => {
+  for (const name of ['home', 'pet']) {
+    let failed = true;
+    const view = page(name, { listPets: async () => {
+      if (failed) throw { stage: 'session-exchange', errMsg: 'request:fail url not in domain list private-code' };
+      return { pets: [] };
+    } });
+    const load = name === 'home' ? 'loadSummary' : 'loadPets';
+    await view[load]();
+    assert.match(view.data.loadErrorTitle, /域名/);
+    assert.match(view.data.loadErrorDetail, /DOMAIN_NOT_ALLOWED.*建立会话/);
+    assert.equal(JSON.stringify(view.data).includes('private-code'), false);
+    failed = false;
+    await view[load]();
+    assert.equal(view.data.loadErrorDetail, '');
+    assert.equal(view.data.loadErrorTitle, '');
+  }
 });

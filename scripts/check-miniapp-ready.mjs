@@ -31,7 +31,7 @@ export async function checkMiniappReady(root, environment = process.env) {
   const checks = [];
   const check = (id, ok, pass, fail) => checks.push({ id, status: ok ? 'pass' : 'missing', message: ok ? pass : fail });
   const externalVerification = [
-    '注册账号并核对个人主体实际可选类目和内容范围',
+    '微信后台核实账号类型、主体和发布资格；仅在确无正式账号时注册',
     '微信后台配置 request 合法域名并验证正式后端',
     '本人登录开发者工具，完成 wx.login、真机和隐私授权验收',
     '上传体验版、设置体验成员并验证微信体验二维码',
@@ -52,7 +52,7 @@ export async function checkMiniappReady(root, environment = process.env) {
     check('appid', realId, '客户端 AppID 格式有效；不证明账号已注册', '尚无有效 AppID；替换 touristappid 后继续检查账号类型');
     check('account-registration', config.accountMode === 'registered',
       '本机标记为已注册账号；后台主体与发布资格仍待核对',
-      config.accountMode === 'test' ? '当前为微信测试号，仅用于开发预览；正式发布仍需注册账号' : '账号注册状态未确认；核对后台后填写 accountMode');
+      config.accountMode === 'test' ? '本机仍标记为测试号；须在微信后台核实账号类型和正式发布资格' : '账号注册状态未确认；核对后台后填写 accountMode');
     check('backend-appid', realId && env.WECHAT_MINIPROGRAM_APP_ID === appId,
       '本机服务端 AppID 与客户端一致', '本机服务端尚未配置一致的 WECHAT_MINIPROGRAM_APP_ID');
     check('backend-secret', typeof secret === 'string' && /^[0-9a-f]{32}$/iu.test(secret),

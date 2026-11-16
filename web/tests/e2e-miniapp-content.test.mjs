@@ -42,7 +42,7 @@ async function http(path, { method = 'GET', data, headers = {}, raw } = {}, expe
   return body;
 }
 
-async function nativeClient(role) {
+async function nativeClient(role, { restoreAs } = {}) {
   const storage = new Map([['petscape_session_token', tokens[role]]]);
   const pending = new Set();
   const nativeModule = { exports: {} };
@@ -56,8 +56,15 @@ async function nativeClient(role) {
       getStorageSync: (key) => storage.get(key),
       setStorageSync: (key, value) => storage.set(key, value),
       removeStorageSync: (key) => storage.delete(key),
-      login: () => assert.fail('Fixture session must not call wx.login'),
+      login: ({ success, fail }) => restoreAs
+        ? success({ code: 'local-session-recovery-fixture' })
+        : fail({ errMsg: 'login:fail fixture recovery unavailable' }),
       request(options) {
+        // This fixture replaces only the WeChat exchange, never business HTTP.
+        if (restoreAs && options.url.endsWith('/api/miniapp/auth/login')) {
+          options.success({ statusCode: 200, data: { sessionToken: tokens[restoreAs] } });
+          return;
+        }
         const task = (async () => {
           const url = new URL(options.url);
           if (options.method === 'GET') for (const [key, value] of Object.entries(options.data || {})) url.searchParams.set(key, value);
@@ -269,11 +276,26 @@ test('analytics validates input and protects admin summaries for both auth paths
   assert.equal(JSON.stringify(result).includes(tokens.owner), false);
 });
 
-test('native client clears expired cached credentials after a real HTTP 401', async () => {
+test('native client clears expired credentials and exposes login-stage failure when recovery is unavailable', async () => {
   const client = await nativeClient('expired');
   try {
-    await assert.rejects(client.api.listPets(), (error) => error.statusCode === 401 && Boolean(error.requestId));
+    await assert.rejects(client.api.listPets(), (error) => error.code === 'WX_LOGIN_FAILED' && error.stage === 'wx-login');
     assert.equal(client.storage.has('petscape_session_token'), false);
+  } finally { await client.drain(); }
+});
+
+test('native session fixture recovers expired read and write through real protected HTTP without duplicate saves', async () => {
+  const client = await nativeClient('expired', { restoreAs: 'owner' });
+  try {
+    const initial = await client.api.listPets();
+    assert.ok(Array.isArray(initial.pets));
+    assert.equal(client.storage.get('petscape_session_token'), tokens.owner);
+    client.storage.set('petscape_session_token', tokens.expired);
+    const name = run + '-recovered-save';
+    const pet = await client.api.createPet({ name, speciesCode: 'rat' });
+    assert.ok(pet.id);
+    const saved = await client.api.listPets();
+    assert.equal(saved.pets.filter((item) => item.name === name).length, 1);
   } finally { await client.drain(); }
 });
 

@@ -133,3 +133,4 @@ button::after {
 .input { height: 88rpx; }
 .textarea { min-height: 220rpx; }
 .error-state { margin-top: 28rpx; line-height: 1.6; }
+.error-detail { margin-top: 18rpx; font-size: 22rpx; overflow-wrap: anywhere; }

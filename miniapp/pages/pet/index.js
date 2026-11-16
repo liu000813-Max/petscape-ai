@@ -1,15 +1,16 @@
 const { listPets } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
+const { describeError } = require('../../utils/errors');
 
 Page({
-  data: { pets: [], loading: true, loadError: '' },
+  data: { pets: [], loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '' },
 
   onShow() {
     return this.loadPets();
   },
 
   async loadPets() {
-    this.setData({ pets: [], loading: true, loadError: '' });
+    this.setData({ pets: [], loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '' });
     try {
       const result = await listPets();
       const pets = (result.pets || []).map((pet) => ({
@@ -22,7 +23,7 @@ Page({
     } catch (error) {
       this.setData({
         loading: false,
-        loadError: error && error.statusCode === 401 ? '微信登录未完成，请重试' : '暂时无法读取宠物档案，请检查网络后重试',
+        ...describeError(error),
       });
     }
   },
