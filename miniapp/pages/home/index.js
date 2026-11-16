@@ -38,6 +38,7 @@ Page({
     pet: null,
     pets: [],
     selectedPetId: '',
+    petIndex: 0,
     loading: true,
     loadError: '',
     loadErrorTitle: '',
@@ -86,7 +87,7 @@ Page({
       if (this.weightDrafts) for (const id of this.weightDrafts.keys()) if (!pets.some((item) => item.id === id)) this.weightDrafts.delete(id);
       const switched = (pet ? pet.id : '') !== this.data.selectedPetId;
       this.setData({
-        pet, pets, selectedPetId: pet ? pet.id : '', loading: false,
+        pet, pets, selectedPetId: pet ? pet.id : '', petIndex: pet ? pets.findIndex((item) => item.id === pet.id) : 0, loading: false,
         ...(switched ? { weightInput: '', weightUnit: 'g', weightEditorOpen: false, weightNotice: '', weightUnconfirmed: false } : {}),
       });
       if (pet) await this.loadWeights();
@@ -108,10 +109,28 @@ Page({
       weightInput: this.data.weightInput, weightUnit: this.data.weightUnit, weightEditorOpen: this.data.weightEditorOpen,
       weightNotice: this.data.weightNotice, weightUnconfirmed: this.data.weightUnconfirmed,
     });
-    this.setData({ pet, selectedPetId: pet.id, ...(this.weightDrafts.get(pet.id) || {
+    this.setData({ pet, selectedPetId: pet.id, petIndex: this.data.pets.findIndex((item) => item.id === pet.id), ...(this.weightDrafts.get(pet.id) || {
       weightInput: '', weightUnit: 'g', weightEditorOpen: false, weightNotice: '', weightUnconfirmed: false,
     }) });
     return this.loadWeights();
+  },
+
+  onPetSwipe(event) {
+    const index = event.detail.current;
+    if (!Number.isInteger(index) || !this.data.pets[index]) return;
+    if (this.data.weightSaving || this.data.loading) {
+      // Saving replaces the swiper with a static selected portrait. Ignore any
+      // change event already queued before that switch.
+      this.setData({ petIndex: Math.max(0, this.data.pets.findIndex((pet) => pet.id === this.data.selectedPetId)) });
+      return;
+    }
+    return this.selectPet({ currentTarget: { dataset: { id: this.data.pets[index].id } } });
+  },
+
+  openPetProfile(event) {
+    if (this.data.loading || this.data.weightSaving) return;
+    const pet = this.data.pets.find((item) => item.id === event.currentTarget.dataset.id);
+    if (pet) wx.navigateTo({ url: `/pages/pet-edit/index?id=${encodeURIComponent(pet.id)}` });
   },
 
   async loadWeights() {
@@ -180,6 +199,7 @@ Page({
 
   openPet() {
     if (this.data.weightSaving) return;
+    if (this.data.pet) return this.openPetProfile({ currentTarget: { dataset: { id: this.data.pet.id } } });
     wx.switchTab({ url: '/pages/pet/index' });
   },
 

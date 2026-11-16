@@ -560,3 +560,57 @@ test('home uses existing cover photos and falls back to species art without brea
   assert.equal(home.data.pet.avatarUrl, '');
   assert.equal(home.data.pets[1].avatarUrl, '');
 });
+
+test('home carousel follows pet identity after swipes, list reorder and pet deletion', async () => {
+  let pets = carePets;
+  const home = page('home', { ...careApi, listPets: async () => ({ pets }) });
+  await home.loadSummary();
+  assert.equal(home.data.petIndex, 0);
+  await home.onPetSwipe({ detail: { current: 1, source: 'touch' } });
+  assert.equal(home.data.selectedPetId, 'pet-b'); assert.equal(home.data.petIndex, 1);
+  pets = [carePets[1], carePets[0]]; await home.loadSummary();
+  assert.equal(home.data.selectedPetId, 'pet-b'); assert.equal(home.data.petIndex, 0);
+  for (const current of [-1, 2, 0.5, '1']) await home.onPetSwipe({ detail: { current } });
+  assert.equal(home.data.selectedPetId, 'pet-b');
+  pets = [carePets[0]]; await home.loadSummary();
+  assert.equal(home.data.selectedPetId, 'pet-a'); assert.equal(home.data.petIndex, 0);
+  pets = []; await home.loadSummary();
+  assert.equal(home.data.pet, null); assert.equal(home.data.petIndex, 0);
+  await home.onPetSwipe({ detail: { current: 0 } });
+  assert.equal(home.data.selectedPetId, '');
+});
+
+test('home carousel ignores late weights and cannot swipe or open a profile during a pending save', async () => {
+  const old = deferred(); let reads = 0;
+  const saving = deferred(); let writes = 0;
+  const home = page('home', { ...careApi,
+    listCareLogs: async ({ petId }) => ++reads === 1 ? old.promise : { logs: [{ id: 'latest', petId, kind: '体重', value: '720g', recordedAt: '2026-11-16T00:00:00Z' }] },
+    createCareLog: async () => { writes++; await saving.promise; },
+  });
+  const initial = home.loadSummary(); await Promise.resolve();
+  await home.onPetSwipe({ detail: { current: 1, source: 'touch' } });
+  old.resolve({ logs: [] }); await initial;
+  assert.equal(home.data.latestWeight.grams, 720);
+  home.onWeightInput({ detail: { value: '725' } });
+  const write = home.saveWeight();
+  await home.onPetSwipe({ detail: { current: 0, source: 'touch' } });
+  let opens = 0; wx.navigateTo = () => { opens++; };
+  home.openPetProfile({ currentTarget: { dataset: { id: 'pet-a' } } });
+  await home.saveWeight();
+  assert.equal(home.data.petIndex, 1); assert.equal(home.data.pet.id, 'pet-b'); assert.equal(opens, 0);
+  saving.resolve(); await write;
+  assert.equal(writes, 1); assert.equal(home.data.petIndex, 1);
+});
+
+test('every carousel avatar opens its own profile and the selected profile card opens the same pet', async () => {
+  const special = { id: 'pet b?/名', name: '团子' };
+  const home = page('home', { ...careApi, listPets: async () => ({ pets: [carePets[0], special] }) });
+  await home.loadSummary();
+  home.openPetProfile({ currentTarget: { dataset: { id: special.id } } });
+  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-edit/index?id=' + encodeURIComponent(special.id)]);
+  assert.equal(home.data.selectedPetId, 'pet-a');
+  home.openPet(); assert.deepEqual(navigation, ['navigateTo', '/pages/pet-edit/index?id=pet-a']);
+  let opens = 0; wx.navigateTo = () => { opens++; };
+  home.openPetProfile({ currentTarget: { dataset: { id: 'not-own' } } });
+  assert.equal(opens, 0);
+});

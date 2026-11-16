@@ -5,7 +5,7 @@
   <view class="title"><view>给每一只宠物，</view><view>一处合适的栖境。</view></view>
   <view class="subtitle">记录宠物档案，查找养护知识，把每天的照料留在这里。</view>
 
-  <view class="hero-card" bindtap="openCare">
+  <view wx:if="{{!pet && !loading && !loadError}}" class="hero-card" bindtap="openCare">
     <view class="hero-orbit orbit-one"></view>
     <view class="hero-orbit orbit-two"></view>
     <view class="hero-copy">
@@ -28,15 +28,24 @@
       <view><text class="section-title">我的宠物家庭</text><text class="family-count">{{pets.length}} 位成员</text></view>
       <button class="text-button" disabled="{{weightSaving}}" data-path="/pages/pet-edit/index" bindtap="openAction">＋ 添加</button>
     </view>
-    <scroll-view class="pet-selector" scroll-x="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}">
-      <view class="pet-selector-track">
-        <button wx:for="{{pets}}" wx:key="id" class="pet-choice {{selectedPetId === item.id ? 'is-selected' : ''}}" data-id="{{item.id}}" bindtap="selectPet" disabled="{{weightSaving}}" aria-label="选择{{item.name}}">
-          <view class="choice-avatar"><image wx:if="{{item.avatarUrl}}" class="choice-image" src="{{item.avatarUrl}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><text wx:else>{{item.speciesEmoji}}</text></view>
-          <text class="choice-name">{{item.name}}</text>
-          <view class="choice-dot"></view>
-        </button>
+    <view class="pet-carousel-shell">
+      <swiper wx:if="{{!weightSaving}}" class="pet-carousel" current="{{petIndex}}" circular="{{pets.length > 2}}" previous-margin="{{pets.length > 1 ? '220rpx' : '0rpx'}}" next-margin="{{pets.length > 1 ? '220rpx' : '0rpx'}}" duration="280" bindchange="onPetSwipe" aria-label="左右滑动切换宠物，点头像查看档案">
+        <swiper-item wx:for="{{pets}}" wx:key="id" class="pet-slide {{selectedPetId === item.id ? 'is-current' : ''}}">
+          <button class="carousel-pet" data-id="{{item.id}}" bindtap="openPetProfile" disabled="{{weightSaving}}" aria-label="查看{{item.name}}的档案">
+            <view class="carousel-avatar"><image wx:if="{{item.avatarUrl}}" class="carousel-image" src="{{item.avatarUrl}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><text wx:else>{{item.speciesEmoji}}</text></view>
+            <text class="carousel-name">{{item.name}}</text>
+            <text class="carousel-species">{{item.speciesLabel}}</text>
+          </button>
+        </swiper-item>
+      </swiper>
+      <view wx:else class="pet-carousel carousel-saving is-current">
+        <view class="carousel-pet">
+          <view class="carousel-avatar"><image wx:if="{{pet.avatarUrl}}" class="carousel-image" src="{{pet.avatarUrl}}" mode="aspectFill" data-id="{{pet.id}}" binderror="onAvatarError" /><text wx:else>{{pet.speciesEmoji}}</text></view>
+          <text class="carousel-name">{{pet.name}}</text><text class="carousel-species">{{pet.speciesLabel}}</text>
+        </view>
       </view>
-    </scroll-view>
+    </view>
+    <view class="carousel-caption"><text>{{weightSaving ? '正在保存体重 · 暂停切换' : (pets.length > 1 ? '左右滑动切换 · 点头像查看档案' : '点头像查看宠物档案')}}</text><text class="carousel-counter">{{petIndex + 1}} / {{pets.length}}</text></view>
     <view class="pet-strip card" bindtap="openPet">
       <view class="pet-info">
         <text class="pet-name">{{pet.name}} 的小档案</text>
