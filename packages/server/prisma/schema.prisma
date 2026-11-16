@@ -398,6 +398,7 @@ enum PetSpeciesCode {
 
 enum PetLifeStage {
   juvenile
+  subadult
   adult
   senior
   unknown

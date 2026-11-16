@@ -614,3 +614,67 @@ test('every carousel avatar opens its own profile and the selected profile card 
   home.openPetProfile({ currentTarget: { dataset: { id: 'not-own' } } });
   assert.equal(opens, 0);
 });
+
+test('native pet form removes size ranking without clearing legacy size data on edit', async () => {
+  const writes = [];
+  const form = page('pet-edit', {
+    getPet: async () => ({ name: '团子', speciesCode: 'rat', sizeLevel: 4, lifeStage: 'adult' }),
+    updatePet: async (id, payload) => { writes.push(payload); },
+  });
+  wx.setNavigationBarTitle = () => {};
+  await form.onLoad({ id: 'existing' }); await form.submit();
+  assert.equal(Object.hasOwn(form.data.form, 'sizeLevel'), false);
+  assert.equal(Object.hasOwn(writes[0], 'sizeLevel'), false);
+  const wxml = fs.readFileSync(path.join(root, 'pages/pet-edit/index.wxml'), 'utf8');
+  assert.doesNotMatch(wxml, /体型等级|onSizeChange|<slider/);
+  app.globalData.mockMode = true;
+  assert.equal((await api.createPet({ name: '未评定体型', speciesCode: 'rat' })).sizeLevel, null);
+});
+
+test('native pet life stages support subadult and keep unsupported ages explicit by exact species', async () => {
+  const saved = [];
+  const form = page('pet-edit', { createPet: async payload => { CreatePetRequestSchema.parse(payload); saved.push(payload); } });
+  assert.deepEqual(form.data.lifeStageOptions.map(option => option.value), ['juvenile', 'subadult', 'adult', 'senior', 'unknown']);
+  assert.equal(form.data.lifeStageOptions[form.data.lifeStageIndex].value, 'unknown');
+  form.onInput({ currentTarget: { dataset: { field: 'name' } }, detail: { value: '团子' } });
+  form.onSpeciesChange({ detail: { value: '1' } });
+  form.onInput({ currentTarget: { dataset: { field: 'breed' } }, detail: { value: '豹纹守宫' } });
+  assert.equal(form.data.lifeStageReference.speciesName, '豹纹守宫');
+  for (const option of form.data.lifeStageOptions.slice(0, 4)) assert.match(option.label, /年月待核实/);
+  form.onLifeStageChange({ detail: { value: '1' } });
+  await form.submit(); assert.equal(saved[0].lifeStage, 'subadult');
+});
+
+test('life-stage references never extrapolate ages across broad species categories or guess unknown stored values', async () => {
+  const { getLifeStageReference, lifeStageLabel } = require(path.join(root, 'utils/life-stages.js'));
+  assert.equal(getLifeStageReference('gecko', '豹纹').speciesName, '具体物种待确认');
+  assert.equal(getLifeStageReference('gecko', '玉米蛇').speciesName, '具体物种待确认');
+  assert.equal(getLifeStageReference('snake', 'Pantherophis guttatus').speciesName, '玉米蛇');
+  assert.equal(getLifeStageReference('parrot', '虎皮鹦鹉').speciesName, '虎皮鹦鹉');
+  assert.equal(getLifeStageReference('other', '', '刺猬').speciesName, '刺猬');
+  assert.equal(lifeStageLabel('subadult'), '亚成体');
+  assert.equal(lifeStageLabel('adult'), '成体');
+  wx.setNavigationBarTitle = () => {};
+  for (const lifeStage of ['subadult', 'future_stage']) {
+    const form = page('pet-edit', { getPet: async () => ({ name: '团子', speciesCode: 'snake', breed: '玉米蛇', lifeStage }) });
+    await form.onLoad({ id: 'existing' });
+    const expected = lifeStage === 'subadult' ? 'subadult' : 'unknown';
+    assert.equal(form.data.form.lifeStage, expected);
+    assert.equal(form.data.lifeStageOptions[form.data.lifeStageIndex].value, expected);
+    if (lifeStage === 'future_stage') assert.match(form.data.lifeStageWarning, /重新确认/);
+  }
+});
+
+test('editing an unrecognized legacy stage requires explicit confirmation before any update', async () => {
+  const updates = [];
+  wx.setNavigationBarTitle = () => {};
+  const form = page('pet-edit', {
+    getPet: async () => ({ name: '旧档案', speciesCode: 'rat', lifeStage: 'future_stage' }),
+    updatePet: async (id, payload) => { updates.push(payload); },
+  });
+  await form.onLoad({ id: 'existing' });
+  form.onInput({ currentTarget: { dataset: { field: 'name' } }, detail: { value: '只改名字' } });
+  await form.submit(); assert.equal(updates.length, 0);
+  form.onLifeStageChange({ detail: { value: String(form.data.lifeStageOptions.findIndex(option => option.value === 'unknown')) } });
+  await form.submit(); assert.equal(updates.length, 1); assert.equal(updates[0].lifeStage, 'unknown');
+});

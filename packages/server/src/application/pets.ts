@@ -33,7 +33,7 @@ export interface PetSummary {
   customSpeciesName: string | null;
   breed: string | null;
   sizeLevel: number | null;
-  lifeStage: 'juvenile' | 'adult' | 'senior' | 'unknown' | null;
+  lifeStage: 'juvenile' | 'subadult' | 'adult' | 'senior' | 'unknown' | null;
   behaviorTraits: string[];
   environmentNotes: string | null;
   specialNeeds: string | null;

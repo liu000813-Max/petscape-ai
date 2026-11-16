@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { cp, mkdir, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
-const contentMigration = '20261016000000_p1_content_community_care';
+const latestMigration = '20261116000000_pet_life_stage_subadult';
 const tables = ['content_article', 'community_post', 'community_comment', 'community_post_like', 'care_log', 'care_reminder', 'service_provider', 'analytics_event'];
 
 export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade, withClient, runPrisma }) {
   const source = path.join(repo, 'packages/server/prisma');
   const migrations = (await readdir(path.join(source, 'migrations'), { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
-  assert.equal(migrations.at(-1), contentMigration, 'Review the upgrade baseline when adding another migration');
+  assert.equal(migrations.at(-1), latestMigration, 'Review the upgrade baseline when adding another migration');
   const checkHistory = async (database, expected) => withClient(database, async (client) => {
     const result = await client.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY migration_name');
     assert.deepEqual(result.rows.map((row) => row.migration_name), expected);
@@ -29,6 +29,8 @@ export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade
     assert.deepEqual(checks.rows.map((row) => row.conname), ['community_comment_status_valid', 'community_post_status_valid', 'content_article_status_valid', 'service_provider_status_valid']);
     const foreignKeys = await client.query("SELECT conname FROM pg_constraint WHERE contype='f' AND conrelid IN (SELECT oid FROM pg_class WHERE relname=ANY($1))", [tables]);
     assert.equal(foreignKeys.rowCount, 11);
+    const lifeStages = await client.query('SELECT enumlabel FROM pg_enum WHERE enumtypid=\'"PetLifeStage"\'::regtype ORDER BY enumsortorder');
+    assert.deepEqual(lifeStages.rows.map((row) => row.enumlabel).sort(), ['adult', 'juvenile', 'senior', 'subadult', 'unknown']);
     const now = new Date();
     await client.query('BEGIN');
     try {
@@ -49,7 +51,7 @@ export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade
     } finally { await client.query('ROLLBACK'); }
   });
 
-  console.log('Checking upgrade from the pre-P1 migration history with existing user/account/session/pet data...');
+  console.log('Checking upgrade from the pre-subadult history with existing user/account/session/pet data...');
   const baseline = path.join(runDirectory, 'baseline');
   await mkdir(path.join(baseline, 'migrations'), { recursive: true });
   await cp(path.join(source, 'schema.prisma'), path.join(baseline, 'schema.prisma'));
@@ -67,15 +69,21 @@ export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade
     await client.query('INSERT INTO "user" (id,name,"updatedAt") VALUES ($1,$2,$3)', ['upgrade-owner', '旧账号保留', now]);
     await client.query('INSERT INTO account (id,"accountId","providerId","userId","updatedAt") VALUES ($1,$2,$3,$4,$5)', ['upgrade-account', 'upgrade-openid', 'wechat-miniprogram', 'upgrade-owner', now]);
     await client.query('INSERT INTO session (id,token,"expiresAt","userId","updatedAt") VALUES ($1,$2,$3,$4,$5)', ['upgrade-session', 'local-upgrade-fixture-not-a-real-token', new Date(Date.now() + 86400000), 'upgrade-owner', now]);
-    await client.query('INSERT INTO pet (id,"ownerUserId",name,"speciesCode","behaviorTraits","updatedAt") VALUES ($1,$2,$3,$4,$5,$6)', ['upgrade-pet', 'upgrade-owner', '旧宠物花枝鼠', 'rat', ['亲人'], now]);
-    assert.equal((await client.query("SELECT to_regclass('public.content_article') AS name")).rows[0].name, null);
+    await client.query('INSERT INTO pet (id,"ownerUserId",name,"speciesCode","behaviorTraits","lifeStage","sizeLevel","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', ['upgrade-pet', 'upgrade-owner', '旧宠物花枝鼠', 'rat', ['亲人'], 'adult', 4, now]);
+    assert.equal((await client.query("SELECT to_regclass('public.content_article') IS NOT NULL AS present")).rows[0].present, true);
+    const beforeStages = await client.query('SELECT enumlabel FROM pg_enum WHERE enumtypid=\'"PetLifeStage"\'::regtype');
+    assert.equal(beforeStages.rows.some((row) => row.enumlabel === 'subadult'), false);
     return snapshot(client);
   });
   await runPrisma(upgrade, ['migrate', 'deploy']);
   await checkHistory(upgrade, migrations);
-  await withClient(upgrade, async (client) => assert.deepEqual(await snapshot(client), before, 'Upgrade must preserve existing rows exactly'));
+  await withClient(upgrade, async (client) => {
+    assert.deepEqual(await snapshot(client), before, 'Upgrade must preserve existing rows exactly');
+    await client.query('UPDATE pet SET "lifeStage"=$1 WHERE id=$2', ['subadult', 'upgrade-pet']);
+    assert.equal((await client.query('SELECT "lifeStage","sizeLevel" FROM pet WHERE id=$1', ['upgrade-pet'])).rows[0].lifeStage, 'subadult');
+  });
   // Pin a hash of the actual migration file in the receipt without copying SQL into docs.
   const { createHash } = await import('node:crypto');
-  const migrationSha256 = createHash('sha256').update(await readFile(path.join(source, 'migrations', contentMigration, 'migration.sql'))).digest('hex');
+  const migrationSha256 = createHash('sha256').update(await readFile(path.join(source, 'migrations', latestMigration, 'migration.sql'))).digest('hex');
   return { migrations: migrations.length, newTables: tables.length, foreignKeys: 11, statusChecks: 4, sqlRejections: 6, repeatedDeploy: 'unchanged', oldDataUpgrade: 'preserved', migrationSha256 };
 }

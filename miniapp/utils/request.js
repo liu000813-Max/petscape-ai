@@ -123,7 +123,7 @@ function mockRequest(path, options) {
       speciesCode: options.data.speciesCode || 'other',
       customSpeciesName: options.data.customSpeciesName || null,
       breed: options.data.breed || null,
-      sizeLevel: options.data.sizeLevel || 3,
+      sizeLevel: options.data.sizeLevel ?? null,
       lifeStage: options.data.lifeStage || 'unknown',
       behaviorTraits: options.data.behaviorTraits || [],
       environmentNotes: options.data.environmentNotes || null,

@@ -81,3 +81,12 @@ test('PetListResponseSchema：列表 envelope 也经过运行时校验', () => {
   assert.equal(parsed.pets[0]?.name, '小椒');
   assert.equal(PetListResponseSchema.safeParse({ pets: [{ ...validPet, coverUrl: 'not-a-url' }] }).success, false);
 });
+
+test('life-stage contracts preserve subadult independently from juvenile and adult', () => {
+  for (const lifeStage of ['juvenile', 'subadult', 'adult', 'senior', 'unknown']) {
+    assert.equal(CreatePetRequestSchema.parse({ name: '团子', lifeStage }).lifeStage, lifeStage);
+    assert.equal(UpdatePetRequestSchema.parse({ lifeStage }).lifeStage, lifeStage);
+    assert.equal(PetResponseSchema.parse({ ...validPet, lifeStage }).lifeStage, lifeStage);
+  }
+  assert.equal(CreatePetRequestSchema.safeParse({ name: '团子', lifeStage: 'approximate' }).success, false);
+});

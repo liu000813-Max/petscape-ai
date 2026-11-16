@@ -4,7 +4,7 @@
 import { z } from 'zod';
 
 export const PET_SPECIES_CODES = ['rat', 'gecko', 'snake', 'parrot', 'spider', 'other'] as const;
-export const PET_LIFE_STAGES = ['juvenile', 'adult', 'senior', 'unknown'] as const;
+export const PET_LIFE_STAGES = ['juvenile', 'subadult', 'adult', 'senior', 'unknown'] as const;
 export const PET_COVER_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const PET_COVER_MAX_BYTES = 10 * 1024 * 1024;
 

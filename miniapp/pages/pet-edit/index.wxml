@@ -32,11 +32,8 @@
       <picker mode="selector" range="{{lifeStageOptions}}" range-key="label" value="{{lifeStageIndex}}" bindchange="onLifeStageChange">
         <view class="picker-value">{{lifeStageOptions[lifeStageIndex].label}} <text class="picker-arrow">⌄</text></view>
       </picker>
-    </view>
-
-    <view class="field">
-      <view class="field-row"><text class="field-label">体型等级</text><text class="field-help">{{form.sizeLevel}} / 5</text></view>
-      <slider min="1" max="5" step="1" value="{{form.sizeLevel}}" activeColor="#050505" backgroundColor="#dedede" bindchange="onSizeChange" />
+      <view class="life-stage-reference"><text class="life-stage-species">参考物种：{{lifeStageReference.speciesName}}</text><text>{{lifeStageReference.note}}</text></view>
+      <view wx:if="{{lifeStageWarning}}" class="life-stage-warning">{{lifeStageWarning}}</view>
     </view>
 
     <view class="field">

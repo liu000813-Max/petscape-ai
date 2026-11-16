@@ -324,6 +324,28 @@ test('home weight editor persists normalized weights only for its selected pet t
   } finally { await client.drain(); }
 });
 
+test('native pet editor stores subadult, omits arbitrary size levels and preserves legacy size on edit', async () => {
+  const client = await nativeClient('owner');
+  try {
+    const form = await client.loadPage('pet-edit');
+    input(form, 'name', run + '-subadult');
+    form.onSpeciesChange({ detail: { value: '2' } });
+    input(form, 'breed', '玉米蛇');
+    form.onLifeStageChange({ detail: { value: '1' } });
+    await form.submit();
+    const stored = await prisma.pet.findFirstOrThrow({ where: { name: run + '-subadult', ownerUserId: users.owner } });
+    assert.equal(stored.lifeStage, 'subadult'); assert.equal(stored.sizeLevel, null);
+    const fetched = await client.api.getPet(stored.id);
+    assert.equal(fetched.lifeStage, 'subadult');
+    await prisma.pet.update({ where: { id: stored.id }, data: { sizeLevel: 4 } });
+    const edit = await client.loadPage('pet-edit'); await edit.onLoad({ id: stored.id });
+    assert.equal(edit.data.form.lifeStage, 'subadult');
+    input(edit, 'name', run + '-subadult-edited'); await edit.submit();
+    const after = await prisma.pet.findUniqueOrThrow({ where: { id: stored.id } });
+    assert.equal(after.sizeLevel, 4); assert.equal(after.lifeStage, 'subadult');
+  } finally { await client.drain(); }
+});
+
 test('native care page saves to the selected pet after list changes and completes a persisted reminder', async () => {
   const client = await nativeClient('owner');
   try {

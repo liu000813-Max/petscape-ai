@@ -15,7 +15,7 @@
       <view class="pet-avatar"><image wx:if="{{item.speciesImage}}" class="species-image" src="{{item.speciesImage}}" mode="aspectFill" /><text wx:else>{{item.speciesEmoji}}</text></view>
       <view class="pet-main">
         <text class="pet-name">{{item.name}}</text>
-        <text class="muted">{{item.speciesLabel}} · {{item.breed || '品种待补充'}} · {{item.lifeStage || '阶段待补充'}}</text>
+        <text class="muted">{{item.speciesLabel}} · {{item.breed || '品种待补充'}} · {{item.lifeStageLabel}}</text>
         <view class="trait-row"><text wx:for="{{item.behaviorTraits}}" wx:key="*this" class="trait">{{item}}</text></view>
       </view>
     </view>

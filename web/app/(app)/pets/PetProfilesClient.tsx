@@ -15,7 +15,8 @@ const SPECIES = [
 
 const LIFE_STAGES = [
   ['juvenile', '幼年'],
-  ['adult', '成年'],
+  ['subadult', '亚成体'],
+  ['adult', '成体'],
   ['senior', '老年'],
   ['unknown', '不确定'],
 ] as const;

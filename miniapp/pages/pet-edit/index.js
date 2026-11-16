@@ -1,12 +1,7 @@
 const { getPet, createPet, updatePet } = require('../../utils/request');
 const { SPECIES_OPTIONS: speciesOptions } = require('../../utils/species');
 
-const lifeStageOptions = [
-  { value: 'juvenile', label: '幼年' },
-  { value: 'adult', label: '成年' },
-  { value: 'senior', label: '老年' },
-  { value: 'unknown', label: '待确认' },
-];
+const { LIFE_STAGE_OPTIONS: lifeStageOptions, getLifeStageReference } = require('../../utils/life-stages');
 
 Page({
   data: {
@@ -20,14 +15,15 @@ Page({
       customSpeciesName: '',
       breed: '',
       lifeStage: 'unknown',
-      sizeLevel: 3,
       environmentNotes: '',
       specialNeeds: '',
     },
     speciesOptions,
     lifeStageOptions,
     speciesIndex: 0,
-    lifeStageIndex: 3,
+    lifeStageIndex: 4,
+    lifeStageReference: getLifeStageReference('rat'),
+    lifeStageWarning: '',
   },
 
   onLoad(query) {
@@ -37,20 +33,22 @@ Page({
     return getPet(query.id)
       .then((pet) => {
         const speciesCode = pet.speciesCode || 'other';
-        const lifeStage = pet.lifeStage || 'unknown';
+        const recognized = !pet.lifeStage || lifeStageOptions.some((option) => option.value === pet.lifeStage);
+        const lifeStage = recognized ? pet.lifeStage || 'unknown' : 'unknown';
         const speciesIndex = Math.max(0, speciesOptions.findIndex((item) => item.value === speciesCode));
         const lifeStageIndex = Math.max(0, lifeStageOptions.findIndex((item) => item.value === lifeStage));
         this.setData({
           loading: false,
           speciesIndex,
           lifeStageIndex,
+          lifeStageReference: getLifeStageReference(speciesCode, pet.breed, pet.customSpeciesName),
+          lifeStageWarning: recognized ? '' : '原档案阶段无法识别，请重新确认后保存。',
           form: {
             name: pet.name || '',
             speciesCode,
             customSpeciesName: pet.customSpeciesName || '',
             breed: pet.breed || '',
             lifeStage,
-            sizeLevel: Number(pet.sizeLevel || 3),
             environmentNotes: pet.environmentNotes || '',
             specialNeeds: pet.specialNeeds || '',
           },
@@ -65,6 +63,7 @@ Page({
   onInput(event) {
     const field = event.currentTarget.dataset.field;
     this.setData({ [`form.${field}`]: event.detail.value });
+    if (field === 'breed' || field === 'customSpeciesName') this.refreshLifeStageReference();
   },
 
   onSpeciesChange(event) {
@@ -73,19 +72,26 @@ Page({
     this.setData({ speciesIndex: index, 'form.speciesCode': speciesOptions[index].value,
       ...(speciesOptions[index].value !== 'other' ? { 'form.customSpeciesName': '' } : {}),
     });
+    this.refreshLifeStageReference();
+  },
+
+  refreshLifeStageReference() {
+    const { speciesCode, breed, customSpeciesName } = this.data.form;
+    this.setData({ lifeStageReference: getLifeStageReference(speciesCode, breed, customSpeciesName) });
   },
 
   onLifeStageChange(event) {
     const index = Number(event.detail.value);
-    this.setData({ lifeStageIndex: index, 'form.lifeStage': lifeStageOptions[index].value });
-  },
-
-  onSizeChange(event) {
-    this.setData({ 'form.sizeLevel': Number(event.detail.value) });
+    if (!Number.isInteger(index) || !lifeStageOptions[index]) return;
+    this.setData({ lifeStageIndex: index, 'form.lifeStage': lifeStageOptions[index].value, lifeStageWarning: '' });
   },
 
   async submit() {
     if (this.data.saving || this.data.loading) return;
+    if (this.data.lifeStageWarning) {
+      wx.showToast({ title: '请先重新确认生命阶段', icon: 'none' });
+      return;
+    }
     const form = this.data.form;
     if (!form.name.trim()) {
       wx.showToast({ title: '先填写宠物名字', icon: 'none' });
@@ -102,7 +108,6 @@ Page({
       customSpeciesName: form.speciesCode === 'other' ? form.customSpeciesName.trim() : null,
       breed: form.breed.trim() || null,
       lifeStage: form.lifeStage,
-      sizeLevel: Number(form.sizeLevel),
       environmentNotes: form.environmentNotes.trim() || null,
       specialNeeds: form.specialNeeds.trim() || null,
     };

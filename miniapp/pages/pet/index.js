@@ -1,6 +1,7 @@
 const { listPets } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
 const { describeError } = require('../../utils/errors');
+const { lifeStageLabel } = require('../../utils/life-stages');
 
 Page({
   data: { pets: [], loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '' },
@@ -18,6 +19,7 @@ Page({
         speciesLabel: pet.speciesCode === 'other' && pet.customSpeciesName ? pet.customSpeciesName : getSpeciesMeta(pet.speciesCode).label,
         speciesEmoji: getSpeciesMeta(pet.speciesCode).emoji,
         speciesImage: getSpeciesMeta(pet.speciesCode).image,
+        lifeStageLabel: lifeStageLabel(pet.lifeStage),
       }));
       this.setData({ pets, loading: false });
     } catch (error) {
