@@ -442,3 +442,121 @@ test('pet pages expose categorized diagnostics without private native errors and
     assert.equal(view.data.loadErrorTitle, '');
   }
 });
+
+test('home switches pets by ID, restores their own drafts and keeps selection after reorder', async () => {
+  let pets = carePets;
+  const home = page('home', { ...careApi, listPets: async () => ({ pets }) });
+  await home.loadSummary();
+  home.onWeightInput({ detail: { value: '320' } });
+  await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
+  assert.equal(home.data.weightInput, '');
+  home.onWeightInput({ detail: { value: '0.72' } });
+  home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+  pets = [carePets[1], carePets[0]];
+  await home.loadSummary();
+  assert.equal(home.data.pet.id, 'pet-b');
+  assert.equal(home.data.weightInput, '0.72');
+  assert.equal(home.data.weightUnit, 'kg');
+  await home.selectPet({ currentTarget: { dataset: { id: 'pet-a' } } });
+  assert.equal(home.data.weightInput, '320');
+  assert.equal(home.data.weightUnit, 'g');
+});
+
+test('home ignores stale pet and weight responses including late failures', async () => {
+  for (const fail of [false, true]) {
+    const old = deferred();
+    const home = page('home', { ...careApi, listCareLogs: ({ petId }) => petId === 'pet-a' ? old.promise : Promise.resolve({ logs: [
+      { id: 'b', petId, kind: '体重', value: '0.72 kg', recordedAt: '2026-11-15T01:00:00Z' },
+    ] }) });
+    const initial = home.loadSummary();
+    await Promise.resolve();
+    await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
+    if (fail) old.reject(new Error('private-error')); else old.resolve({ logs: [
+      { id: 'a', petId: 'pet-a', kind: '体重', value: '320g', recordedAt: '2026-11-15T01:00:00Z' },
+    ] });
+    await initial;
+    assert.equal(home.data.pet.id, 'pet-b');
+    assert.equal(home.data.latestWeight.grams, 720);
+    assert.equal(home.data.weightError, '');
+  }
+  const oldPets = deferred(); let calls = 0;
+  const home = page('home', { ...careApi, listPets: () => ++calls === 1 ? oldPets.promise : Promise.resolve({ pets: [carePets[1]] }) });
+  const initial = home.loadSummary(); await home.loadSummary();
+  oldPets.resolve({ pets: [carePets[0]] }); await initial;
+  assert.equal(home.data.pet.id, 'pet-b');
+});
+
+test('home weight save normalizes units, blocks double taps and holds selection until refresh ends', async () => {
+  const save = deferred(); const refresh = deferred(); const writes = []; let reads = 0;
+  const home = page('home', { ...careApi,
+    createCareLog: async (payload) => { writes.push(payload); await save.promise; },
+    listCareLogs: async () => ++reads === 1 ? { logs: [] } : refresh.promise,
+  });
+  await home.loadSummary(); home.onWeightInput({ detail: { value: '0.325' } });
+  home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+  const first = home.saveWeight();
+  await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
+  home.onWeightInput({ detail: { value: '999' } }); await home.saveWeight();
+  save.resolve(); await Promise.resolve(); await Promise.resolve();
+  assert.equal(home.data.weightSaving, true);
+  assert.equal(home.data.pet.id, 'pet-a');
+  refresh.resolve({ logs: [] }); await first;
+  assert.equal(writes.length, 1); assert.equal(writes[0].petId, 'pet-a');
+  assert.equal(writes[0].kind, '体重'); assert.equal(writes[0].value, '325g');
+  assert.equal(home.data.weightInput, ''); assert.equal(home.data.weightSaving, false);
+});
+
+test('home weight history filters foreign, malformed and unitless records and orders by measurement time', async () => {
+  const home = page('home', { ...careApi, listCareLogs: async () => ({ logs: [
+    { id: 'new', petId: 'pet-a', kind: '体重', value: '0.325kg', recordedAt: '2026-11-16T00:00:00Z' },
+    { id: 'old', petId: 'pet-a', kind: '体重', value: '320 克', recordedAt: '2026-11-15T00:00:00Z' },
+    { id: 'other', petId: 'pet-b', kind: '体重', value: '900g', recordedAt: '2026-11-17T00:00:00Z' },
+    ...['320', '-2g', '0g', '20mg', 'private-value', 'Infinityg'].map((value) => ({ petId: 'pet-a', kind: '体重', value, recordedAt: '2026-11-17T00:00:00Z' })),
+    { petId: 'pet-a', kind: '喂食', value: '999g', recordedAt: '2026-11-18T00:00:00Z' },
+  ] }) });
+  await home.loadSummary();
+  assert.equal(home.data.latestWeight.grams, 325);
+  assert.equal(home.data.weightChange, '+5 g');
+  assert.deepEqual(home.data.weightHistory.map((x) => x.id), ['old', 'new']);
+});
+
+test('home invalid weight never writes and an unconfirmed save requires a read before another write', async () => {
+  let writes = 0;
+  const home = page('home', { ...careApi, createCareLog: async () => { writes++; throw { statusCode: 502 }; } });
+  await home.loadSummary();
+  for (const value of ['', '0', '-1', '1e3', 'NaN', '1.1234']) {
+    home.onWeightInput({ detail: { value } }); await home.saveWeight();
+  }
+  assert.equal(writes, 0);
+  home.onWeightInput({ detail: { value: '320' } }); await home.saveWeight(); await home.saveWeight();
+  assert.equal(writes, 1); assert.equal(home.data.weightInput, '320');
+  assert.equal(home.data.weightUnconfirmed, true);
+  await home.loadWeights(); assert.equal(home.data.weightUnconfirmed, false);
+});
+
+test('home read failure clears stale weights and a successful save stays successful when only refresh fails', async () => {
+  let failed = false;
+  const home = page('home', { ...careApi, listCareLogs: async () => {
+    if (failed) throw { statusCode: 503 };
+    return { logs: [{ id: 'old', petId: 'pet-a', kind: '体重', value: '320g', recordedAt: '2026-11-15T00:00:00Z' }] };
+  }, createCareLog: async () => { failed = true; } });
+  await home.loadSummary(); home.onWeightInput({ detail: { value: '325' } });
+  await home.saveWeight();
+  assert.equal(home.data.weightInput, ''); assert.match(home.data.weightNotice, /已保存/);
+  assert.ok(home.data.weightError); assert.deepEqual(home.data.weightHistory, []);
+  assert.equal(home.data.latestWeight, null); assert.equal(home.data.weightSaving, false);
+});
+
+test('home uses existing cover photos and falls back to species art without breaking other pets', async () => {
+  const home = page('home', { ...careApi, listPets: async () => ({ pets: [
+    { ...carePets[0], speciesCode: 'rat', coverUrl: 'https://images.example.test/pet-a' },
+    { ...carePets[1], speciesCode: 'other' },
+  ] }) });
+  await home.loadSummary();
+  assert.equal(home.data.pet.avatarUrl, 'https://images.example.test/pet-a');
+  home.onAvatarError({ currentTarget: { dataset: { id: 'pet-a' } } });
+  assert.equal(home.data.pet.avatarUrl, '/assets/species-rat.png');
+  home.onAvatarError({ currentTarget: { dataset: { id: 'pet-a' } } });
+  assert.equal(home.data.pet.avatarUrl, '');
+  assert.equal(home.data.pets[1].avatarUrl, '');
+});

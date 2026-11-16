@@ -10,7 +10,7 @@
     <view class="hero-orbit orbit-two"></view>
     <view class="hero-copy">
       <text class="hero-label">PETSCAPE DAILY CARE</text>
-      <text class="hero-title">记录 {{pet ? pet.name : '你的宠物'}} 的每一天</text>
+      <text class="hero-title">记录宠物的每一天</text>
       <text class="hero-note">喂食 · 饮水 · 清洁 · 体重 · 观察</text>
     </view>
     <view class="hero-arrow">→</view>
@@ -23,20 +23,84 @@
     <view class="muted error-detail">{{loadErrorDetail}}</view>
     <button class="secondary-button section" bindtap="loadSummary">重试读取</button>
   </view>
-  <view wx:elif="{{pet}}" class="pet-strip card" bindtap="openPet">
-    <view class="pet-avatar"><image wx:if="{{pet.speciesImage}}" class="species-image" src="{{pet.speciesImage}}" mode="aspectFill" /><text wx:else>{{pet.speciesEmoji}}</text></view>
-    <view class="pet-info">
-      <text class="pet-name">{{pet.name}}</text>
-      <text class="muted">{{pet.speciesLabel}} · {{pet.breed || '品种待补充'}} · {{pet.environmentNotes || '还没有环境笔记'}}</text>
+  <view wx:elif="{{pet}}" class="pet-family section">
+    <view class="section-head">
+      <view><text class="section-title">我的宠物家庭</text><text class="family-count">{{pets.length}} 位成员</text></view>
+      <button class="text-button" disabled="{{weightSaving}}" data-path="/pages/pet-edit/index" bindtap="openAction">＋ 添加</button>
     </view>
-    <text class="section-link">档案 →</text>
+    <scroll-view class="pet-selector" scroll-x="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}">
+      <view class="pet-selector-track">
+        <button wx:for="{{pets}}" wx:key="id" class="pet-choice {{selectedPetId === item.id ? 'is-selected' : ''}}" data-id="{{item.id}}" bindtap="selectPet" disabled="{{weightSaving}}" aria-label="选择{{item.name}}">
+          <view class="choice-avatar"><image wx:if="{{item.avatarUrl}}" class="choice-image" src="{{item.avatarUrl}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><text wx:else>{{item.speciesEmoji}}</text></view>
+          <text class="choice-name">{{item.name}}</text>
+          <view class="choice-dot"></view>
+        </button>
+      </view>
+    </scroll-view>
+    <view class="pet-strip card" bindtap="openPet">
+      <view class="pet-info">
+        <text class="pet-name">{{pet.name}} 的小档案</text>
+        <text class="muted">{{pet.speciesLabel}} · {{pet.breed || '品种待补充'}}</text>
+      </view>
+      <text class="section-link">档案 →</text>
+    </view>
   </view>
   <view wx:else class="empty card" bindtap="openPet">
     <view class="empty-title">先建立一份宠物档案</view>
     <view class="muted">从物种、体型和习性开始，照顾好它的每一天</view>
   </view>
 
-  <view class="section">
+  <view wx:if="{{pet}}" class="section weight-section">
+    <view class="section-head">
+      <view><text class="section-title">体重记录</text><text class="weight-pet-tag">{{pet.name}}</text></view>
+      <button class="text-button" disabled="{{weightSaving}}" bindtap="toggleWeightEditor">{{weightEditorOpen ? '收起' : '＋ 记体重'}}</button>
+    </view>
+    <view class="weight-card card">
+      <view class="weight-eyebrow">A LITTLE RECORD, EVERY DAY</view>
+      <view wx:if="{{weightLoading}}" class="weight-empty">正在读取 {{pet.name}} 的体重</view>
+      <view wx:elif="{{weightError}}" class="weight-empty">
+        <view class="weight-empty-title">{{weightError}}</view>
+        <view class="muted error-detail">{{weightDiagnostic}}</view>
+        <button class="secondary-button weight-retry" disabled="{{weightSaving}}" bindtap="loadWeights">重试读取</button>
+      </view>
+      <block wx:elif="{{latestWeight}}">
+        <view class="weight-summary">
+          <view><text class="weight-number">{{latestWeight.displayValue}}</text><text class="weight-unit">g</text></view>
+          <view class="weight-comparison"><text>{{weightChange ? '比上次 ' + weightChange : '最近一次记录'}}</text><text class="muted">{{latestWeight.time}}</text></view>
+        </view>
+        <view class="weight-chart" aria-label="最近{{weightHistory.length}}次体重记录，单位克">
+          <view wx:for="{{weightHistory}}" wx:key="id" class="weight-column">
+            <view class="weight-bar-track"><view class="weight-bar {{index === weightHistory.length - 1 ? 'is-latest' : ''}}" style="height: {{item.height}}%;"></view></view>
+            <text class="weight-bar-value">{{item.displayValue}}</text>
+            <text class="weight-bar-date">{{item.date}}</text>
+          </view>
+        </view>
+      </block>
+      <view wx:else class="weight-empty">
+        <view class="weight-empty-mark">g</view>
+        <view class="weight-empty-title">近期暂无可显示的体重</view>
+        <view class="muted">给 {{pet.name}} 留下今天的一笔。</view>
+      </view>
+      <view wx:if="{{weightEditorOpen}}" class="weight-editor">
+        <view class="weight-input-label">{{pet.name}} · 本次体重</view>
+        <view class="weight-input-row">
+          <input class="weight-input" type="digit" maxlength="16" value="{{weightInput}}" bindinput="onWeightInput" placeholder="输入体重" disabled="{{weightSaving}}" aria-label="{{pet.name}}的体重" />
+          <view class="weight-units">
+            <button class="unit-button {{weightUnit === 'g' ? 'is-active' : ''}}" data-unit="g" bindtap="onWeightUnit" disabled="{{weightSaving}}">g</button>
+            <button class="unit-button {{weightUnit === 'kg' ? 'is-active' : ''}}" data-unit="kg" bindtap="onWeightUnit" disabled="{{weightSaving}}">kg</button>
+          </view>
+        </view>
+        <view class="weight-range-hint">大于 0，最多三位小数，上限 1000 kg。</view>
+        <button class="primary-button weight-save" loading="{{weightSaving}}" disabled="{{loading || weightSaving || weightLoading || weightUnconfirmed || weightError}}" bindtap="saveWeight">保存 {{pet.name}} 的体重</button>
+      </view>
+      <view wx:if="{{weightNotice}}" class="weight-notice">{{weightNotice}}</view>
+      <button wx:if="{{weightUnconfirmed}}" class="secondary-button weight-retry" disabled="{{weightSaving || weightLoading}}" bindtap="loadWeights">刷新记录，再核对</button>
+      <view class="weight-footnote">从最近 100 条养护记录中提取，展示最近 7 次有效体重。</view>
+      <view class="weight-footer" bindtap="openCare"><view><text>养护记录与提醒</text><text class="weight-footer-hint">进入后可选择宠物</text></view><text>→</text></view>
+    </view>
+  </view>
+
+  <view wx:elif="{{!loading && !loadError}}" class="section">
     <view class="section-head">
       <text class="section-title">现在开始</text>
     </view>

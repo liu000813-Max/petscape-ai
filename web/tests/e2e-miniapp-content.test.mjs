@@ -299,6 +299,31 @@ test('native session fixture recovers expired read and write through real protec
   } finally { await client.drain(); }
 });
 
+test('home weight editor persists normalized weights only for its selected pet through real HTTP', async () => {
+  const client = await nativeClient('owner');
+  try {
+    const first = await client.api.createPet({ name: run + '-home-a', speciesCode: 'rat' });
+    const second = await client.api.createPet({ name: run + '-home-b', speciesCode: 'parrot' });
+    const home = await client.loadPage('home');
+    await home.loadSummary();
+    await home.selectPet({ currentTarget: { dataset: { id: first.id } } });
+    home.onWeightInput({ detail: { value: '0.325' } });
+    home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+    await home.saveWeight();
+    assert.equal(home.data.latestWeight.grams, 325);
+    assert.equal(home.data.weightNotice, '体重已保存');
+    const records = await prisma.careLog.findMany({ where: { petId: first.id, ownerUserId: users.owner } });
+    assert.equal(records.length, 1); assert.equal(records[0].value, '325g');
+    await home.selectPet({ currentTarget: { dataset: { id: second.id } } });
+    assert.equal(home.data.latestWeight, null); assert.equal(home.data.weightInput, '');
+    assert.equal(await prisma.careLog.count({ where: { petId: second.id } }), 0);
+    await home.selectPet({ currentTarget: { dataset: { id: first.id } } });
+    assert.equal(home.data.latestWeight.grams, 325);
+    const hidden = await http('/api/v1/care-logs?petId=' + first.id, { headers: nativeHeaders('other') });
+    assert.deepEqual(hidden.logs, []);
+  } finally { await client.drain(); }
+});
+
 test('native care page saves to the selected pet after list changes and completes a persisted reminder', async () => {
   const client = await nativeClient('owner');
   try {
