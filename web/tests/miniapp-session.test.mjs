@@ -9,9 +9,9 @@ const require = createRequire(filename);
 
 function client({ token, login, request }) {
   const storage = new Map(token ? [['petscape_session_token', token]] : []);
-  const module = { exports: {} };
+  const nativeModule = { exports: {} };
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
-    module, require,
+    module: nativeModule, require,
     getApp: () => ({ globalData: { mockMode: false, apiBaseUrl: 'https://api.example.com' } }),
     wx: {
       getStorageSync: (key) => storage.get(key),
@@ -24,7 +24,7 @@ function client({ token, login, request }) {
       },
     },
   });
-  return { api: module.exports, storage };
+  return { api: nativeModule.exports, storage };
 }
 
 const unauthorized = (options) => options.success({ statusCode: 401, data: { error: 'unauthorized' } });
