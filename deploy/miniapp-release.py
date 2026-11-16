@@ -167,7 +167,8 @@ def main():
     snippet_created = False
     try:
         run(docker + ['run', '-d', '--name', NAME, '--restart', 'unless-stopped', '--init',
-                      '--memory=256m', '--cpus=0.75', '--cap-drop=ALL', '--security-opt=no-new-privileges',
+                      # Container memory also covers Next.js/native allocations outside the 160m V8 heap.
+                      '--memory=384m', '--cpus=0.75', '--cap-drop=ALL', '--security-opt=no-new-privileges',
                       '--env-file', str(ENV), '-e', 'NODE_OPTIONS=--max-old-space-size=160',
                       '-p', '127.0.0.1:3011:3000', '--label', 'petscape.component=miniapp-api', image], timeout=45)
         ready = False
