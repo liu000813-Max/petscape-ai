@@ -307,11 +307,14 @@ test('home weight editor persists normalized weights only for its selected pet t
     const home = await client.loadPage('home');
     await home.loadSummary();
     await home.selectPet({ currentTarget: { dataset: { id: first.id } } });
+    home.openWeightModal();
+    assert.equal(home.data.activeModal, 'weight'); assert.equal(home.data.modalPetId, first.id);
     home.onWeightInput({ detail: { value: '0.325' } });
     home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
     await home.saveWeight();
     assert.equal(home.data.latestWeight.grams, 325);
     assert.equal(home.data.weightNotice, '体重已保存');
+    assert.equal(home.data.activeModal, '');
     const records = await prisma.careLog.findMany({ where: { petId: first.id, ownerUserId: users.owner } });
     assert.equal(records.length, 1); assert.equal(records[0].value, '325g');
     await home.selectPet({ currentTarget: { dataset: { id: second.id } } });
@@ -321,6 +324,31 @@ test('home weight editor persists normalized weights only for its selected pet t
     assert.equal(home.data.latestWeight.grams, 325);
     const hidden = await http('/api/v1/care-logs?petId=' + first.id, { headers: nativeHeaders('other') });
     assert.deepEqual(hidden.logs, []);
+  } finally { await client.drain(); }
+});
+
+test('home care confirmation popups persist all four kinds through HTTP without cross-pet records', async () => {
+  const client = await nativeClient('owner');
+  try {
+    const pet = await client.api.createPet({ name: run + '-home-care', speciesCode: 'gecko' });
+    const other = await client.api.createPet({ name: run + '-home-care-other', speciesCode: 'rat' });
+    const home = await client.loadPage('home'); await home.loadSummary();
+    await home.selectPet({ currentTarget: { dataset: { id: pet.id } } });
+    for (const kind of ['喂食', '换水', '清洁', '生病']) {
+      home.openCareModal({ currentTarget: { dataset: { kind } } });
+      assert.equal(await prisma.careLog.count({ where: { petId: pet.id, kind } }), 0);
+      home.onCareNote({ detail: { value: run + '-' + kind } });
+      if (kind === '喂食') home.onCareValue({ detail: { value: '蟋蟀2只' } });
+      await Promise.all([home.saveCareRecord(), home.saveCareRecord()]);
+      assert.equal(home.data.activeModal, '');
+      const rows = await prisma.careLog.findMany({ where: { petId: pet.id, kind } });
+      assert.equal(rows.length, 1); assert.equal(rows[0].ownerUserId, users.owner);
+      assert.equal(rows[0].note, run + '-' + kind);
+    }
+    assert.equal(home.data.latestFeeding.displayValue, '蟋蟀2只');
+    assert.equal(await prisma.careLog.count({ where: { petId: other.id } }), 0);
+    await home.selectPet({ currentTarget: { dataset: { id: other.id } } });
+    assert.equal(home.data.latestFeeding, null); assert.equal(home.data.latestWeight, null);
   } finally { await client.drain(); }
 });
 

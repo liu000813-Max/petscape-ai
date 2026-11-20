@@ -447,11 +447,15 @@ test('home switches pets by ID, restores their own drafts and keeps selection af
   let pets = carePets;
   const home = page('home', { ...careApi, listPets: async () => ({ pets }) });
   await home.loadSummary();
+  home.openWeightModal();
   home.onWeightInput({ detail: { value: '320' } });
+  home.closeModal();
   await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
   assert.equal(home.data.weightInput, '');
+  home.openWeightModal();
   home.onWeightInput({ detail: { value: '0.72' } });
   home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+  home.closeModal();
   pets = [carePets[1], carePets[0]];
   await home.loadSummary();
   assert.equal(home.data.pet.id, 'pet-b');
@@ -492,7 +496,7 @@ test('home weight save normalizes units, blocks double taps and holds selection 
     createCareLog: async (payload) => { writes.push(payload); await save.promise; },
     listCareLogs: async () => ++reads === 1 ? { logs: [] } : refresh.promise,
   });
-  await home.loadSummary(); home.onWeightInput({ detail: { value: '0.325' } });
+  await home.loadSummary(); home.openWeightModal(); home.onWeightInput({ detail: { value: '0.325' } });
   home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
   const first = home.saveWeight();
   await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
@@ -524,6 +528,7 @@ test('home invalid weight never writes and an unconfirmed save requires a read b
   let writes = 0;
   const home = page('home', { ...careApi, createCareLog: async () => { writes++; throw { statusCode: 502 }; } });
   await home.loadSummary();
+  home.openWeightModal();
   for (const value of ['', '0', '-1', '1e3', 'NaN', '1.1234']) {
     home.onWeightInput({ detail: { value } }); await home.saveWeight();
   }
@@ -540,7 +545,7 @@ test('home read failure clears stale weights and a successful save stays success
     if (failed) throw { statusCode: 503 };
     return { logs: [{ id: 'old', petId: 'pet-a', kind: '体重', value: '320g', recordedAt: '2026-11-15T00:00:00Z' }] };
   }, createCareLog: async () => { failed = true; } });
-  await home.loadSummary(); home.onWeightInput({ detail: { value: '325' } });
+  await home.loadSummary(); home.openWeightModal(); home.onWeightInput({ detail: { value: '325' } });
   await home.saveWeight();
   assert.equal(home.data.weightInput, ''); assert.match(home.data.weightNotice, /已保存/);
   assert.ok(home.data.weightError); assert.deepEqual(home.data.weightHistory, []);
@@ -591,6 +596,7 @@ test('home carousel ignores late weights and cannot swipe or open a profile duri
   await home.onPetSwipe({ detail: { current: 1, source: 'touch' } });
   old.resolve({ logs: [] }); await initial;
   assert.equal(home.data.latestWeight.grams, 720);
+  home.openWeightModal();
   home.onWeightInput({ detail: { value: '725' } });
   const write = home.saveWeight();
   await home.onPetSwipe({ detail: { current: 0, source: 'touch' } });
@@ -602,7 +608,7 @@ test('home carousel ignores late weights and cannot swipe or open a profile duri
   assert.equal(writes, 1); assert.equal(home.data.petIndex, 1);
 });
 
-test('every carousel avatar opens its own profile and the selected profile card opens the same pet', async () => {
+test('every carousel avatar opens its own profile and the home pet action opens the selected pet', async () => {
   const special = { id: 'pet b?/名', name: '团子' };
   const home = page('home', { ...careApi, listPets: async () => ({ pets: [carePets[0], special] }) });
   await home.loadSummary();
@@ -677,4 +683,136 @@ test('editing an unrecognized legacy stage requires explicit confirmation before
   await form.submit(); assert.equal(updates.length, 0);
   form.onLifeStageChange({ detail: { value: String(form.data.lifeStageOptions.findIndex(option => option.value === 'unknown')) } });
   await form.submit(); assert.equal(updates.length, 1); assert.equal(updates[0].lifeStage, 'unknown');
+});
+
+test('home weight editor opens as a modal and fixes the pet until canceled or saved', async () => {
+  const home = page('home', careApi);
+  await home.loadSummary(); home.setData({ weightNotice: '体重已保存' }); home.openWeightModal();
+  assert.equal(home.data.weightNotice, '');
+  assert.equal(home.data.activeModal, 'weight'); assert.equal(home.data.modalPetId, 'pet-a');
+  await home.onPetSwipe({ detail: { current: 1 } });
+  assert.equal(home.data.selectedPetId, 'pet-a');
+  home.onWeightInput({ detail: { value: '321' } }); home.closeModal();
+  assert.equal(home.data.activeModal, ''); assert.equal(home.data.weightInput, '321');
+  await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
+  home.openWeightModal(); assert.equal(home.data.modalPetId, 'pet-b');
+  assert.equal(home.data.weightInput, '');
+});
+
+test('home line and bar views use the same valid weights and single measurements never gain fake segments', async () => {
+  let logs = [{ id: 'one', petId: 'pet-a', kind: '体重', value: '320g', recordedAt: '2026-11-15T00:00:00Z' }];
+  const home = page('home', { ...careApi, listCareLogs: async () => ({ logs }) });
+  await home.loadSummary(); assert.equal(home.data.weightLinePoints.length, 1); assert.equal(home.data.weightLineSegments.length, 0);
+  logs.push({ id: 'two', petId: 'pet-a', kind: '体重', value: '0.325kg', recordedAt: '2026-11-16T00:00:00Z' });
+  await home.loadWeights();
+  const history = structuredClone(home.data.weightHistory);
+  home.setChartMode({ currentTarget: { dataset: { mode: 'line' } } });
+  assert.equal(home.data.weightChartMode, 'line'); assert.equal(home.data.weightLineSegments.length, 1);
+  assert.equal(home.data.weightLinePoints.at(-1).grams, 325);
+  assert.ok(home.data.weightLineSegments.every(line => Number.isFinite(line.angle) && line.length > 0));
+  home.setChartMode({ currentTarget: { dataset: { mode: 'bar' } } });
+  assert.deepEqual(home.data.weightHistory, history);
+});
+
+test('home feeding card reads only the selected pets latest feeding without inventing quantities', async () => {
+  const home = page('home', { ...careApi, listCareLogs: async () => ({ logs: [
+    { id: 'old', petId: 'pet-a', kind: '喂食', value: '2只蟋蟀', recordedAt: '2026-11-14T00:00:00Z' },
+    { id: 'latest', petId: 'pet-a', kind: '喂食', value: null, note: '正常进食', recordedAt: '2026-11-16T00:00:00Z' },
+    { id: 'foreign', petId: 'pet-b', kind: '喂食', value: '999g', recordedAt: '2026-11-17T00:00:00Z' },
+    { id: 'water', petId: 'pet-a', kind: '换水', value: '100ml', recordedAt: '2026-11-18T00:00:00Z' },
+  ] }) });
+  await home.loadSummary();
+  assert.equal(home.data.latestFeeding.id, 'latest');
+  assert.equal(home.data.latestFeeding.displayValue, '已记录喂食'); assert.equal(home.data.earlierFeedings.length, 1);
+  assert.equal(home.data.latestFeeding.note, '正常进食');
+});
+
+test('home four care buttons open confirmation modals and save once to their fixed pet', async () => {
+  for (const kind of ['喂食', '换水', '清洁', '生病']) {
+    const pending = deferred(); const writes = [];
+    const home = page('home', { ...careApi, createCareLog: async payload => { writes.push(payload); await pending.promise; } });
+    await home.loadSummary(); home.openCareModal({ currentTarget: { dataset: { kind } } });
+    assert.equal(home.data.activeModal, 'care'); assert.equal(writes.length, 0);
+    home.onCareNote({ detail: { value: '今天的观察' } }); home.onCareValue({ detail: { value: kind === '喂食' ? '2只蟋蟀' : '' } });
+    const save = home.saveCareRecord();
+    home.closeModal(); await home.onPetSwipe({ detail: { current: 1 } }); await home.saveWeight(); await home.saveCareRecord();
+    assert.equal(home.data.activeModal, 'care'); assert.equal(home.data.selectedPetId, 'pet-a');
+    pending.resolve(); await save;
+    assert.equal(writes.length, 1); assert.equal(writes[0].petId, 'pet-a'); assert.equal(writes[0].kind, kind);
+    assert.equal(home.data.activeModal, ''); assert.equal(home.data.careSaving, false);
+  }
+});
+
+test('ambiguous home care failures preserve their own drafts and require a successful read before retry', async () => {
+  let writes = 0; let readFails = false;
+  const home = page('home', { ...careApi, listCareLogs: async () => { if (readFails) throw { statusCode: 503 }; return { logs: [] }; },
+    createCareLog: async () => { writes++; throw { statusCode: 502 }; } });
+  await home.loadSummary(); home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  home.onCareNote({ detail: { value: '喂食草稿' } }); await home.saveCareRecord(); await home.saveCareRecord();
+  assert.equal(writes, 1); assert.equal(home.data.careUnconfirmed, true);
+  home.closeModal(); home.openCareModal({ currentTarget: { dataset: { kind: '清洁' } } });
+  assert.equal(home.data.careNote, ''); home.closeModal(); home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  assert.equal(home.data.careNote, '喂食草稿'); assert.equal(home.data.careUnconfirmed, true);
+  readFails = true; await home.refreshCareRecords(); assert.equal(home.data.careUnconfirmed, true);
+  readFails = false; await home.refreshCareRecords(); assert.equal(home.data.careUnconfirmed, false);
+});
+
+test('a late care refresh cannot unlock a different or reopened confirmation modal', async () => {
+  for (const reopenKind of ['清洁', '喂食']) {
+    const pending = deferred();
+    let reads = 0; let writes = 0;
+    const home = page('home', { ...careApi,
+      listCareLogs: async () => ++reads === 1 ? { logs: [] } : pending.promise,
+      createCareLog: async () => { writes++; throw { statusCode: 502 }; },
+    });
+    const open = (kind) => home.openCareModal({ currentTarget: { dataset: { kind } } });
+    await home.loadSummary();
+    for (const kind of ['喂食', '清洁']) {
+      open(kind); home.onCareNote({ detail: { value: kind + '草稿' } });
+      await home.saveCareRecord(); home.closeModal();
+    }
+    open('喂食');
+    const refresh = home.refreshCareRecords();
+    home.closeModal(); open(reopenKind);
+    assert.equal(home.data.careUnconfirmed, true);
+    pending.resolve({ logs: [] }); await refresh;
+    assert.equal(home.data.careUnconfirmed, true);
+    assert.equal(home.data.careNote, reopenKind + '草稿');
+    await home.saveCareRecord(); assert.equal(writes, 2);
+  }
+});
+
+test('illness observations require a description and device entry never fabricates a connected reading', async () => {
+  let writes = 0;
+  const home = page('home', { ...careApi, createCareLog: async () => { writes++; } });
+  await home.loadSummary(); home.openCareModal({ currentTarget: { dataset: { kind: '生病' } } });
+  await home.saveCareRecord(); assert.equal(writes, 0);
+  home.closeModal(); home.openDeviceModal();
+  assert.equal(home.data.activeModal, 'device'); assert.equal(home.data.modalPetId, 'pet-a');
+});
+
+test('home care drafts stay with their pet after switching away and returning', async () => {
+  const home = page('home', careApi);
+  await home.loadSummary(); home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  home.onCareValue({ detail: { value: '5g' } }); home.onCareNote({ detail: { value: 'A 的草稿' } }); home.closeModal();
+  await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
+  home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  assert.equal(home.data.careValue, ''); assert.equal(home.data.careNote, '');
+  home.onCareNote({ detail: { value: 'B 的草稿' } }); home.closeModal();
+  await home.selectPet({ currentTarget: { dataset: { id: 'pet-a' } } });
+  home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  assert.equal(home.data.careValue, '5g'); assert.equal(home.data.careNote, 'A 的草稿');
+});
+
+test('confirmed home care writes remain saved when their following read fails', async () => {
+  let reads = 0; let writes = 0;
+  const home = page('home', { ...careApi,
+    listCareLogs: async () => { if (++reads > 1) throw { statusCode: 503 }; return { logs: [] }; },
+    createCareLog: async () => { writes++; },
+  });
+  await home.loadSummary(); home.openCareModal({ currentTarget: { dataset: { kind: '换水' } } });
+  await home.saveCareRecord(); await home.saveCareRecord();
+  assert.equal(writes, 1); assert.equal(home.data.activeModal, '');
+  assert.match(home.data.recordNotice, /换水已保存/); assert.match(home.data.recordNotice, /暂未刷新/);
+  assert.equal(home.data.careUnconfirmed, false); assert.equal(home.data.careNote, '');
 });
