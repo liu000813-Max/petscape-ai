@@ -17,18 +17,24 @@ const REFERENCES = [
   {
     category: 'snake', speciesName: '玉米蛇',
     aliases: ['玉米蛇', 'corn snake', 'pantherophis guttatus'],
-    sourceLabel: 'RVC Exotics Service', sourceUrl: 'https://www.rvc.ac.uk/Media/Default/small-animal/documents/Corn-snake-care%20-%20UPDATED.pdf',
-    note: '现有来源提供生长和寿命信息，但没有连续、可复用的四阶段年龄边界；各阶段年月待核实。',
+    sourceLabel: 'The Maryland Zoo（2024）', sourceUrl: 'https://www.marylandzoo.org/wp-content/uploads/2024/06/Corn-Snake-Species-Profile_June-2024.pdf',
+    note: '动物园资料提供性成熟和寿命信息，但没有定义四阶段年龄边界；性成熟年龄不等于成体阶段标准，各阶段年月待核实。',
   },
   {
     category: 'parrot', speciesName: '虎皮鹦鹉',
     aliases: ['虎皮鹦鹉', 'budgerigar', 'budgie', 'melopsittacus undulatus'],
-    note: '现有发育与老龄资料采用不同定义，不能拼成统一的四阶段年月标准；各阶段年月待核实。',
+    sourceLabel: 'AAV 鸟类兽医协会（2022）· 表 1',
+    sourceUrl: 'https://cdn.ymaws.com/www.aav.org/resource/collection/AE20E93E-0F61-4C20-AB88-E237BD795B43/AAV-care-for-senior-parrots.pdf',
+    ranges: { senior: '超过 6 年' },
+    note: 'AAV 将超过 6 年列为老年养护参考；个体衰老受遗传、营养和活动等影响，不代表疾病诊断。来源未定义其他三个阶段的年月，继续待核实。',
   },
   {
     category: 'parrot', speciesName: '玄凤鹦鹉',
     aliases: ['玄凤鹦鹉', 'cockatiel', 'nymphicus hollandicus'],
-    note: '现有发育与老龄资料采用不同定义，不能拼成统一的四阶段年月标准；各阶段年月待核实。',
+    sourceLabel: 'AAV 鸟类兽医协会（2022）· 表 1',
+    sourceUrl: 'https://cdn.ymaws.com/www.aav.org/resource/collection/AE20E93E-0F61-4C20-AB88-E237BD795B43/AAV-care-for-senior-parrots.pdf',
+    ranges: { senior: '超过 12 年' },
+    note: 'AAV 将超过 12 年列为老年养护参考；个体衰老受遗传、营养和活动等影响，不代表疾病诊断。来源未定义其他三个阶段的年月，继续待核实。',
   },
 ];
 

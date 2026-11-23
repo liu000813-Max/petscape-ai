@@ -739,6 +739,29 @@ test('life-stage references never extrapolate ages across broad species categori
   }
 });
 
+test('bird senior ages remain species-specific and do not fill unrelated life stages', async () => {
+  const { getLifeStageReference, getLifeStageOptions } = require(path.join(root, 'utils/life-stages.js'));
+  for (const [name, senior] of [['虎皮鹦鹉', '超过 6 年'], ['Nymphicus hollandicus', '超过 12 年']]) {
+    const reference = getLifeStageReference('parrot', name);
+    const options = getLifeStageOptions(reference);
+    assert.equal(reference.ranges.senior, senior);
+    assert.equal(options[3].label, `老年（${senior}）`);
+    assert.ok(options.slice(0, 3).every(option => option.label.includes('年月待核实')));
+    assert.match(reference.sourceLabel, /AAV/);
+    assert.match(reference.note, /不代表疾病诊断/);
+  }
+  assert.equal(getLifeStageReference('parrot', '鹦鹉').ranges, null);
+  assert.equal(getLifeStageReference('gecko', '虎皮鹦鹉').ranges, null);
+  assert.equal(getLifeStageReference('other', '', '玄凤鹦鹉').ranges.senior, '超过 12 年');
+  const form = page('pet-edit');
+  form.onSpeciesChange({ detail: { value: '3' } });
+  form.onInput({ currentTarget: { dataset: { field: 'breed' } }, detail: { value: '虎皮鹦鹉' } });
+  assert.equal(form.data.form.lifeStage, 'unknown');
+  assert.equal(form.data.lifeStageOptions[3].label, '老年（超过 6 年）');
+  form.onInput({ currentTarget: { dataset: { field: 'breed' } }, detail: { value: '玄凤鹦鹉' } });
+  assert.equal(form.data.lifeStageOptions[3].label, '老年（超过 12 年）');
+});
+
 test('editing an unrecognized legacy stage requires explicit confirmation before any update', async () => {
   const updates = [];
   wx.setNavigationBarTitle = () => {};

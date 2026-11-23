@@ -15,27 +15,33 @@
 | 物种 | 幼年 | 亚成体 | 成体 | 老年 |
 | --- | --- | --- | --- | --- |
 | 豹纹守宫 | 0–7 个月（显示映射） | 7–12 个月 | 12 个月以上 | 年月待核实 |
-| 花枝鼠、玉米蛇、虎皮鹦鹉、玄凤鹦鹉及其他未核实物种 | 年月待核实 | 年月待核实 | 年月待核实 | 年月待核实 |
+| 虎皮鹦鹉 | 年月待核实 | 年月待核实 | 年月待核实 | 超过 6 年（AAV 养护参考） |
+| 玄凤鹦鹉 | 年月待核实 | 年月待核实 | 年月待核实 | 超过 12 年（AAV 养护参考） |
+| 花枝鼠、玉米蛇及其他未核实物种 | 年月待核实 | 年月待核实 | 年月待核实 | 年月待核实 |
 
 豹纹守宫依据为兽医 Melissa Witherell 的 [PetMD 原文](https://www.petmd.com/reptile/how-long-do-leopard-geckos-live)，发布于 2022-10-27，本次读取于 2026-11-23。原文分别列出孵化幼体 0–2 个月、幼体 2–7 个月、亚成体 7–12 个月及成体 12 个月以上。界面为兼容已确认的四阶段，将前两类合并显示为幼年；这是产品显示映射，不是原文的分类名称，也不是统一诊疗标准。来源没有给出老年起点，不能由平均寿命推算。
 
 每个选项按阶段单独标注；不足四阶段不妨碍展示已核实部分。边界值来自原文范围，不执行年龄自动分段。只有精确匹配到该物种时才显示，其他守宫不能套用。
 
-本次 AAV 老龄鹦鹉资料与 RVC 玉米蛇资料页面无法读取，记为待核实，不反复请求。此前发育节点与老龄界限的资料不足以建立连续四阶段，继续保留待核实。编辑页提供“查看年龄参考依据”，说明映射、来源与限制。
+首次访问 AAV 官网 PDF 和 RVC 玉米蛇页面失败，未重复请求。用户随后明确允许补充可靠一手来源，新增读取 AAV 官方 CDN 的 [Care for Senior Parrots（2022）](https://cdn.ymaws.com/www.aav.org/resource/collection/AE20E93E-0F61-4C20-AB88-E237BD795B43/AAV-care-for-senior-parrots.pdf)。第 1 页表 1 的 Considered geriatric 栏分别列出虎皮 >6 年、玄凤 >12 年；这是独立的老年养护参考，不能把相邻的寿命栏当作年龄边界，也不反推三个早期阶段。个体衰老还受营养、遗传、活动等影响，不代表疾病诊断。
+
+编辑页的既有“查看年龄参考依据”入口说明来源与限制。本轮只补现有物种，不增加其他鹦鹉条目，不改主人已选的阶段。
 
 ## 物种与参考范围
 
 沿用现有分类、品种或补充说明、自定义物种字段，不新增必填项。仅使用规范名称与明确别名匹配豹纹守宫、玉米蛇、虎皮鹦鹉和玄凤鹦鹉；花枝鼠使用本分类。其他描述保留为用户填写内容，未核实具体物种时显示待确认，不按“守宫”“蛇类”“鹦鹉”“蜘蛛”推断统一年龄。
 
-此前资料核对如下。除上述本次核实的豹纹守宫外，表中的年龄只是文献提供的特定观察，不用于填充四阶段年月，也不用于自动选择阶段。
+此前资料核对如下。除上述已核实的豹纹守宫阶段和 AAV 两种鹦鹉老年参考外，表中的年龄只是文献提供的特定观察，不用于填充四阶段年月，也不用于自动选择阶段。
 
 | 具体对象 | 已取得资料 | 对四阶段年月的影响 |
 | --- | --- | --- |
 | 花枝鼠相关家养大鼠 | MSD 兽医手册给出雌雄不同的性成熟周龄和断奶时间 | 只能说明特定发育节点，不能直接确定幼年、亚成体、成体、老年的全部边界。[来源](https://www.msdvetmanual.com/all-other-pets/rats/breeding-and-reproduction-of-rats) |
 | 玉米蛇 | 马里兰动物园资料给出约 1.5–3 年性成熟范围 | 该范围不等同于成体阶段的完整上下界，其他阶段仍待核实。[来源](https://www.marylandzoo.org/wp-content/uploads/2024/06/Corn-Snake-Species-Profile_June-2024.pdf) |
-| 虎皮、玄凤鹦鹉 | Clinical Avian Medicine 列出物种相关发育节点及老龄区间；VCA 的虎皮资料提供另一性成熟参考 | 来源的定义与区间不能简单等同；首版不据此生成连续四阶段年月。[临床章节](https://www.ivis.org/library/clinical-avian-medicine/concepts-behavior-section-ii-early-psittacine-behavior-development)、[VCA](https://vcahospitals.com/know-your-pet/budgies---general) |
+| 虎皮、玄凤鹦鹉 | AAV 老年养护手册提供独立老年界限；VCA 虎皮资料提供性成熟节点；此前引用的 Clinical Avian Medicine 章节本轮不可访问 | 只采用已核实的 AAV 老年栏，不把其他发育节点拼成连续四阶段。[AAV](https://cdn.ymaws.com/www.aav.org/resource/collection/AE20E93E-0F61-4C20-AB88-E237BD795B43/AAV-care-for-senior-parrots.pdf)、[VCA](https://vcahospitals.com/know-your-pet/budgies---general) |
 | 豹纹守宫 | 圣迭戈动物园确认物种身份及基础资料；本次新增兽医撰写的发育阶段资料 | 参考本页新增的分阶段范围，老年仍待核实。[基础资料](https://animals.sandiegozoo.org/animals/leopard-gecko) |
 | 捕鸟蛛类 | CEC 资料区分龄期、成熟雄蛛与雌蛛后续蜕皮 | 不以一种捕鸟蛛的示例年龄代表所有蜘蛛；具体物种和四阶段范围待核实。[来源](https://www.cec.org/cites/wp-content/themes/foodwaste-theme/documents/tarantula-growth-and-development-for-educators-en.pdf) |
+
+新增筛选资料：Canobie Lake Veterinary Hospital 的 [玉米蛇养护说明](https://canobievet.com/wp-content/uploads/2025/01/Corn-Snake-Care-Sheet-1.pdf)区分幼体与成体照料，但未给阶段年月，不能补选项。布达佩斯兽医大学的 [家养大鼠临床研究摘要](https://tdk.univet.hu/eng/2022session1.php?ev=2022&id=1313)按就诊主诉分组提出 young、senior、geriatric；其 young 组不是幼年期，分组目标也不是本产品四阶段，未把该组界限转写为物种标准。完整论文链接本次无法读取，未重复请求。此轮未找到花枝鼠、玉米蛇、蜘蛛的可用四阶段年月定义，继续保留待核实。
 
 识别规则是界面参考索引，不是鉴定动物物种。没有出生日期、性别或经确认的物种档案时不自动推断阶段；阶段仍由主人手动选择。
 
