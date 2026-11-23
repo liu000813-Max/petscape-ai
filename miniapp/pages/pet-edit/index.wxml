@@ -10,9 +10,13 @@
       <view wx:else class="photo-placeholder">＋</view>
       <view class="photo-actions">
         <text class="field-label">宠物头像</text>
-        <button class="photo-button" bindtap="choosePhoto" disabled="{{saving || choosingPhoto || loadFailed}}">{{choosingPhoto ? '正在选图…' : '从相册或相机上传'}}</button>
+        <button class="photo-button" bindtap="choosePhoto" disabled="{{saving || choosingPhoto || loadFailed}}">{{choosingPhoto ? '正在编辑…' : '选图并裁切头像'}}</button>
+        <text class="photo-hint">可拖动、缩放，调整头像范围</text>
         <text class="photo-hint">JPG / PNG / WebP · 最大 10 MB</text>
-        <button wx:if="{{photoSelected}}" class="photo-cancel" bindtap="cancelPhoto" disabled="{{saving}}">撤销选图</button>
+        <view wx:if="{{photoSelected}}" class="photo-edit-actions">
+          <button class="photo-cancel" bindtap="recropPhoto" disabled="{{saving || choosingPhoto}}">重新裁切</button>
+          <button class="photo-cancel" bindtap="cancelPhoto" disabled="{{saving || choosingPhoto}}">撤销选图</button>
+        </view>
       </view>
     </view>
     <view wx:if="{{photoNotice}}" class="photo-notice">{{photoNotice}}</view>

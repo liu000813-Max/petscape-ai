@@ -96,6 +96,22 @@ test('pet list shows stored photo and falls back per pet if its signed image can
   assert.equal(list.data.pets[0].speciesImage, '/assets/species-rat.png');
 });
 
+test('recrop cancellation preserves photo draft and upload identity; pending crop blocks save and undo', async () => {
+  let finish; let writes = 0;
+  const form = page('pet-edit', { createPet: async () => { writes++; } });
+  const draft = { path: '/crop.png', sourcePath: '/source.jpg', bytes: new ArrayBuffer(4), mime: 'image/png' };
+  form.photoDraft = draft; form.uploadedPhotoId = 'existing-upload';
+  form.setData({ photoSelected: true, photoPreview: draft.path, photoNotice: '已裁切', 'form.name': '团子' });
+  wx.cropImage = ({ fail }) => { finish = fail; };
+  const operation = form.recropPhoto();
+  assert.equal(form.data.choosingPhoto, true);
+  form.cancelPhoto(); await form.submit();
+  assert.equal(form.photoDraft, draft); assert.equal(writes, 0);
+  finish({ errMsg: 'cropImage:fail cancel' }); await operation;
+  assert.equal(form.photoDraft, draft); assert.equal(form.uploadedPhotoId, 'existing-upload');
+  assert.equal(form.data.photoPreview, draft.path); assert.equal(form.data.choosingPhoto, false);
+});
+
 test('every registered native page has resources and all WXML handlers exist', () => {
   const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json')));
   for (const source of files(root)) {

@@ -1,5 +1,5 @@
 const { getPet, createPet, updatePet, uploadPetPhoto } = require('../../utils/request');
-const { choosePetPhoto } = require('../../utils/pet-photo');
+const { choosePetPhoto, cropPetPhoto } = require('../../utils/pet-photo');
 const { SPECIES_OPTIONS: speciesOptions, getSpeciesMeta } = require('../../utils/species');
 
 const { LIFE_STAGE_OPTIONS: lifeStageOptions, getLifeStageOptions, getLifeStageReference } = require('../../utils/life-stages');
@@ -102,20 +102,33 @@ Page({
 
   async choosePhoto() {
     if (this.data.saving || this.data.choosingPhoto || this.data.loadFailed) return;
-    this.setData({ choosingPhoto: true, photoNotice: '' });
+    this.setData({ choosingPhoto: true });
     try {
       const photo = await choosePetPhoto();
       if (!photo) return;
       if (!this.data.photoSelected) this.previousPhoto = this.data.photoPreview;
       this.photoDraft = photo;
       this.uploadedPhotoId = null;
-      this.setData({ photoSelected: true, photoPreview: photo.path, photoNotice: '已选择，保存档案后生效' });
+      this.setData({ photoSelected: true, photoPreview: photo.path, photoNotice: '已裁切，保存档案后生效' });
+    } catch (error) { this.setData({ photoNotice: error.message }); }
+    finally { this.setData({ choosingPhoto: false }); }
+  },
+
+  async recropPhoto() {
+    if (this.data.saving || this.data.choosingPhoto || !this.photoDraft) return;
+    this.setData({ choosingPhoto: true });
+    try {
+      const photo = await cropPetPhoto(this.photoDraft);
+      if (!photo) return;
+      this.photoDraft = photo;
+      this.uploadedPhotoId = null;
+      this.setData({ photoPreview: photo.path, photoNotice: '已裁切，保存档案后生效' });
     } catch (error) { this.setData({ photoNotice: error.message }); }
     finally { this.setData({ choosingPhoto: false }); }
   },
 
   cancelPhoto() {
-    if (this.data.saving) return;
+    if (this.data.saving || this.data.choosingPhoto) return;
     this.photoDraft = null; this.uploadedPhotoId = null;
     this.setData({ photoPreview: this.previousPhoto || '', photoSelected: false, photoNotice: '' });
   },

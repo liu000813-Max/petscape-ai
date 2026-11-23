@@ -8,24 +8,50 @@ function imageMime(buffer) {
   return '';
 }
 
-function choosePetPhoto() {
+function readPhoto(filePath) {
   return new Promise((resolve, reject) => {
+    wx.getFileSystemManager().readFile({ filePath,
+      success({ data }) {
+        if (Object.prototype.toString.call(data) !== '[object ArrayBuffer]' || !data.byteLength || data.byteLength > MAX_BYTES) {
+          reject(new Error('请选择不超过 10 MB 的图片')); return;
+        }
+        const bytes = data instanceof ArrayBuffer ? data : new Uint8Array(data).buffer;
+        const mime = imageMime(bytes);
+        if (!mime) { reject(new Error('请选择 JPG、PNG 或 WebP 图片')); return; }
+        resolve({ path: filePath, bytes, mime });
+      },
+      fail() { reject(new Error('图片读取失败，请重新选择')); },
+    });
+  });
+}
+
+async function cropPetPhoto(photo) {
+  if (typeof wx.cropImage !== 'function') throw new Error('当前微信不支持头像裁切，请更新微信后重试');
+  const sourcePath = photo.sourcePath || photo.path;
+  const croppedPath = await new Promise((resolve, reject) => {
+    wx.cropImage({ src: sourcePath, cropScale: '1:1',
+      success(result) {
+        if (!result.tempFilePath) { reject(new Error('裁切结果未生成，请重试')); return; }
+        resolve(result.tempFilePath);
+      },
+      fail(error) {
+        if (error && /cancel/i.test(error.errMsg || '')) resolve(null);
+        else reject(new Error('图片裁切失败，请重试'));
+      },
+    });
+  });
+  if (!croppedPath) return null;
+  return { ...await readPhoto(croppedPath), sourcePath };
+}
+
+async function choosePetPhoto() {
+  const file = await new Promise((resolve, reject) => {
     wx.chooseMedia({ count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
       success(result) {
         const file = result.tempFiles && result.tempFiles[0];
         if (!file) { resolve(null); return; }
         if (file.size > MAX_BYTES) { reject(new Error('请选择不超过 10 MB 的图片')); return; }
-        wx.getFileSystemManager().readFile({ filePath: file.tempFilePath,
-          success({ data }) {
-            if (!(data instanceof ArrayBuffer) || !data.byteLength || data.byteLength > MAX_BYTES) {
-              reject(new Error('请选择不超过 10 MB 的图片')); return;
-            }
-            const mime = imageMime(data);
-            if (!mime) { reject(new Error('请选择 JPG、PNG 或 WebP 图片')); return; }
-            resolve({ path: file.tempFilePath, bytes: data, mime });
-          },
-          fail() { reject(new Error('图片读取失败，请重新选择')); },
-        });
+        resolve(file);
       },
       fail(error) {
         if (error && /cancel/i.test(error.errMsg || '')) resolve(null);
@@ -33,6 +59,9 @@ function choosePetPhoto() {
       },
     });
   });
+  if (!file) return null;
+  const source = await readPhoto(file.tempFilePath);
+  return cropPetPhoto(source);
 }
 
-module.exports = { choosePetPhoto, imageMime, MAX_BYTES };
+module.exports = { choosePetPhoto, cropPetPhoto, imageMime, MAX_BYTES };
