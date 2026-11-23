@@ -44,5 +44,9 @@ test('public ingress allows only the miniapp API prefix and blocks application p
   assert.match(nginx, /return 404/);
   assert.match(nginx, /proxy_pass http:\/\/127\.0\.0\.1:3011/);
   assert.match(nginx, /client_max_body_size 1m/);
+  const photoLocation = nginx.slice(nginx.indexOf('location ~ ^/miniapp-api/api/v1/pets/'));
+  assert.match(photoLocation, /rewrite \^\/miniapp-api\(\/\.\*\)\$ \$1 break;/);
+  assert.match(photoLocation, /proxy_pass http:\/\/127\.0\.0\.1:3011;/);
+  assert.match(photoLocation, /client_max_body_size 11m/);
   assert.match(nginx, /admin\/content/);
 });
