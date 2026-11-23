@@ -4,6 +4,8 @@
 
 主人头像、微信昵称填写及资料保存见 [主人资料规范](../docs/specs/miniapp-owner-profile.md) 与 [验收](../docs/operations/miniapp-owner-profile-2026-11-23.md)。
 
+首页点宠物头像进入 [单宠详情](../docs/operations/miniapp-pet-detail-2026-11-23.md)，在详情页也可编辑档案或查看该宠物的养护记录。
+
 最近实现与核验见 [登录恢复和发布记录](../docs/operations/miniapp-login-recovery-2026-11-16.md)：错误可按阶段诊断，过期会话最多恢复一次；微信正式账号及体验版仍需后台事实验证。历史 HTTPS 与微信数据证据见 [2026-11-03 记录](../docs/operations/miniapp-device-2026-11-03.md)。
 
 这是 `petscape-ai` 仓库中的原生微信小程序。当前按个人主体准备，优先完成宠物档案、养护知识、日常记录和站内提醒；社区和服务目录的开放范围等待注册后的实际类目核对。

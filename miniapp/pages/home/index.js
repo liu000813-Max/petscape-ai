@@ -4,25 +4,11 @@ const { track } = require('../../utils/analytics');
 const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
 const { syncTabBar } = require('../../utils/navigation');
-
-// Existing care records are free text. Never assume a unit for old values.
-function weightInGrams(value, unit) {
-  if (typeof value !== 'string' || !/^(?:\d+(?:\.\d{1,3})?|\.\d{1,3})$/.test(value.trim())) return null;
-  const grams = Math.round(Number(value.trim()) * (unit === 'kg' ? 1000 : 1) * 1000) / 1000;
-  return Number.isFinite(grams) && grams > 0 && grams <= 1000000 ? grams : null;
-}
+const { weightInGrams, recentWeights, weightChange } = require('../../utils/weight-records');
 
 function weightSummary(logs, petId) {
-  const records = logs.flatMap((log) => {
-    if (log.petId !== petId || log.kind !== '体重' || typeof log.value !== 'string') return [];
-    const match = /^\s*((?:\d+(?:\.\d{1,3})?|\.\d{1,3}))\s*(kg|g|千克|公斤|克)\s*$/i.exec(log.value);
-    if (!match || !Number.isFinite(new Date(log.recordedAt).getTime())) return [];
-    const grams = weightInGrams(match[1], /^(kg|千克|公斤)$/i.test(match[2]) ? 'kg' : 'g');
-    return grams === null ? [] : [{ id: log.id, grams, displayValue: String(grams), recordedAt: log.recordedAt,
-      date: formatDateTime(log.recordedAt).slice(5, 10), time: formatDateTime(log.recordedAt) }];
-  }).sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime() || String(a.id).localeCompare(String(b.id))).slice(-7);
+  const records = recentWeights(logs, petId);
   const latestWeight = records.length ? records[records.length - 1] : null;
-  const difference = records.length > 1 ? Math.round((latestWeight.grams - records[records.length - 2].grams) * 1000) / 1000 : null;
   const max = records.length ? Math.max(...records.map((record) => record.grams)) : 1;
   const weightLinePoints = records.map((record, index) => ({ id: record.id, grams: record.grams,
     x: records.length === 1 ? 122 : 10 + index * 224 / (records.length - 1), y: 110 - record.grams / max * 100 }));
@@ -30,7 +16,7 @@ function weightSummary(logs, petId) {
     const previous = weightLinePoints[index]; const dx = point.x - previous.x; const dy = point.y - previous.y;
     return { id: point.id, x: previous.x, y: previous.y, length: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI };
   });
-  return { latestWeight, weightChange: difference === null ? '' : `${difference > 0 ? '+' : ''}${difference} g`,
+  return { latestWeight, weightChange: weightChange(records),
     weightHistory: records.map((record) => ({ ...record, height: record.grams / max * 100, isLatest: record === latestWeight })),
     weightCount: records.length, firstWeightDate: records.length > 1 ? records[0].date : '', weightLinePoints, weightLineSegments };
 }
@@ -176,7 +162,7 @@ Page({
   openPetProfile(event) {
     if (this.data.loading || this.isWriting() || this.data.activeModal) return;
     const pet = this.data.pets.find((item) => item.id === event.currentTarget.dataset.id);
-    if (pet) wx.navigateTo({ url: `/pages/pet-edit/index?id=${encodeURIComponent(pet.id)}` });
+    if (pet) wx.navigateTo({ url: `/pages/pet-detail/index?id=${encodeURIComponent(pet.id)}` });
   },
 
   async loadWeights() {

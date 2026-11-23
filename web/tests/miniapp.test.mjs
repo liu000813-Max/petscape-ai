@@ -891,17 +891,86 @@ test('home carousel ignores late weights and cannot swipe or open a profile duri
   assert.equal(writes, 1); assert.equal(home.data.petIndex, 1);
 });
 
-test('every carousel avatar opens its own profile and the home pet action opens the selected pet', async () => {
+test('every carousel avatar opens its own detail and the home pet action opens the selected pet', async () => {
   const special = { id: 'pet b?/名', name: '团子' };
   const home = page('home', { ...careApi, listPets: async () => ({ pets: [carePets[0], special] }) });
   await home.loadSummary();
   home.openPetProfile({ currentTarget: { dataset: { id: special.id } } });
-  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-edit/index?id=' + encodeURIComponent(special.id)]);
+  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=' + encodeURIComponent(special.id)]);
   assert.equal(home.data.selectedPetId, 'pet-a');
-  home.openPet(); assert.deepEqual(navigation, ['navigateTo', '/pages/pet-edit/index?id=pet-a']);
+  home.openPet(); assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=pet-a']);
   let opens = 0; wx.navigateTo = () => { opens++; };
   home.openPetProfile({ currentTarget: { dataset: { id: 'not-own' } } });
   assert.equal(opens, 0);
+});
+
+test('care opened from detail follows the requested pet across reorder and never falls back when it disappears', async () => {
+  let pets = [carePets[0], carePets[1]];
+  const reads = [], writes = [];
+  const care = page('care-log', {
+    ...careApi, listPets: async () => ({ pets }),
+    listCareLogs: async ({ petId }) => { reads.push(petId); return { logs: [] }; },
+    createCareLog: async (payload) => { writes.push(payload); },
+  });
+  care.onLoad({ petId: 'pet-b' });
+  await care.onShow();
+  assert.equal(care.data.selectedPetId, 'pet-b');
+  pets = [...pets].reverse(); await care.onShow();
+  assert.equal(care.data.pets[care.data.petIndex].id, 'pet-b');
+  pets = [carePets[0]]; await care.onShow();
+  await care.submit();
+  assert.match(care.data.error, /档案/);
+  assert.deepEqual(reads, ['pet-b', 'pet-b']);
+  assert.deepEqual(writes, []);
+});
+
+test('pet detail separates archive and record failures, and never reads care for an inaccessible pet', async () => {
+  let reads = 0;
+  const denied = page('pet-detail', {
+    getPet: async () => { throw { statusCode: 404 }; },
+    listCareLogs: async () => { reads++; return { logs: [] }; },
+  });
+  denied.onLoad({ id: 'pet-b' }); await denied.onShow();
+  assert.equal(denied.data.pet, null);
+  assert.equal(denied.data.petError.title, '宠物档案不可用');
+  assert.equal(reads, 0);
+  const detail = page('pet-detail', {
+    getPet: async (id) => ({ id, name: '米粒', speciesCode: 'rat' }),
+    listCareLogs: async () => { throw { statusCode: 503 }; },
+  });
+  detail.onLoad({ id: 'pet-a' }); await detail.onShow();
+  assert.equal(detail.data.pet.id, 'pet-a');
+  assert.equal(detail.data.petError, null);
+  assert.equal(detail.data.recordsError.title, '服务暂时不可用');
+  detail.openEdit(); assert.deepEqual(navigation, ['navigateTo', '/pages/pet-edit/index?id=pet-a']);
+  detail.openCare(); assert.deepEqual(navigation, ['navigateTo', '/pages/care-log/index?petId=pet-a']);
+});
+
+test('pet detail charts only valid recorded weights and ignores late responses after refreshing', async () => {
+  const delayed = deferred();
+  let calls = 0;
+  const measured = (id, petId, value, day) => ({ id, petId, value, kind: '体重', recordedAt: '2026-11-' + day + 'T09:00:00Z' });
+  const detail = page('pet-detail', {
+    getPet: async (id) => ({ id, name: '米粒', speciesCode: 'rat' }),
+    listCareLogs: async ({ petId, limit }) => {
+      assert.equal(petId, 'pet-a'); assert.equal(limit, 100);
+      if (++calls === 1) return delayed.promise;
+      return { logs: [measured('new', petId, '0.382kg', '23'), measured('old', petId, '376 克', '20'),
+        measured('other', 'pet-b', '500g', '23'), measured('invalid', petId, '900', '23'),
+        { ...measured('care', petId, '12g', '22'), kind: '喂食' }, { ...measured('foreign', 'pet-b', '1', '23'), kind: '清洁' }] };
+    },
+  });
+  detail.onLoad({ id: 'pet-a' });
+  const initial = detail.onShow();
+  await Promise.resolve();
+  await detail.onShow();
+  delayed.resolve({ logs: [measured('late', 'pet-a', '88g', '23')] }); await initial;
+  assert.deepEqual(detail.data.weights.map(row => row.grams), [376, 382]);
+  assert.equal(detail.data.weightDelta, '+6 g'); assert.equal(detail.data.plot.segments.length, 1);
+  assert.deepEqual(detail.data.recentCare.map(row => row.kind), ['喂食']);
+  detail.setChartMode({ currentTarget: { dataset: { mode: 'bar' } } });
+  assert.equal(detail.data.plot.ticks.at(-1), '0');
+  assert.equal(detail.data.latestWeight.grams, 382);
 });
 
 test('native pet form removes size ranking without clearing legacy size data on edit', async () => {

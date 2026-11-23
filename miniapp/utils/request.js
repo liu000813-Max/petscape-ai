@@ -140,7 +140,7 @@ function mockRequest(path, options) {
   }
   const petMatch = /^\/api\/v1\/pets\/([^/]+)$/.exec(path);
   if (petMatch && options.method === 'GET') {
-    const pet = mockPets.find((item) => item.id === petMatch[1]);
+    const pet = mockPets.find((item) => item.id === decodeURIComponent(petMatch[1]));
     return pet ? Promise.resolve(pet) : Promise.reject({ statusCode: 404, data: { error: 'not_found' } });
   }
   if (petMatch && options.method === 'PATCH') {
@@ -237,7 +237,7 @@ function listPets() {
 }
 
 function getPet(id) {
-  return request(`/api/v1/pets/${id}`);
+  return request(`/api/v1/pets/${encodeURIComponent(id)}`, { method: 'GET' });
 }
 
 function createPet(data) {

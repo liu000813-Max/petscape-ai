@@ -1,6 +1,7 @@
 const { listPets, listCareLogs, createCareLog, listCareReminders, createCareReminder, completeCareReminder } = require('../../utils/request');
 const { formatDateTime } = require('../../utils/format');
 const { track } = require('../../utils/analytics');
+const { routePetId } = require('../../utils/pet-route');
 
 const draftFields = ['note', 'value', 'kindIndex', 'reminderTitle', 'reminderDate', 'reminderTime'];
 function emptyDraft() {
@@ -9,6 +10,12 @@ function emptyDraft() {
 
 Page({
   data: { pets: [], petIndex: 0, selectedPetId: '', kinds: ['喂食', '饮水', '清洁', '体重', '观察'], kindIndex: 0, logs: [], note: '', value: '', loading: true, submitting: false, reminders: [], reminderTitle: '', reminderDate: '', reminderTime: '09:00', reminding: false, completingId: '', error: '' },
+
+  onLoad(options) {
+    if (typeof options?.petId !== 'string' || !options.petId) return;
+    this.scopedEntry = true;
+    this.setData({ selectedPetId: routePetId(options.petId) });
+  },
 
   onShow() {
     if (this.isWriting()) return;
@@ -40,7 +47,12 @@ Page({
       const petsResult = await listPets();
       if (sequence !== this.loadSequence) return;
       const pets = petsResult.pets || [];
-      const petIndex = Math.max(0, pets.findIndex((pet) => pet.id === this.data.selectedPetId));
+      const selectedIndex = pets.findIndex((pet) => pet.id === this.data.selectedPetId);
+      if (this.scopedEntry && selectedIndex === -1) {
+        this.setData({ pets: [], petIndex: 0, loading: false, error: '这只宠物的档案已不可用，请返回重新选择。' });
+        return;
+      }
+      const petIndex = Math.max(0, selectedIndex);
       this.selectPet(pets, petIndex);
       const [logsResult, remindersResult] = pets.length ? await Promise.all([listCareLogs({ petId: pets[petIndex].id }), listCareReminders({ petId: pets[petIndex].id })]) : [{ logs: [] }, { reminders: [] }];
       if (sequence !== this.loadSequence) return;

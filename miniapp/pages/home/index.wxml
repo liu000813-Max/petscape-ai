@@ -30,9 +30,9 @@
       <button class="text-button" disabled="{{weightSaving || careSaving}}" data-path="/pages/pet-edit/index" bindtap="openAction">＋ 添加</button>
     </view>
     <view class="pet-carousel-shell">
-      <swiper wx:if="{{!weightSaving && !careSaving && !activeModal}}" class="pet-carousel" current="{{petIndex}}" circular="{{petCount > 2}}" previous-margin="{{petCount > 1 ? '220rpx' : '0rpx'}}" next-margin="{{petCount > 1 ? '220rpx' : '0rpx'}}" duration="280" bindchange="onPetSwipe" aria-label="左右滑动切换宠物，点头像查看档案">
+      <swiper wx:if="{{!weightSaving && !careSaving && !activeModal}}" class="pet-carousel" current="{{petIndex}}" circular="{{petCount > 2}}" previous-margin="{{petCount > 1 ? '220rpx' : '0rpx'}}" next-margin="{{petCount > 1 ? '220rpx' : '0rpx'}}" duration="280" bindchange="onPetSwipe" aria-label="左右滑动切换宠物，点头像查看详情">
         <swiper-item wx:for="{{pets}}" wx:key="id" class="pet-slide {{selectedPetId === item.id ? 'is-current' : ''}}">
-          <button class="carousel-pet" data-id="{{item.id}}" bindtap="openPetProfile" disabled="{{weightSaving || careSaving}}" aria-label="查看{{item.name}}的档案">
+          <button class="carousel-pet" data-id="{{item.id}}" bindtap="openPetProfile" disabled="{{weightSaving || careSaving}}" aria-label="查看{{item.name}}的详情">
             <view class="carousel-avatar"><image wx:if="{{item.avatarUrl}}" class="carousel-image" src="{{item.avatarUrl}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><text wx:else>{{item.speciesEmoji}}</text></view>
             <text class="carousel-name">{{item.name}}</text>
             <text class="carousel-species">{{item.speciesLabel}}</text>
@@ -46,7 +46,7 @@
         </view>
       </view>
     </view>
-    <view class="carousel-caption"><text>{{weightSaving || careSaving ? '正在保存记录 · 暂停切换' : (petCount > 1 ? '左右滑动切换 · 点头像查看档案' : '点头像查看宠物档案')}}</text><text class="carousel-counter">{{petIndex + 1}} / {{petCount}}</text></view>
+    <view class="carousel-caption"><text>{{weightSaving || careSaving ? '正在保存记录 · 暂停切换' : (petCount > 1 ? '左右滑动切换 · 点头像查看详情' : '点头像查看宠物详情')}}</text><text class="carousel-counter">{{petIndex + 1}} / {{petCount}}</text></view>
     <button class="device-card card device-empty" bindtap="openDeviceModal" disabled="{{weightSaving || careSaving}}" aria-label="为{{pet.name}}添加温湿度设备，尚未连接">
       <view><text class="device-title">宠境环境</text><text class="device-subtitle">尚未连接温湿度设备</text></view>
       <view class="device-add"><view class="device-plus">＋</view><text>添加设备</text></view>

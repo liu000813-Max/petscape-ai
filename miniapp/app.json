@@ -12,6 +12,7 @@
     "pages/me/index",
     "pages/settings/index",
     "pages/profile-edit/index",
+    "pages/pet-detail/index",
     "pages/pet-edit/index",
     "pages/design/index",
     "pages/order/index",
