@@ -26,7 +26,7 @@ Page({
       specialNeeds: '',
     },
     speciesOptions,
-    lifeStageOptions,
+    lifeStageOptions: getLifeStageOptions(getLifeStageReference('rat')),
     speciesIndex: 0,
     lifeStageIndex: 4,
     lifeStageReference: getLifeStageReference('rat'),

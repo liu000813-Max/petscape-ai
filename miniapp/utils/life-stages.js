@@ -8,6 +8,14 @@ const STAGES = [
 
 const REFERENCES = [
   {
+    category: 'rat', speciesName: '花枝鼠',
+    aliases: ['花枝鼠', '宠物大鼠', 'fancy rat', 'rattus norvegicus', 'rattus norvegicus domestica'],
+    sourceLabel: 'Molesey Vets · 老年养护参考',
+    sourceUrl: 'https://www.partridgepractices.co.uk/molesey-vets/my-pet/rat/',
+    ranges: { senior: '超过 1 年 6 个月' },
+    note: '该兽医医院以超过 18 个月（1 年 6 个月）作为宠物大鼠的老年养护参考，个体衰老速度不同。此处不是疾病诊断；幼年、亚成体和成体年月仍待核实。',
+  },
+  {
     category: 'gecko', speciesName: '豹纹守宫',
     aliases: ['豹纹守宫', 'leopard gecko', 'eublepharis macularius'],
     sourceLabel: 'PetMD（DVM）', sourceUrl: 'https://www.petmd.com/reptile/how-long-do-leopard-geckos-live',
@@ -41,7 +49,8 @@ const REFERENCES = [
 function getLifeStageReference(speciesCode, breed = '', customSpeciesName = '') {
   const normalize = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
   const identity = normalize(speciesCode === 'other' ? customSpeciesName : breed);
-  const reference = REFERENCES.find((item) => (item.category === speciesCode || speciesCode === 'other') && item.aliases.includes(identity));
+  const reference = REFERENCES.find((item) => (item.category === speciesCode || speciesCode === 'other')
+    && (speciesCode === 'rat' || item.aliases.includes(identity)));
   const speciesName = speciesCode === 'rat' ? '花枝鼠' : reference ? reference.speciesName
     : speciesCode === 'other' && identity ? String(customSpeciesName).trim() : '具体物种待确认';
   const ranges = reference?.ranges || null;

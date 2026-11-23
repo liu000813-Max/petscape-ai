@@ -762,6 +762,27 @@ test('bird senior ages remain species-specific and do not fill unrelated life st
   assert.equal(form.data.lifeStageOptions[3].label, '老年（超过 12 年）');
 });
 
+test('rat senior reference is visible before input and does not spread to other rodents', async () => {
+  const { getLifeStageReference, getLifeStageOptions } = require(path.join(root, 'utils/life-stages.js'));
+  const form = page('pet-edit');
+  assert.equal(form.data.lifeStageOptions[3].label, '老年（超过 1 年 6 个月）');
+  assert.equal(form.data.form.lifeStage, 'unknown');
+  assert.ok(form.data.lifeStageOptions.slice(0, 3).every(option => option.label.includes('年月待核实')));
+  const reference = getLifeStageReference('rat', '卷毛');
+  assert.equal(reference.ranges.senior, '超过 1 年 6 个月');
+  assert.match(reference.sourceLabel, /Molesey Vets/);
+  assert.equal(getLifeStageReference('other', '', 'Rattus norvegicus').ranges.senior, reference.ranges.senior);
+  for (const species of ['仓鼠', '沙鼠', 'rat', '鼠类']) {
+    assert.equal(getLifeStageReference('other', '', species).ranges, null);
+  }
+  form.onSpeciesChange({ detail: { value: '2' } });
+  assert.ok(form.data.lifeStageOptions.slice(0, 4).every(option => option.label.includes('年月待核实')));
+  form.onSpeciesChange({ detail: { value: '0' } });
+  assert.equal(form.data.lifeStageOptions[3].label, '老年（超过 1 年 6 个月）');
+  assert.equal(form.data.form.lifeStage, 'unknown');
+  assert.equal(getLifeStageOptions(getLifeStageReference('parrot', '虎皮鹦鹉'))[3].label, '老年（超过 6 年）');
+});
+
 test('editing an unrecognized legacy stage requires explicit confirmation before any update', async () => {
   const updates = [];
   wx.setNavigationBarTitle = () => {};
