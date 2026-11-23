@@ -1,13 +1,27 @@
-const { listPets } = require('../../utils/request');
+const { listPets, getProfile } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
 const { lifeStageLabel } = require('../../utils/life-stages');
 const { describeError } = require('../../utils/errors');
 const { syncTabBar } = require('../../utils/navigation');
 
 Page({
-  data: { pets: [], loading: true, loaded: false, loadError: '', loadErrorTitle: '', loadErrorDetail: '' },
-  onShow() { syncTabBar(this); return this.loadPets(); },
-  onUnload() { this.readSequence = (this.readSequence || 0) + 1; },
+  data: { pets: [], loading: true, loaded: false, loadError: '', loadErrorTitle: '', loadErrorDetail: '', ownerName: '养宠人', ownerAvatar: '', ownerNotice: '' },
+  onShow() { syncTabBar(this); return Promise.all([this.loadPets(), this.loadOwner()]); },
+  onUnload() { this.readSequence = (this.readSequence || 0) + 1; this.ownerSequence = (this.ownerSequence || 0) + 1; },
+
+  async loadOwner() {
+    const sequence = (this.ownerSequence || 0) + 1; this.ownerSequence = sequence;
+    this.setData({ ownerName: '养宠人', ownerAvatar: '', ownerNotice: '正在读取资料…' });
+    try {
+      const profile = await getProfile();
+      if (sequence !== this.ownerSequence) return;
+      this.setData({ ownerName: profile.nickname || '养宠人', ownerAvatar: profile.avatarUrl || '', ownerNotice: '点击编辑个人资料' });
+    } catch (_) {
+      if (sequence === this.ownerSequence) this.setData({ ownerNotice: '资料暂未读取 · 点击重试或编辑' });
+    }
+  },
+  onOwnerAvatarError() { this.setData({ ownerAvatar: '' }); },
+  openProfile() { wx.navigateTo({ url: '/pages/profile-edit/index' }); },
 
   async loadPets() {
     const sequence = (this.readSequence || 0) + 1; this.readSequence = sequence;

@@ -3,6 +3,7 @@ const { normalizeError, safeRequestId } = require('./errors');
 
 const SESSION_STORAGE_KEY = 'petscape_session_token';
 let loginPromise = null;
+let mockOwnerProfile = { nickname: '', avatarAssetId: null, avatarUrl: null };
 
 function app() {
   return getApp();
@@ -113,6 +114,10 @@ function ensureSession() {
 }
 
 function mockRequest(path, options) {
+  if (path === '/api/v1/profile' && (!options.method || options.method === 'GET')) return Promise.resolve({ ...mockOwnerProfile });
+  if (path === '/api/v1/profile' && options.method === 'PATCH') {
+    mockOwnerProfile = { ...mockOwnerProfile, ...options.data }; return Promise.resolve({ ...mockOwnerProfile });
+  }
   if (path === '/api/v1/pets' && (!options.method || options.method === 'GET')) {
     return Promise.resolve({ pets: mockPets });
   }
@@ -279,6 +284,10 @@ function createCareReminder(data) { return request('/api/v1/care-reminders', { m
 function completeCareReminder(id) { return request(`/api/v1/care-reminders/${id}`, { method: 'PATCH', data: { completed: true } }); }
 
 module.exports = {
+  getProfile: () => request('/api/v1/profile'),
+  updateProfile: (data) => request('/api/v1/profile', { method: 'PATCH', data }),
+  uploadOwnerAvatar: (photo) => app().globalData.mockMode ? Promise.reject({ code: 'PHOTO_REQUIRES_CONNECTION' })
+    : request('/api/v1/profile/avatar-upload', { method: 'POST', data: photo.bytes, header: { 'content-type': photo.mime }, timeout: 60000 }),
   request,
   login,
   ensureSession,

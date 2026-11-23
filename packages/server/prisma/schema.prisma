@@ -51,6 +51,7 @@ model User {
 
   sessions Session[]
   accounts Account[]
+  miniappProfile MiniappProfile?
 
   // WP-3.2：Prisma 要求关系双向声明（Project.owner / Asset.owner 的反向字段）。
   projects              Project[]
@@ -259,6 +260,19 @@ enum AssetStatus {
   available
 }
 
+// Miniapp owner preferences remain separate from the public community identity.
+model MiniappProfile {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nickname String
+  avatarAssetId String?
+  avatar Asset? @relation("MiniappProfileAvatar", fields: [avatarAssetId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("miniapp_profile")
+}
+
 model Asset {
   id          String   @id @default(cuid())
   ownerUserId String
@@ -286,6 +300,7 @@ model Asset {
   updatedAt DateTime @updatedAt
 
   petsWithCover Pet[] @relation("PetCoverAsset")
+  miniappProfiles MiniappProfile[] @relation("MiniappProfileAvatar")
 
   @@index([ownerUserId])
   @@index([projectId])

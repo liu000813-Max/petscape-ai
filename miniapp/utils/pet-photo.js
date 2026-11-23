@@ -64,4 +64,4 @@ async function choosePetPhoto() {
   return cropPetPhoto(source);
 }
 
-module.exports = { choosePetPhoto, cropPetPhoto, imageMime, MAX_BYTES };
+module.exports = { choosePetPhoto, cropPetPhoto, readPhoto, imageMime, MAX_BYTES };

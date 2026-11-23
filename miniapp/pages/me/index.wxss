@@ -4,8 +4,9 @@
 .identity-card { display: flex; align-items: center; gap: 20rpx; margin-top: 32rpx; padding: 30rpx 24rpx; border: 1rpx solid #e8e8e8; border-radius: 26rpx; }
 .owner-mark { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 92rpx; height: 92rpx; border-radius: 50%; background: #faedf2; }
 .owner-mark image { width: 48rpx; height: 48rpx; }
+.owner-mark .owner-photo { width: 100%; height: 100%; border-radius: 50%; }
 .identity-copy { flex: 1; min-width: 0; }
-.owner-name { display: block; font-size: 33rpx; font-weight: 600; }
+.owner-name { display: block; font-size: 33rpx; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .identity-note { display: block; margin-top: 10rpx; font-size: 22rpx; color: #737373; line-height: 1.6; }
 .identity-count { flex-shrink: 0; padding-left: 20rpx; border-left: 1rpx solid #ededed; text-align: center; }
 .count-number { display: block; font-size: 42rpx; line-height: 1.2; font-weight: 300; }

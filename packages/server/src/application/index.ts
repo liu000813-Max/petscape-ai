@@ -177,6 +177,7 @@ export {
 } from './orders.ts';
 
 // P1/P2：内容、社区、养护记录、服务商和埋点 MVP。
+export { getMiniappProfile, updateMiniappProfile, uploadProfileAvatar, InvalidProfileAvatarError } from './miniapp-profile.ts';
 export {
   listContentArticles,
   getContentArticle,

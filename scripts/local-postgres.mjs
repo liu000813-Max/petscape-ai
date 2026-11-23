@@ -253,7 +253,7 @@ async function testDatabase() {
   prismaLogDirectory = runDirectory;
   await runPrisma(fresh, ['generate']);
   const migrationResult = await verifyLocalMigrations({ repo, runDirectory, fresh, upgrade, withClient, runPrisma });
-  const tests = ['packages/server/tests/community-content.integration.test.mjs', 'packages/server/tests/pets.integration.test.mjs'];
+  const tests = ['packages/server/tests/community-content.integration.test.mjs', 'packages/server/tests/pets.integration.test.mjs', 'packages/server/tests/miniapp-profile.integration.test.mjs'];
   let result;
   try {
     result = await command(process.execPath, ['--test', '--test-reporter=tap', '--test-concurrency=1', ...tests], {

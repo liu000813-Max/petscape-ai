@@ -47,6 +47,86 @@ function page(name, overrides = {}) {
 function files(directory) { return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? files(path.join(directory, entry.name)) : [path.join(directory, entry.name)]); }
 test.beforeEach(resetWx);
 
+test('owner profile reads independently of pet failures and refreshes on return', async () => {
+  const me = page('me', { listPets: async () => { throw { statusCode: 503 }; }, getProfile: async () => ({ nickname: '麦麦', avatarUrl: 'https://private.example/avatar' }) });
+  await me.onShow();
+  assert.equal(me.data.ownerName, '麦麦'); assert.equal(me.data.pets.length, 0);
+  me.openProfile(); assert.deepEqual(navigation, ['navigateTo', '/pages/profile-edit/index']);
+  me.onOwnerAvatarError(); assert.equal(me.data.ownerAvatar, '');
+});
+
+test('owner profile failure never retains prior identity while pets stay usable', async () => {
+  let reads = 0;
+  const me = page('me', { listPets: async () => ({ pets: [{ id: 'a' }] }), getProfile: async () => { if (++reads === 1) return { nickname: 'old', avatarUrl: 'https://private.example/old' }; throw { statusCode: 503 }; } });
+  await me.onShow(); await me.onShow();
+  assert.equal(me.data.ownerName, '养宠人'); assert.equal(me.data.ownerAvatar, ''); assert.equal(me.data.pets.length, 1);
+});
+
+test('owner nickname and uploaded avatar reconcile together without a second upload or write', async () => {
+  let uploads = 0; let writes = 0; let stored = { nickname: '原昵称', avatarAssetId: null, avatarUrl: null };
+  const form = page('profile-edit', {
+    getProfile: async () => stored,
+    uploadOwnerAvatar: async () => { uploads++; return { assetId: 'owner-photo' }; },
+    updateProfile: async (payload) => { writes++; stored = { ...payload, avatarUrl: 'https://private.example/new' }; throw { statusCode: 502 }; },
+  });
+  await form.onLoad(); form.setData({ nickname: '新昵称' }); form.applyPhoto({ path: '/crop.jpg', bytes: new ArrayBuffer(4), mime: 'image/jpeg' });
+  await form.saveProfile(); await form.saveProfile();
+  assert.equal(form.data.saved, true); assert.equal(form.data.uncertain, false);
+  assert.equal(form.data.avatarPreview, 'https://private.example/new'); assert.equal(uploads, 1); assert.equal(writes, 1);
+});
+
+test('uncertain owner save blocks edits and retry until a read confirms both fields', async () => {
+  let reads = 0; let uploads = 0; let writes = 0;
+  let stored = { nickname: '原昵称', avatarAssetId: null, avatarUrl: null };
+  const form = page('profile-edit', {
+    getProfile: async () => { if (++reads === 2) throw { statusCode: 503 }; return stored; },
+    uploadOwnerAvatar: async () => { uploads++; return { assetId: 'photo' }; },
+    updateProfile: async (payload) => { writes++; if (writes === 1) throw { statusCode: 502 }; stored = { ...payload, avatarUrl: 'https://private.example/new' }; return stored; },
+  });
+  await form.onLoad(); form.setData({ nickname: '新昵称' }); form.applyPhoto({ path: '/crop.jpg' });
+  await form.saveProfile(); assert.equal(form.data.uncertain, true);
+  form.onNickname({ detail: { value: '误改' } }); form.cancelAvatar(); await form.saveProfile();
+  assert.equal(form.data.nickname, '新昵称'); assert.equal(form.data.photoSelected, true); assert.equal(writes, 1);
+  stored = { nickname: '旧昵称', avatarAssetId: 'photo', avatarUrl: null };
+  await form.checkSave(); assert.equal(form.data.saved, false); assert.equal(form.data.uncertain, false);
+  await form.saveProfile(); assert.equal(form.data.saved, true); assert.equal(uploads, 1); assert.equal(writes, 2);
+});
+
+test('WeChat chosen avatar is read as a local draft and nickname quick-fill uses the same save flow', async () => {
+  let uploaded; let payload; let releaseRead;
+  wx.canIUse = () => true;
+  wx.getFileSystemManager = () => ({ readFile: ({ success }) => { releaseRead = () => success({ data: Uint8Array.from([137,80,78,71,13,10,26,10,0]).buffer }); } });
+  const form = page('profile-edit', { getProfile: async () => ({ nickname: '', avatarAssetId: null, avatarUrl: null }), uploadOwnerAvatar: async p => { uploaded = p; return { assetId: 'wx-photo' }; }, updateProfile: async p => { payload = p; return { ...p, avatarUrl: 'https://private.example/wx' }; } });
+  await form.onLoad();
+  assert.equal(form.data.wechatAvatarSupported, true);
+  const choosing = form.onWechatAvatar({ detail: { avatarUrl: '/wechat-cropped.png' } });
+  await form.saveProfile(); assert.equal(payload, undefined);
+  releaseRead(); await choosing;
+  assert.equal(form.data.avatarPreview, '/wechat-cropped.png');
+  assert.equal(uploaded, undefined);
+  form.onNickname({ detail: { value: '微信昵称' } }); await form.saveProfile();
+  assert.equal(uploaded.path, '/wechat-cropped.png'); assert.equal(payload.nickname, '微信昵称');
+});
+
+test('owner failed or canceled recrop preserves the selected draft and uploaded asset', async () => {
+  const form = page('profile-edit', { getProfile: async () => ({ nickname: '麦', avatarAssetId: null, avatarUrl: null }) });
+  await form.onLoad(); const draft = { path: '/crop.jpg', sourcePath: '/original.jpg' };
+  form.applyPhoto(draft); form.uploadedPhotoId = 'photo';
+  wx.cropImage = ({ fail }) => fail({ errMsg: 'cropImage:fail cancel' });
+  await form.recropAvatar(); assert.equal(form.photoDraft, draft); assert.equal(form.uploadedPhotoId, 'photo');
+});
+
+test('owner submit uses the current native nickname form value and blocks duplicate saves', async () => {
+  let finish; let writes = 0; let payload;
+  const form = page('profile-edit', { getProfile: async () => ({ nickname: '旧昵称', avatarAssetId: null, avatarUrl: null }), updateProfile: input => { writes++; payload = input; return new Promise(resolve => { finish = resolve; }); } });
+  await form.onLoad();
+  const pending = form.saveProfile({ detail: { value: { nickname: '微信刚填入的昵称' } } });
+  await form.saveProfile({ detail: { value: { nickname: '误点' } } });
+  assert.equal(writes, 1); assert.equal(payload.nickname, '微信刚填入的昵称');
+  finish({ ...payload, avatarUrl: null }); await pending;
+  assert.equal(form.data.saved, true);
+});
+
 test('community displays the renamed topic while filters and publishing retain the accepted API topic', async () => {
   let filter; let submission;
   const list = page('community', { listCommunityPosts: async (params) => { filter = params; return { posts: [{ id: 'post-a', topic: '晒栖境', title: '分享' }] }; } });

@@ -122,6 +122,27 @@ test('native cover upload authenticates and rejects foreign pets before reading 
   await http(`/api/v1/pets/${pet.id}`, { method: 'DELETE', headers: nativeHeaders('owner') });
 });
 
+test('owner profile HTTP guards ownership, strict fields, expired sessions and private caching', async () => {
+  for (const headers of [{}, nativeHeaders('expired')]) {
+    await http('/api/v1/profile', { headers }, 401);
+    await http('/api/v1/profile', { method: 'PATCH', headers, data: { nickname: '名字' } }, 401);
+    await http('/api/v1/profile/avatar-upload', { method: 'POST', headers, raw: 'invalid' }, 401);
+  }
+  assert.deepEqual(await http('/api/v1/profile', { headers: nativeHeaders('owner') }), { nickname: '', avatarAssetId: null, avatarUrl: null });
+  await http('/api/v1/profile', { method: 'PATCH', headers: nativeHeaders('owner'), data: { nickname: '越权', userId: users.other } }, 400);
+  await http('/api/v1/profile', { method: 'PATCH', headers: nativeHeaders('owner'), data: { nickname: '名字', avatarAssetId: 'not-mine' } }, 400);
+  const native = await nativeClient('owner');
+  const page = await native.loadPage('profile-edit');
+  await page.onLoad(); page.onNickname({ detail: { value: '自己的昵称' } }); await page.saveProfile();
+  assert.equal(page.data.saved, true); await native.drain();
+  const response = await fetch(base.origin + '/api/v1/profile', { headers: nativeHeaders('owner') });
+  assert.match(response.headers.get('cache-control'), /private, no-store/);
+  assert.deepEqual(await response.json(), { nickname: '自己的昵称', avatarAssetId: null, avatarUrl: null });
+  assert.equal((await http('/api/v1/profile', { headers: nativeHeaders('other') })).nickname, '');
+  await http('/api/v1/profile/avatar-upload', { method: 'POST', headers: { ...nativeHeaders('owner'), 'content-type': 'image/png' }, raw: '' }, 400);
+  await http('/api/v1/profile/avatar-upload', { method: 'POST', headers: { ...nativeHeaders('owner'), 'content-type': 'image/gif' }, raw: 'bad' }, 400);
+});
+
 function input(page, field, value) {
   page.onInput({ currentTarget: { dataset: { field } }, detail: { value } });
 }

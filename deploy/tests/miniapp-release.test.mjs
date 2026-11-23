@@ -49,4 +49,11 @@ test('public ingress allows only the miniapp API prefix and blocks application p
   assert.match(photoLocation, /proxy_pass http:\/\/127\.0\.0\.1:3011;/);
   assert.match(photoLocation, /client_max_body_size 11m/);
   assert.match(nginx, /admin\/content/);
+  const avatarLocation = nginx.slice(nginx.indexOf('location = /miniapp-api/api/v1/profile/avatar-upload'));
+  assert.match(avatarLocation, /rewrite \^\/miniapp-api\(\/\.\*\)\$ \$1 break;/);
+  assert.match(avatarLocation, /proxy_pass http:\/\/127\.0\.0\.1:3011;/);
+  assert.match(avatarLocation, /client_max_body_size 11m/);
+  const allowed = new RegExp(nginx.match(/if \(\$uri !~ "([^"]+)"/)[1]);
+  for (const url of ['/miniapp-api/api/v1/profile', '/miniapp-api/api/v1/profile/avatar-upload', '/miniapp-api/api/v1/pets']) assert.equal(allowed.test(url), true);
+  for (const url of ['/miniapp-api/api/v1/profile/other-user', '/miniapp-api/api/v1/profile/admin', '/miniapp-api/app', '/api/v1/profile']) assert.equal(allowed.test(url), false);
 });

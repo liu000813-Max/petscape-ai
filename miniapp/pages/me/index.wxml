@@ -4,9 +4,9 @@
     <button class="settings-button" bindtap="openSettings" aria-label="打开设置"><image src="/assets/nav-settings-black.png" mode="aspectFit" /><text>设置</text></button>
   </view>
 
-  <view class="identity-card">
-    <view class="owner-mark"><image src="/assets/nav-person-black.png" mode="aspectFit" /></view>
-    <view class="identity-copy"><text class="owner-name">养宠人</text><text class="identity-note">把每一位伙伴，放在心上。</text></view>
+  <view class="identity-card" bindtap="openProfile" role="button" aria-label="编辑主人资料">
+    <view class="owner-mark"><image wx:if="{{ownerAvatar}}" class="owner-photo" src="{{ownerAvatar}}" mode="aspectFill" binderror="onOwnerAvatarError" /><image wx:else src="/assets/nav-person-black.png" mode="aspectFit" /></view>
+    <view class="identity-copy"><text class="owner-name">{{ownerName}}</text><text class="identity-note">{{ownerNotice}}</text></view>
     <view class="identity-count"><text class="count-number">{{loaded ? pets.length : '—'}}</text><text class="count-label">宠物伙伴</text></view>
   </view>
 

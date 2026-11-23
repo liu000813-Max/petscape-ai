@@ -1,0 +1,19 @@
+<form class="page profile-page" bindsubmit="saveProfile">
+  <view class="eyebrow">MY PROFILE</view><view class="title">个人资料</view><view class="subtitle">留一个称呼，记录你的陪伴。</view>
+  <view wx:if="{{loading}}" class="loading">正在读取资料…</view>
+  <view wx:elif="{{loadFailed}}" class="card empty error-state"><view>{{loadErrorTitle}}</view><view class="muted">{{loadError}}</view><view class="muted error-detail">{{loadErrorDetail}}</view><button class="secondary-button section" bindtap="loadProfile">重试读取</button></view>
+  <view wx:else>
+    <view class="profile-photo-section">
+      <button class="avatar-picker" bindtap="chooseAvatar" disabled="{{saving || choosing || uncertain}}" aria-label="选择并裁切主人头像"><image wx:if="{{avatarPreview}}" class="avatar-image" src="{{avatarPreview}}" mode="aspectFill" binderror="onAvatarError" /><image wx:else class="avatar-placeholder" src="/assets/nav-person-black.png" mode="aspectFit" /><view class="avatar-plus">＋</view></button>
+      <button class="photo-link" bindtap="chooseAvatar" disabled="{{saving || choosing || uncertain}}">{{choosing ? '正在选图或裁切…' : '选择并裁切头像'}}</button>
+      <button wx:if="{{wechatAvatarSupported}}" class="wechat-avatar-button" open-type="chooseAvatar" bindchooseavatar="onWechatAvatar" binderror="onWechatAvatarError" disabled="{{saving || choosing || uncertain}}">使用微信头像</button>
+      <view class="photo-hint">方形裁切 · 圆形展示 · 最大 10 MB</view>
+      <view wx:if="{{photoSelected}}" class="photo-actions"><button bindtap="recropAvatar" disabled="{{saving || choosing || uncertain}}">重新裁切</button><button bindtap="cancelAvatar" disabled="{{saving || choosing || uncertain}}">撤销换图</button></view>
+    </view>
+    <view class="nickname-card"><text class="field-label">昵称</text><input class="input" name="nickname" type="nickname" maxlength="30" value="{{nickname}}" bindinput="onNickname" bindchange="onNickname" bindblur="onNickname" placeholder="可选择微信昵称，也可自己填写" disabled="{{saving || choosing || uncertain}}" /><view class="nickname-count">{{nickname.length}} / 30</view></view>
+    <view class="profile-explanation">头像和昵称用于“我的”页，不会替换宠物头像或修改已有社区署名。</view>
+    <view wx:if="{{notice}}" class="profile-notice" aria-live="polite">{{notice}}</view>
+    <button wx:if="{{uncertain}}" class="primary-button section" bindtap="checkSave" loading="{{saving}}" disabled="{{saving}}">检查保存状态</button>
+    <button wx:else class="primary-button section" form-type="submit" loading="{{saving}}" disabled="{{saving || choosing || saved}}">{{saved ? '已保存' : '保存个人资料'}}</button>
+  </view>
+</form>
