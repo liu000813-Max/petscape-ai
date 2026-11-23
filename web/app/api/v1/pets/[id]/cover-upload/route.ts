@@ -1,18 +1,44 @@
 import { NextResponse } from 'next/server';
-import { getWebAuth } from '../../../../../lib/auth';
+import { getMiniappAwareSession } from '../../../../../lib/miniapp-auth';
 import { getWebServerContext, withApiLogging } from '../../../../../lib/server-context';
-import { getPet, requestAssetUpload, NotFoundError } from '@petscape/server/application';
+import { getPet, requestAssetUpload, uploadPetCover, AssetVerificationError, NotFoundError } from '@petscape/server/application';
 import {
   PetCoverUploadRequestSchema,
   PetCoverUploadResponseSchema,
   PetIdParamsSchema,
+  PET_COVER_MAX_BYTES,
+  PetCoverStoredResponseSchema,
 } from '@petscape/server/contracts/pets';
 import { invalidPetRequest, petApiError } from '../../../../../lib/pet-api';
+import { readBoundedBody, BodyTooLargeError } from '../../../../../lib/bounded-body';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiLogging(req, async () => {
-    const session = await getWebAuth().api.getSession({ headers: req.headers });
+    const session = await getMiniappAwareSession(req);
     if (!session) return petApiError(401, { error: 'unauthorized' });
+
+    const contentType = req.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
+    if (contentType?.startsWith('image/')) {
+      const context = getWebServerContext();
+      const parsedId = PetIdParamsSchema.safeParse(await params);
+      if (!parsedId.success) return invalidPetRequest(parsedId.error, session.user.id);
+      const metadata = PetCoverUploadRequestSchema.safeParse({ filename: 'avatar', mime: contentType, size: 1 });
+      if (!metadata.success) return invalidPetRequest(metadata.error, session.user.id);
+      try {
+        // Check ownership before reading bytes or initializing object storage.
+        await getPet({ prisma: context.prisma, ownerUserId: session.user.id, petId: parsedId.data.id });
+        const bytes = await readBoundedBody(req, PET_COVER_MAX_BYTES);
+        if (!bytes.length) return petApiError(400, { error: 'invalid_request' }, session.user.id);
+        const asset = await uploadPetCover({ prisma: context.prisma, oss: context.oss,
+          ownerUserId: session.user.id, petId: parsedId.data.id, mime: metadata.data.mime, bytes });
+        return Object.assign(NextResponse.json(PetCoverStoredResponseSchema.parse({ assetId: asset.id }), { status: 201 }), { _loggedUserId: session.user.id });
+      } catch (error) {
+        if (error instanceof NotFoundError) return petApiError(404, { error: 'not_found' }, session.user.id);
+        if (error instanceof BodyTooLargeError) return petApiError(413, { error: 'invalid_request' }, session.user.id);
+        if (error instanceof AssetVerificationError) return petApiError(400, { error: 'invalid_cover_asset' }, session.user.id);
+        throw error;
+      }
+    }
 
     let json: unknown;
     try {

@@ -47,6 +47,55 @@ function page(name, overrides = {}) {
 function files(directory) { return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? files(path.join(directory, entry.name)) : [path.join(directory, entry.name)]); }
 test.beforeEach(resetWx);
 
+test('pet photo partial failure preserves the new pet ID and retries without duplicating the pet', async () => {
+  let creates = 0; let uploads = 0; const changes = [];
+  const form = page('pet-edit', {
+    createPet: async () => { creates++; return { id: 'new-pet' }; },
+    uploadPetPhoto: async () => { uploads++; if (uploads === 1) throw new Error('offline'); return { assetId: 'photo-a' }; },
+    updatePet: async (id, data) => { changes.push({ id, data }); return { id, ...data }; },
+  });
+  form.setData({ 'form.name': '团子' });
+  form.photoDraft = { path: '/temporary.jpg', bytes: new ArrayBuffer(4), mime: 'image/jpeg' };
+  await form.submit();
+  assert.equal(form.data.id, 'new-pet'); assert.equal(form.data.isEdit, true);
+  assert.match(form.data.photoNotice, /档案已保存/);
+  await form.submit();
+  assert.equal(creates, 1); assert.equal(uploads, 2);
+  assert.ok(changes.some(({ id, data }) => id === 'new-pet' && data.coverAssetId === 'photo-a'));
+});
+
+test('uncertain cover patch is reconciled before retry and successful upload is reused', async () => {
+  let uploads = 0; let patch = 0; let serverCover = null;
+  const form = page('pet-edit', {
+    uploadPetPhoto: async () => { uploads++; return { assetId: 'photo-a' }; },
+    updatePet: async (id, data) => { if (data.coverAssetId) { patch++; serverCover = data.coverAssetId; throw { statusCode: 502 }; } return { id }; },
+    getPet: async () => ({ id: 'pet-a', coverAssetId: serverCover }),
+  });
+  form.setData({ id: 'pet-a', isEdit: true, 'form.name': '团子' });
+  form.photoDraft = { path: '/temporary.jpg', bytes: new ArrayBuffer(4), mime: 'image/jpeg' };
+  await form.submit();
+  assert.equal(uploads, 1); assert.equal(patch, 1);
+  assert.equal(form.photoDraft, null);
+});
+
+test('species stage references update options but never choose a stage for the owner', () => {
+  const form = page('pet-edit');
+  form.setData({ 'form.speciesCode': 'gecko', 'form.lifeStage': 'adult' });
+  form.onInput({ currentTarget: { dataset: { field: 'breed' } }, detail: { value: '豹纹守宫' } });
+  assert.match(form.data.lifeStageOptions[1].label, /7.*12/);
+  assert.equal(form.data.form.lifeStage, 'adult');
+  form.onInput({ currentTarget: { dataset: { field: 'breed' } }, detail: { value: '守宫' } });
+  assert.ok(form.data.lifeStageOptions.slice(0, 4).every((item) => item.label.includes('年月待核实')));
+});
+
+test('pet list shows stored photo and falls back per pet if its signed image cannot load', async () => {
+  const list = page('pet', { listPets: async () => ({ pets: [{ id: 'pet-a', speciesCode: 'rat', coverUrl: 'https://private.example/photo' }] }) });
+  await list.onShow();
+  assert.equal(list.data.pets[0].speciesImage, 'https://private.example/photo');
+  list.onAvatarError({ currentTarget: { dataset: { id: 'pet-a' } } });
+  assert.equal(list.data.pets[0].speciesImage, '/assets/species-rat.png');
+});
+
 test('every registered native page has resources and all WXML handlers exist', () => {
   const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json')));
   for (const source of files(root)) {
@@ -646,7 +695,10 @@ test('native pet life stages support subadult and keep unsupported ages explicit
   form.onSpeciesChange({ detail: { value: '1' } });
   form.onInput({ currentTarget: { dataset: { field: 'breed' } }, detail: { value: '豹纹守宫' } });
   assert.equal(form.data.lifeStageReference.speciesName, '豹纹守宫');
-  for (const option of form.data.lifeStageOptions.slice(0, 4)) assert.match(option.label, /年月待核实/);
+  assert.match(form.data.lifeStageOptions[0].label, /0–7 个月/);
+  assert.match(form.data.lifeStageOptions[1].label, /7–12 个月/);
+  assert.match(form.data.lifeStageOptions[2].label, /12 个月以上/);
+  assert.match(form.data.lifeStageOptions[3].label, /年月待核实/);
   form.onLifeStageChange({ detail: { value: '1' } });
   await form.submit(); assert.equal(saved[0].lifeStage, 'subadult');
 });

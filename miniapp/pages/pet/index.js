@@ -18,7 +18,7 @@ Page({
         ...pet,
         speciesLabel: pet.speciesCode === 'other' && pet.customSpeciesName ? pet.customSpeciesName : getSpeciesMeta(pet.speciesCode).label,
         speciesEmoji: getSpeciesMeta(pet.speciesCode).emoji,
-        speciesImage: getSpeciesMeta(pet.speciesCode).image,
+        speciesImage: pet.coverUrl || getSpeciesMeta(pet.speciesCode).image,
         lifeStageLabel: lifeStageLabel(pet.lifeStage),
       }));
       this.setData({ pets, loading: false });
@@ -32,6 +32,13 @@ Page({
 
   addPet() {
     wx.navigateTo({ url: '/pages/pet-edit/index' });
+  },
+
+  onAvatarError(event) {
+    const index = this.data.pets.findIndex((pet) => pet.id === event.currentTarget.dataset.id);
+    if (index < 0) return;
+    const pet = this.data.pets[index]; const fallback = getSpeciesMeta(pet.speciesCode).image;
+    this.setData({ [`pets.${index}.speciesImage`]: pet.speciesImage === fallback ? '' : fallback });
   },
 
   editPet(event) {

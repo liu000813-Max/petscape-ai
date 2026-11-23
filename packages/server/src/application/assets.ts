@@ -19,6 +19,7 @@
 import type { PrismaClient } from '../infra/db/index.ts';
 import type { OssStorage } from '../infra/oss/index.ts';
 import { assertOwner, NotFoundError } from '../domain/index.ts';
+import { randomUUID } from 'node:crypto';
 
 export { NotFoundError };
 
@@ -78,7 +79,7 @@ const MIME_SNIFF_BYTES = 16;
  * 从未与真实字节核对。返回 null 表示无法从已支持的魔数中识别出类型（未知/
  * 不支持格式，调用方视为不一致处理，不放行）。
  */
-function sniffMimeFromBytes(bytes: Buffer): string | null {
+export function sniffMimeFromBytes(bytes: Buffer): string | null {
   if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
     return 'image/png';
   }
@@ -166,7 +167,7 @@ export async function requestAssetUpload({
       status: 'pending',
       // ossKey 唯一约束不允许留空——先用占位值占住行，紧接着以真实 id 更新，
       // 两次写入在同一请求内完成，不会被其他请求观察到占位态。
-      ossKey: `uploads/raw/${ownerUserId}/__pending__/${Date.now()}`,
+      ossKey: `uploads/raw/${ownerUserId}/__pending__/${randomUUID()}`,
     },
   });
 

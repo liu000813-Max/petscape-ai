@@ -111,6 +111,17 @@ async function nativeClient(role, { restoreAs } = {}) {
   return { api: nativeModule.exports, storage, loadPage, drain: async () => { while (pending.size) await Promise.all([...pending]); } };
 }
 
+test('native cover upload authenticates and rejects foreign pets before reading or initializing OSS', async () => {
+  const pet = await http('/api/v1/pets', { method: 'POST', data: { name: run + '-cover-auth' }, headers: nativeHeaders('owner') }, 201);
+  const route = `/api/v1/pets/${pet.id}/cover-upload`;
+  await http(route, { method: 'POST', raw: Buffer.from([255, 216, 255]), headers: { 'content-type': 'image/jpeg' } }, 401);
+  await http(route, { method: 'POST', raw: Buffer.from([255, 216, 255]), headers: { ...nativeHeaders('other'), 'content-type': 'image/jpeg' } }, 404);
+  await http(route, { method: 'POST', raw: '', headers: { ...nativeHeaders('owner'), 'content-type': 'image/jpeg' } }, 400);
+  await http(route, { method: 'POST', raw: 'invalid', headers: { ...nativeHeaders('owner'), 'content-type': 'image/gif' } }, 400);
+  assert.equal((await prisma.asset.count({ where: { ownerUserId: users.owner } })), 0);
+  await http(`/api/v1/pets/${pet.id}`, { method: 'DELETE', headers: nativeHeaders('owner') });
+});
+
 function input(page, field, value) {
   page.onInput({ currentTarget: { dataset: { field } }, detail: { value } });
 }

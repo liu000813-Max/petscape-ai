@@ -8,6 +8,8 @@ export const PET_LIFE_STAGES = ['juvenile', 'subadult', 'adult', 'senior', 'unkn
 export const PET_COVER_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const PET_COVER_MAX_BYTES = 10 * 1024 * 1024;
 
+export const PetCoverStoredResponseSchema = z.strictObject({ assetId: z.string().min(1) });
+
 export const PetSpeciesCodeSchema = z.enum(PET_SPECIES_CODES);
 export const PetLifeStageSchema = z.enum(PET_LIFE_STAGES);
 

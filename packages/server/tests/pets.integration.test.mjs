@@ -13,6 +13,7 @@ import {
   InvalidPetProfileError,
 } from '../src/application/pets.ts';
 import { NotFoundError } from '../src/domain/index.ts';
+import { uploadPetCover } from '../src/application/pet-cover.ts';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -179,5 +180,25 @@ if (!databaseUrl) {
     const listed = await listPets({ prisma, ownerUserId: userIds[0] });
     assert.equal(listed.some((item) => item.id === pet.id), false);
     assert.ok(await prisma.asset.findUnique({ where: { id: asset.id } }), '软删除 Pet 不应删除 Asset');
+  });
+
+  test('原生头像上传使用真实数据库隔离归属，确认存储后才能绑定并读回', async () => {
+    const pet = await createPet({ prisma, ownerUserId: userIds[0], input: { name: '原生头像' } });
+    const bytes = Buffer.from('89504e470d0a1a0a0000000000000000', 'hex');
+    const objects = new Map();
+    const oss = {
+      signPutUrl: async () => 'https://fixture.invalid/put',
+      put: async (key, value) => { objects.set(key, value); },
+      head: async (key) => ({ exists: objects.has(key), size: objects.get(key)?.length, etag: 'stored' }),
+      readHeadBytes: async (key) => objects.get(key).subarray(0, 16),
+    };
+    const input = { prisma, oss, ownerUserId: userIds[0], petId: pet.id, mime: 'image/png', bytes };
+    await assert.rejects(uploadPetCover({ ...input, ownerUserId: userIds[1] }), NotFoundError);
+    assert.equal(objects.size, 0);
+    const asset = await uploadPetCover(input);
+    assert.equal(asset.status, 'available');
+    await assert.rejects(updatePet({ prisma, ownerUserId: userIds[1], petId: pet.id, input: { coverAssetId: asset.id } }), NotFoundError);
+    await updatePet({ prisma, ownerUserId: userIds[0], petId: pet.id, input: { coverAssetId: asset.id } });
+    assert.equal((await getPet({ prisma, ownerUserId: userIds[0], petId: pet.id })).coverAssetId, asset.id);
   });
 }

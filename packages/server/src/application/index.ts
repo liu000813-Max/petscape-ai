@@ -36,6 +36,7 @@ export {
   InvalidPetProfileError,
 } from './pets.ts';
 export type { PetSummary } from './pets.ts';
+export { uploadPetCover } from './pet-cover.ts';
 export type {
   AssetSummary,
   RequestAssetUploadInput,

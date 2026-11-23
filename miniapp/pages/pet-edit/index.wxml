@@ -5,6 +5,17 @@
 
   <view wx:if="{{loading}}" class="loading">正在读取档案</view>
   <view wx:else class="form-card card section">
+    <view class="photo-field">
+      <image wx:if="{{photoPreview || speciesImage}}" class="photo-preview" src="{{photoPreview || speciesImage}}" mode="aspectFill" binderror="onPhotoError" />
+      <view wx:else class="photo-placeholder">＋</view>
+      <view class="photo-actions">
+        <text class="field-label">宠物头像</text>
+        <button class="photo-button" bindtap="choosePhoto" disabled="{{saving || choosingPhoto || loadFailed}}">{{choosingPhoto ? '正在选图…' : '从相册或相机上传'}}</button>
+        <text class="photo-hint">JPG / PNG / WebP · 最大 10 MB</text>
+        <button wx:if="{{photoSelected}}" class="photo-cancel" bindtap="cancelPhoto" disabled="{{saving}}">撤销选图</button>
+      </view>
+    </view>
+    <view wx:if="{{photoNotice}}" class="photo-notice">{{photoNotice}}</view>
     <view class="field">
       <text class="field-label">名字 · 必填</text>
       <input class="field-input" maxlength="80" value="{{form.name}}" data-field="name" bindinput="onInput" placeholder="例如：米粒" />
@@ -33,6 +44,7 @@
         <view class="picker-value">{{lifeStageOptions[lifeStageIndex].label}} <text class="picker-arrow">⌄</text></view>
       </picker>
       <view class="life-stage-reference"><text class="life-stage-species">参考物种：{{lifeStageReference.speciesName}}</text><text>{{lifeStageReference.note}}</text></view>
+      <button class="source-button" bindtap="showStageSource">查看年龄参考依据</button>
       <view wx:if="{{lifeStageWarning}}" class="life-stage-warning">{{lifeStageWarning}}</view>
     </view>
 
@@ -46,6 +58,6 @@
       <textarea class="field-textarea" maxlength="300" value="{{form.specialNeeds}}" data-field="specialNeeds" bindinput="onInput" placeholder="需要特别留意的健康或照料事项" />
     </view>
 
-    <button class="primary-button submit-button" loading="{{saving}}" disabled="{{saving}}" bindtap="submit">保存档案</button>
+    <button class="primary-button submit-button" loading="{{saving}}" disabled="{{saving || choosingPhoto || loadFailed}}" bindtap="submit">保存档案</button>
   </view>
 </view>

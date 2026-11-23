@@ -38,7 +38,7 @@ function requestOnce(path, options = {}, sessionToken = wx.getStorageSync(SESSIO
     wx.request({
       url: `${app().globalData.apiBaseUrl}${path}`,
       method: options.method || 'GET',
-      timeout: 15000,
+      timeout: options.timeout || 15000,
       data: options.data,
       header: {
         'content-type': 'application/json',
@@ -243,6 +243,13 @@ function updatePet(id, data) {
   return request(`/api/v1/pets/${id}`, { method: 'PATCH', data });
 }
 
+function uploadPetPhoto(id, photo) {
+  if (app().globalData.mockMode) return Promise.reject({ code: 'PHOTO_REQUIRES_CONNECTION' });
+  return request(`/api/v1/pets/${encodeURIComponent(id)}/cover-upload`, {
+    method: 'POST', data: photo.bytes, header: { 'content-type': photo.mime }, timeout: 60000,
+  });
+}
+
 function listProjects() {
   return request('/api/v1/projects');
 }
@@ -279,6 +286,7 @@ module.exports = {
   getPet,
   createPet,
   updatePet,
+  uploadPetPhoto,
   listProjects,
   createProject,
   listOrders,
