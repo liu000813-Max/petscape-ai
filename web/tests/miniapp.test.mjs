@@ -37,7 +37,7 @@ function page(name, overrides = {}) {
   result.data = structuredClone(result.data);
   result.setData = function (data) {
     for (const [key, value] of Object.entries(data)) {
-      const parts = key.split('.');
+      const parts = key.replace(/\[(\d+)\]/g, '.$1').split('.');
       const target = parts.slice(0, -1).reduce((object, part) => object[part], this.data);
       target[parts.at(-1)] = value;
     }
