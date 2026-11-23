@@ -12,5 +12,5 @@
       <view class="timeline-labels"><text>方案</text><text>制作</text><text>交付</text></view>
     </view>
   </view>
-  <view wx:else class="empty card section"><view class="empty-title">还没有订单</view><view class="muted">完成一份栖境设计后，报价和订单会出现在这里</view></view>
+  <view wx:else class="empty card section"><view class="empty-title">还没有订单</view><view class="muted">完成一份宠境设计后，报价和订单会出现在这里</view></view>
 </view>

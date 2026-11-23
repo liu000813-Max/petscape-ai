@@ -11,7 +11,7 @@
   <view class="section"><view class="settings-group-label">了解 PETSCAPE</view>
     <view class="settings-group">
       <button class="settings-row" bindtap="showDataInfo"><view class="setting-mark"><image src="/assets/nav-book-black.png" mode="aspectFit" /></view><view class="setting-copy"><text class="setting-title">数据与隐私说明</text><text class="setting-note">资料保存与权限使用说明</text></view><text class="setting-arrow">›</text></button>
-      <button class="settings-row" bindtap="showAbout"><view class="setting-mark"><image src="/assets/nav-paw-black.png" mode="aspectFit" /></view><view class="setting-copy"><text class="setting-title">关于 PETSCAPE</text><text class="setting-note">给每一位伙伴，合适的栖境</text></view><text class="setting-arrow">›</text></button>
+      <button class="settings-row" bindtap="showAbout"><view class="setting-mark"><image src="/assets/nav-paw-black.png" mode="aspectFit" /></view><view class="setting-copy"><text class="setting-title">关于 PETSCAPE</text><text class="setting-note">给每一位伙伴，合适的宠境</text></view><text class="setting-arrow">›</text></button>
     </view>
   </view>
   <view class="settings-footer"><image src="/assets/petscape-logo.png" mode="aspectFit" /><view>{{accountLabel}} · {{versionLabel}}</view><view>让陪伴有迹可循</view></view>

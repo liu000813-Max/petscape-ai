@@ -3,7 +3,7 @@
   <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
   <view wx:if="{{mockMode}}" class="badge">演示模式 · 示例内容与服务</view>
   <view class="eyebrow">PETSCAPE HABITAT</view>
-  <view class="title"><view>给每一只宠物，</view><view>一处合适的栖境。</view></view>
+  <view class="title"><view>给每一只宠物，</view><view>一处合适的宠境。</view></view>
   <view class="subtitle">记录宠物档案，查找养护知识，把每天的照料留在这里。</view>
 
   <view wx:if="{{!pet && !loading && !loadError}}" class="hero-card" bindtap="openCare">
@@ -48,7 +48,7 @@
     </view>
     <view class="carousel-caption"><text>{{weightSaving || careSaving ? '正在保存记录 · 暂停切换' : (petCount > 1 ? '左右滑动切换 · 点头像查看档案' : '点头像查看宠物档案')}}</text><text class="carousel-counter">{{petIndex + 1}} / {{petCount}}</text></view>
     <button class="device-card card device-empty" bindtap="openDeviceModal" disabled="{{weightSaving || careSaving}}" aria-label="为{{pet.name}}添加温湿度设备，尚未连接">
-      <view><text class="device-title">栖境环境</text><text class="device-subtitle">尚未连接温湿度设备</text></view>
+      <view><text class="device-title">宠境环境</text><text class="device-subtitle">尚未连接温湿度设备</text></view>
       <view class="device-add"><view class="device-plus">＋</view><text>添加设备</text></view>
     </button>
   </view>

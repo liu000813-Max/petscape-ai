@@ -23,9 +23,9 @@ Page({
   createDesign() {
     if (this.data.creating) return;
     wx.showModal({
-      title: '记录栖境想法',
+      title: '记录宠境想法',
       editable: true,
-      placeholderText: '例如：小岩的星云栖境',
+      placeholderText: '例如：小岩的星云宠境',
       success: async (result) => {
         if (!result.confirm) return;
         this.setData({ creating: true });

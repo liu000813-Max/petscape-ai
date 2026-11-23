@@ -1,10 +1,12 @@
 const { listCommunityPosts, toggleCommunityPostLike } = require('../../utils/request');
 const { track } = require('../../utils/analytics');
 const { syncTabBar } = require('../../utils/navigation');
+const { POST_TOPICS, topicLabel } = require('../../utils/community-topics');
 
 Page({
   data: {
-    topics: ['全部', '求助', '晒栖境', '经验', '同城服务'],
+    topics: ['全部', ...POST_TOPICS],
+    topicLabels: ['全部', ...POST_TOPICS.map(topicLabel)],
     active: '全部',
     posts: [],
     loading: true,
@@ -19,7 +21,7 @@ Page({
     try {
       const result = await listCommunityPosts(this.data.active === '全部' ? {} : { topic: this.data.active });
       if (sequence !== this.sequence) return;
-      this.setData({ posts: (result.posts || []).map((item) => ({ ...item, tag: item.topic, author: item.authorName || 'PETSCAPE 用户', likes: item.likeCount || 0, comments: item.commentCount || 0, time: '最近' })), loading: false });
+      this.setData({ posts: (result.posts || []).map((item) => ({ ...item, tag: item.topic, topicLabel: topicLabel(item.topic), author: item.authorName || 'PETSCAPE 用户', likes: item.likeCount || 0, comments: item.commentCount || 0, time: '最近' })), loading: false });
     } catch (error) {
       if (sequence === this.sequence) this.setData({ loading: false, error: '社区读取失败，请重试' });
     }

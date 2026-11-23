@@ -1,4 +1,5 @@
 const { getCommunityPost, listCommunityComments, createCommunityComment } = require('../../utils/request');
+const { topicLabel } = require('../../utils/community-topics');
 Page({
   data: { post: null, comments: [], body: '', loading: true, submitting: false, error: '' },
   onLoad(options) { this.postId = options.id; return this.loadPost(); },
@@ -6,7 +7,7 @@ Page({
     this.setData({ loading: true, error: '' });
     try {
       const [post, result] = await Promise.all([getCommunityPost(this.postId), listCommunityComments(this.postId)]);
-      this.setData({ post, comments: result.comments || [], loading: false });
+      this.setData({ post: { ...post, topicLabel: topicLabel(post.topic) }, comments: result.comments || [], loading: false });
     } catch (error) { this.setData({ loading: false, error: error.statusCode === 404 ? '这条动态已下架或不存在' : '动态读取失败，请重试' }); }
   },
   onBodyInput(event) { this.setData({ body: event.detail.value }); },

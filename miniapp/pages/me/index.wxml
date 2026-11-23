@@ -33,7 +33,7 @@
     <view class="section-head"><text class="section-title">日常与想法</text><text class="eyebrow">WITH THEM</text></view>
     <view class="entry-grid">
       <button class="personal-entry" bindtap="openCare"><image src="/assets/nav-care-black.png" mode="aspectFit" /><text class="entry-title">养护记录</text><text class="entry-note">照料、体重与提醒</text><text class="entry-arrow">↗</text></button>
-      <button class="personal-entry habitat-entry" bindtap="openHabitat"><image src="/assets/nav-habitat-black.png" mode="aspectFit" /><text class="entry-title">栖境想法</text><text class="entry-note">为它留一处好空间</text><text class="entry-arrow">↗</text></button>
+      <button class="personal-entry habitat-entry" bindtap="openHabitat"><image src="/assets/nav-habitat-black.png" mode="aspectFit" /><text class="entry-title">宠境想法</text><text class="entry-note">为它留一处好空间</text><text class="entry-arrow">↗</text></button>
     </view>
   </view>
 

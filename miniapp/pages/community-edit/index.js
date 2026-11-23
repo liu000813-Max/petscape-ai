@@ -1,8 +1,9 @@
 const { createCommunityPost } = require('../../utils/request');
 const { track } = require('../../utils/analytics');
+const { POST_TOPICS, topicLabel } = require('../../utils/community-topics');
 
 Page({
-  data: { topics: ['求助', '晒栖境', '经验', '同城服务'], topicIndex: 0, title: '', body: '', submitting: false },
+  data: { topics: POST_TOPICS, topicLabels: POST_TOPICS.map(topicLabel), topicIndex: 0, title: '', body: '', submitting: false },
 
   onTitleInput(event) { this.setData({ title: event.detail.value }); },
   onBodyInput(event) { this.setData({ body: event.detail.value }); },

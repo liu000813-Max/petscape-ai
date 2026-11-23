@@ -10,7 +10,7 @@
 
   <scroll-view class="topic-scroll" scroll-x="true" enhanced="true" show-scrollbar="false">
     <view class="topic-row">
-      <view wx:for="{{topics}}" wx:key="*this" class="topic {{active === item ? 'selected' : ''}}" data-topic="{{item}}" bindtap="selectTopic">{{item}}</view>
+      <view wx:for="{{topics}}" wx:key="*this" class="topic {{active === item ? 'selected' : ''}}" data-topic="{{item}}" bindtap="selectTopic">{{topicLabels[index]}}</view>
     </view>
   </scroll-view>
 
@@ -18,7 +18,7 @@
   <view wx:elif="{{error}}" class="error-state"><text>{{error}}</text><button class="secondary-button" bindtap="loadPosts">重新读取</button></view>
   <view wx:elif="{{posts.length}}" class="section post-list">
     <view wx:for="{{posts}}" wx:key="id" wx:if="{{active === '全部' || active === item.tag}}" class="post-card card" data-id="{{item.id}}" bindtap="openPost">
-      <view class="post-tag badge">{{item.tag}}</view>
+      <view class="post-tag badge">{{item.topicLabel}}</view>
       <text class="post-title">{{item.title}}</text>
       <view class="post-meta"><text>{{item.author}}</text><text>{{item.time}}</text></view>
       <view class="post-stats"><text data-id="{{item.id}}" catchtap="likePost">{{item.liked ? '♥' : '♡'}} {{item.likes}}</text><text>评论 {{item.comments}}</text></view>

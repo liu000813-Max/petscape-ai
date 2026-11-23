@@ -9,7 +9,7 @@ Page({
     if (!canUseEmbeddedWorkbench()) return;
     const projectId = options.projectId || '';
     if (!projectId) {
-      this.setData({ message: '没有找到这个栖境项目，请返回项目列表重新选择。' });
+      this.setData({ message: '没有找到这个宠境项目，请返回项目列表重新选择。' });
       return;
     }
     const url = `${webBaseUrl}/workbench?project=${encodeURIComponent(projectId)}&source=miniapp`;

@@ -1,13 +1,13 @@
 <view class="page">
   <view class="eyebrow">PETSCAPE DESIGN LAB</view>
-  <view class="title">栖境想法</view>
+  <view class="title">宠境想法</view>
   <view class="subtitle">{{embeddedWorkbench ? '从宠物档案理解生活习性，再探索适合它的空间。' : '先记录宠物的空间需求和项目名称。3D 预览与定制制作尚未开放。'}}</view>
 
   <view class="start-card" bindtap="createDesign">
     <view>
       <text class="start-label">START A NEW HABITAT</text>
       <text class="start-title">从一个想法开始</text>
-      <text class="start-note">{{embeddedWorkbench ? '为宠物创建一份栖境项目。' : '为想法起个名字，之后继续完善。'}}</text>
+      <text class="start-note">{{embeddedWorkbench ? '为宠物创建一份宠境项目。' : '为想法起个名字，之后继续完善。'}}</text>
     </view>
     <text class="start-arrow">＋</text>
   </view>
@@ -27,7 +27,7 @@
 
   <view class="section design-note card">
     <text class="badge">让空间更适合它</text>
-    <text class="note-title">先了解习性，再考虑栖境</text>
+    <text class="note-title">先了解习性，再考虑宠境</text>
     <text class="muted">在宠物档案里记下体型、环境和特殊需求。记录越具体，之后规划空间时越有依据。</text>
   </view>
 </view>

@@ -1,7 +1,7 @@
 <view class="page tab-page">
   <view class="eyebrow">MY PETS</view>
   <view class="title">我的宠物</view>
-  <view class="subtitle">档案是知识、养护记录和专属栖境的共同起点。</view>
+  <view class="subtitle">档案是知识、养护记录和专属宠境的共同起点。</view>
 
   <view wx:if="{{loading}}" class="loading">正在读取宠物档案</view>
   <view wx:elif="{{loadError}}" class="empty card error-state">
@@ -28,7 +28,7 @@
 
   <view class="section grid-2">
     <button class="secondary-button" bindtap="addPet">新增档案</button>
-    <button class="primary-button" bindtap="openDesign">记录栖境想法</button>
+    <button class="primary-button" bindtap="openDesign">记录宠境想法</button>
   </view>
   <button class="secondary-button section" bindtap="openCareLog">打开养护记录与提醒</button>
 </view>

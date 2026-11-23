@@ -47,6 +47,25 @@ function page(name, overrides = {}) {
 function files(directory) { return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? files(path.join(directory, entry.name)) : [path.join(directory, entry.name)]); }
 test.beforeEach(resetWx);
 
+test('community displays the renamed topic while filters and publishing retain the accepted API topic', async () => {
+  let filter; let submission;
+  const list = page('community', { listCommunityPosts: async (params) => { filter = params; return { posts: [{ id: 'post-a', topic: '晒栖境', title: '分享' }] }; } });
+  assert.equal(list.data.topicLabels[2], '晒宠境');
+  await list.selectTopic({ currentTarget: { dataset: { topic: list.data.topics[2] } } });
+  assert.equal(filter.topic, '晒栖境');
+  assert.equal(list.data.posts[0].tag, '晒栖境');
+  assert.equal(list.data.posts[0].topicLabel, '晒宠境');
+  const detail = page('community-detail', { getCommunityPost: async () => ({ id: 'post-a', topic: '晒栖境' }), listCommunityComments: async () => ({ comments: [] }) });
+  await detail.onLoad({ id: 'post-a' });
+  assert.equal(detail.data.post.topicLabel, '晒宠境');
+  const compose = page('community-edit', { createCommunityPost: async (data) => { submission = data; } });
+  compose.setData({ topicIndex: 1, title: '分享', body: '我的宠境' });
+  assert.equal(compose.data.topicLabels[1], '晒宠境');
+  await compose.submit();
+  assert.equal(submission.topic, '晒栖境');
+  assert.equal(compose.data.submitting, true);
+});
+
 function tabBar() {
   const filename = path.join(root, 'custom-tab-bar/index.js');
   delete require.cache[require.resolve(filename)];
