@@ -1,5 +1,5 @@
 <page-meta page-style="{{activeModal ? 'overflow: hidden;' : ''}}" />
-<view class="page home-page" aria-hidden="{{!!activeModal}}">
+<view class="page tab-page home-page" aria-hidden="{{!!activeModal}}">
   <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
   <view wx:if="{{mockMode}}" class="badge">演示模式 · 示例内容与服务</view>
   <view class="eyebrow">PETSCAPE HABITAT</view>

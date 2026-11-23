@@ -47,6 +47,125 @@ function page(name, overrides = {}) {
 function files(directory) { return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? files(path.join(directory, entry.name)) : [path.join(directory, entry.name)]); }
 test.beforeEach(resetWx);
 
+function tabBar() {
+  const filename = path.join(root, 'custom-tab-bar/index.js');
+  delete require.cache[require.resolve(filename)];
+  let definition;
+  globalThis.Component = (value) => { definition = value; };
+  require(filename);
+  return { ...definition.methods, data: structuredClone(definition.data), setData(value) { Object.assign(this.data, value); } };
+}
+
+test('my pets rejects an old successful response after the current read fails', async () => {
+  let finish;
+  let reads = 0;
+  const me = page('me', { listPets: () => ++reads === 1 ? new Promise((resolve) => { finish = resolve; }) : Promise.reject({ statusCode: 503 }) });
+  const old = me.onShow();
+  await me.onShow();
+  finish({ pets: [{ id: 'old-pet', name: '不应残留' }] });
+  await old;
+  assert.deepEqual(me.data.pets, []);
+  assert.equal(me.data.loaded, false);
+  assert.equal(me.data.loading, false);
+  assert.match(me.data.loadErrorDetail, /SERVICE_UNAVAILABLE/);
+});
+
+test('my pet card opens only a loaded pet and image fallback stops after species image', async () => {
+  const me = page('me', { listPets: async () => ({ pets: [{ id: 'my/pet', speciesCode: 'rat', coverUrl: 'https://private.example/pet' }] }) });
+  await me.onShow();
+  navigation = undefined;
+  me.editPet({ currentTarget: { dataset: { id: 'someone-else' } } });
+  assert.equal(navigation, undefined);
+  me.editPet({ currentTarget: { dataset: { id: 'my/pet' } } });
+  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-edit/index?id=my%2Fpet']);
+  me.onAvatarError({ currentTarget: { dataset: { id: 'my/pet' } } });
+  assert.equal(me.data.pets[0].avatarUrl, '/assets/species-rat.png');
+  me.onAvatarError({ currentTarget: { dataset: { id: 'my/pet' } } });
+  assert.equal(me.data.pets[0].avatarUrl, '');
+});
+
+test('custom navigation keeps actual route after failure and ignores duplicate or unknown taps', () => {
+  const bar = tabBar();
+  let call;
+  wx.switchTab = (options) => { call = options; };
+  bar.sync();
+  bar.switchTab({ currentTarget: { dataset: { path: 'pages/me/index' } } });
+  assert.equal(call.url, '/pages/me/index');
+  call.fail();
+  bar.switchTab({ currentTarget: { dataset: { path: 'pages/pet/index' } } });
+  assert.equal(call.url, '/pages/me/index');
+  call.complete();
+  assert.equal(bar.data.selected, 'pages/home/index');
+  call = undefined;
+  bar.switchTab({ currentTarget: { dataset: { path: 'pages/viewer/index' } } });
+  assert.equal(call, undefined);
+  globalThis.getCurrentPages = () => [{ route: 'pages/pet/index', data: {} }];
+  bar.sync();
+  assert.equal(bar.data.selected, 'pages/pet/index');
+});
+
+test('five tabs and custom component resources agree with the native app manifest', () => {
+  const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json')));
+  const { TABS, syncTabBar } = require(path.join(root, 'utils/navigation.js'));
+  assert.equal(config.tabBar.custom, true);
+  assert.deepEqual(config.tabBar.list, TABS.map(({ pagePath, text }) => ({ pagePath, text })));
+  const bar = tabBar();
+  for (const extension of ['.js', '.json', '.wxml', '.wxss']) assert.ok(fs.existsSync(path.join(root, 'custom-tab-bar/index' + extension)));
+  assert.equal(typeof bar.switchTab, 'function');
+  for (const tab of TABS) {
+    assert.ok(config.pages.includes(tab.pagePath));
+    globalThis.getCurrentPages = () => [{ route: tab.pagePath, data: {} }];
+    bar.sync();
+    assert.equal(bar.data.selected, tab.pagePath);
+    syncTabBar({ route: tab.pagePath, getTabBar: () => bar });
+    assert.equal(bar.data.selected, tab.pagePath);
+  }
+});
+
+test('home modal hides custom navigation through onShow and cannot be closed during a write', () => {
+  const home = page('home');
+  const states = [];
+  home.getTabBar = () => ({ setData: (state) => states.push(state) });
+  home.setData({ loading: false, pet: { id: 'a', name: '团子' }, selectedPetId: 'a' });
+  for (const open of [() => home.openWeightModal(), () => home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } }), () => home.openDeviceModal()]) {
+    open();
+    assert.equal(states.at(-1).hidden, true);
+    home.onShow();
+    assert.equal(states.at(-1).hidden, true);
+    home.setData({ weightSaving: true }); home.closeModal();
+    assert.equal(states.at(-1).hidden, true);
+    home.setData({ weightSaving: false }); home.closeModal();
+    assert.equal(states.at(-1).hidden, false);
+  }
+});
+
+test('settings refresh preserves session and reports failed reads without a success notice', async () => {
+  storage.set('petscape_session_token', 'keep-this');
+  let finish; let reads = 0;
+  const settings = page('settings', { listPets: () => { reads++; return new Promise((resolve, reject) => { finish = { resolve, reject }; }); } });
+  const first = settings.refreshData();
+  await settings.refreshData();
+  assert.equal(reads, 1);
+  finish.resolve({ pets: [{ id: 'a' }, { id: 'b' }] }); await first;
+  assert.match(settings.data.refreshNotice, /2/);
+  const second = settings.refreshData();
+  finish.reject({ statusCode: 502 }); await second;
+  assert.equal(settings.data.refreshNotice, '');
+  assert.match(settings.data.loadErrorDetail, /SERVICE_UNAVAILABLE/);
+  assert.equal(storage.get('petscape_session_token'), 'keep-this');
+});
+
+test('settings permissions open only after a tap and failed permission entry gives feedback', () => {
+  const settings = page('settings');
+  let options;
+  wx.openSetting = (value) => { options = value; };
+  settings.onLoad();
+  assert.equal(options, undefined);
+  settings.openPermissions();
+  options.fail();
+  assert.match(notices.at(-1).title, /权限设置/);
+});
+
 test('pet photo partial failure preserves the new pet ID and retries without duplicating the pet', async () => {
   let creates = 0; let uploads = 0; const changes = [];
   const form = page('pet-edit', {

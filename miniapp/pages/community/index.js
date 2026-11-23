@@ -1,5 +1,6 @@
 const { listCommunityPosts, toggleCommunityPostLike } = require('../../utils/request');
 const { track } = require('../../utils/analytics');
+const { syncTabBar } = require('../../utils/navigation');
 
 Page({
   data: {
@@ -10,7 +11,7 @@ Page({
     error: '',
   },
 
-  onShow() { return this.loadPosts(); },
+  onShow() { syncTabBar(this); return this.loadPosts(); },
 
   async loadPosts() {
     const sequence = (this.sequence || 0) + 1; this.sequence = sequence;

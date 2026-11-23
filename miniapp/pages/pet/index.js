@@ -2,11 +2,13 @@ const { listPets } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
 const { describeError } = require('../../utils/errors');
 const { lifeStageLabel } = require('../../utils/life-stages');
+const { syncTabBar } = require('../../utils/navigation');
 
 Page({
   data: { pets: [], loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '' },
 
   onShow() {
+    syncTabBar(this);
     return this.loadPets();
   },
 

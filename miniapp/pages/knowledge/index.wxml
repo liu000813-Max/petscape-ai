@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page tab-page">
   <view class="eyebrow">PETSCAPE FIELD NOTES</view>
   <view class="title">养护知识</view>
   <view class="subtitle">按物种和场景找到能立刻执行的养护方法，再把它记录到你的宠物档案。</view>

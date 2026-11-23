@@ -1,0 +1,44 @@
+<view class="page tab-page me-page">
+  <view class="me-heading">
+    <view><view class="eyebrow">MY PETSCAPE</view><view class="title">我的宠境</view></view>
+    <button class="settings-button" bindtap="openSettings" aria-label="打开设置"><image src="/assets/nav-settings-black.png" mode="aspectFit" /><text>设置</text></button>
+  </view>
+
+  <view class="identity-card">
+    <view class="owner-mark"><image src="/assets/nav-person-black.png" mode="aspectFit" /></view>
+    <view class="identity-copy"><text class="owner-name">养宠人</text><text class="identity-note">把每一位伙伴，放在心上。</text></view>
+    <view class="identity-count"><text class="count-number">{{loaded ? pets.length : '—'}}</text><text class="count-label">宠物伙伴</text></view>
+  </view>
+
+  <view class="section pet-section">
+    <view class="section-head"><text class="section-title">我的宠物</text><button class="text-button" bindtap="openPets">全部档案 <text>↗</text></button></view>
+    <view wx:if="{{loading}}" class="pet-placeholder loading">正在读取宠物伙伴…</view>
+    <view wx:elif="{{loadError}}" class="card empty error-state">
+      <view>{{loadErrorTitle}}</view><view class="muted">{{loadError}}</view><view class="muted error-detail">{{loadErrorDetail}}</view>
+      <button class="secondary-button retry-button" bindtap="loadPets">重试读取</button>
+    </view>
+    <scroll-view wx:elif="{{pets.length}}" class="pet-strip" scroll-x enhanced show-scrollbar="{{false}}" aria-label="横向滑动查看宠物">
+      <view class="pet-track">
+        <button wx:for="{{pets}}" wx:key="id" class="companion-card" data-id="{{item.id}}" bindtap="editPet" aria-label="{{'编辑' + item.name + '的档案'}}">
+          <view class="companion-portrait"><image wx:if="{{item.avatarUrl}}" class="companion-image" src="{{item.avatarUrl}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><image wx:else class="companion-fallback" src="/assets/nav-paw-black.png" mode="aspectFit" /></view>
+          <text class="companion-name">{{item.name}}</text><text class="companion-species">{{item.speciesLabel}} · {{item.lifeStageLabel}}</text>
+        </button>
+        <button class="add-companion" bindtap="addPet"><text class="add-circle">＋</text><text>添加伙伴</text></button>
+      </view>
+    </scroll-view>
+    <view wx:else class="empty-family"><image src="/assets/nav-paw-black.png" mode="aspectFit" /><view>第一位伙伴，从这里开始</view><view class="muted">创建档案，留下你们的日常。</view><button class="primary-button" bindtap="addPet">添加宠物档案</button></view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">日常与想法</text><text class="eyebrow">WITH THEM</text></view>
+    <view class="entry-grid">
+      <button class="personal-entry" bindtap="openCare"><image src="/assets/nav-care-black.png" mode="aspectFit" /><text class="entry-title">养护记录</text><text class="entry-note">照料、体重与提醒</text><text class="entry-arrow">↗</text></button>
+      <button class="personal-entry habitat-entry" bindtap="openHabitat"><image src="/assets/nav-habitat-black.png" mode="aspectFit" /><text class="entry-title">栖境想法</text><text class="entry-note">为它留一处好空间</text><text class="entry-arrow">↗</text></button>
+    </view>
+  </view>
+
+  <view class="section suggestion-card">
+    <text class="suggestion-tag">给养宠人的小建议</text><view class="suggestion-title"><view>多一份记录，</view><view>多了解它一点。</view></view><view class="suggestion-note">从物种习性开始，把养护知识变成日常。</view><button class="suggestion-link" bindtap="openKnowledge">看看养护知识 <text>→</text></button>
+  </view>
+  <view class="me-signature">PETSCAPE · 让陪伴有迹可循</view>
+</view>

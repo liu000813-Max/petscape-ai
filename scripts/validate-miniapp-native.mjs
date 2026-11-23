@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 const compilerDir = process.argv[2];
 if (!compilerDir) throw new Error('Usage: node scripts/validate-miniapp-native.mjs <WeChat devtools wcc-exec directory>');
 const root = fileURLToPath(new URL('../miniapp/', import.meta.url));
-const pages = JSON.parse(readFileSync(path.join(root, 'app.json'), 'utf8')).pages;
+const config = JSON.parse(readFileSync(path.join(root, 'app.json'), 'utf8'));
+const pages = [...config.pages, ...(config.tabBar.custom ? ['custom-tab-bar/index'] : [])];
 const outputDir = mkdtempSync(path.join(tmpdir(), 'petscape-native-'));
 for (const [compiler, extension, sources] of [
   ['wcc', 'wxml', pages.map((page) => page + '.wxml')],

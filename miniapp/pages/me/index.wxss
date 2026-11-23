@@ -1,0 +1,44 @@
+.me-heading { display: flex; justify-content: space-between; align-items: center; }
+.me-page .settings-button { display: flex; flex-direction: column; align-items: center; gap: 7rpx; width: 90rpx; margin: 0; padding: 10rpx 5rpx 10rpx 24rpx; background: transparent; font-size: 22rpx; line-height: 1.3; color: #555; }
+.settings-button image { width: 35rpx; height: 35rpx; }
+.identity-card { display: flex; align-items: center; gap: 20rpx; margin-top: 32rpx; padding: 30rpx 24rpx; border: 1rpx solid #e8e8e8; border-radius: 26rpx; }
+.owner-mark { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 92rpx; height: 92rpx; border-radius: 50%; background: #faedf2; }
+.owner-mark image { width: 48rpx; height: 48rpx; }
+.identity-copy { flex: 1; min-width: 0; }
+.owner-name { display: block; font-size: 33rpx; font-weight: 600; }
+.identity-note { display: block; margin-top: 10rpx; font-size: 22rpx; color: #737373; line-height: 1.6; }
+.identity-count { flex-shrink: 0; padding-left: 20rpx; border-left: 1rpx solid #ededed; text-align: center; }
+.count-number { display: block; font-size: 42rpx; line-height: 1.2; font-weight: 300; }
+.count-label { display: block; margin-top: 6rpx; font-size: 20rpx; color: #737373; }
+.me-page .text-button { width: auto; margin: 0; padding: 10rpx 0 10rpx 16rpx; background: transparent; color: #555; font-size: 23rpx; line-height: 1.4; }
+.text-button text { margin-left: 6rpx; color: #050505; }
+.pet-strip { width: calc(100% + 32rpx); }
+.pet-track { display: flex; align-items: stretch; gap: 18rpx; padding: 4rpx 32rpx 8rpx 0; }
+.me-page .companion-card { flex-shrink: 0; width: 272rpx; margin: 0; padding: 20rpx; border: 1rpx solid #eaeaea; border-radius: 24rpx; background: #fafafa; color: #050505; text-align: left; line-height: 1.4; }
+.companion-portrait { display: flex; align-items: center; justify-content: center; height: 160rpx; overflow: hidden; border-radius: 15rpx; background: #f0efed; }
+.companion-image { width: 100%; height: 100%; }
+.companion-fallback { width: 64rpx; height: 64rpx; opacity: .4; }
+.companion-name { display: block; margin-top: 17rpx; font-size: 29rpx; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.companion-species { display: block; margin-top: 7rpx; font-size: 21rpx; color: #737373; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.me-page .add-companion { display: flex; flex-shrink: 0; flex-direction: column; align-items: center; justify-content: center; gap: 17rpx; width: 146rpx; margin: 0; padding: 12rpx; border: 1rpx dashed #d6d6d6; border-radius: 24rpx; background: #fff; color: #666; font-size: 23rpx; white-space: nowrap; }
+.add-circle { display: flex; align-items: center; justify-content: center; width: 65rpx; height: 65rpx; border: 1rpx solid #ddd; border-radius: 50%; font-size: 36rpx; font-weight: 300; }
+.pet-placeholder { min-height: 280rpx; display: flex; align-items: center; justify-content: center; }
+.me-page .retry-button { width: 300rpx; margin-top: 20rpx; }
+.empty-family { padding: 28rpx 20rpx; border: 1rpx dashed #ddd; border-radius: 24rpx; text-align: center; line-height: 1.7; }
+.empty-family image { width: 52rpx; height: 52rpx; margin-bottom: 12rpx; }
+.empty-family .muted { margin-top: 5rpx; font-size: 24rpx; }
+.me-page .empty-family button { margin-top: 24rpx; width: 350rpx; font-size: 25rpx; }
+.entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18rpx; }
+.me-page .personal-entry { position: relative; width: 100%; margin: 0; padding: 24rpx; border: 1rpx solid #e8e8e8; border-radius: 24rpx; text-align: left; background: #fff; line-height: 1.4; color: #050505; }
+.personal-entry image { display: block; width: 40rpx; height: 40rpx; margin-bottom: 26rpx; }
+.entry-title { display: block; font-size: 29rpx; font-weight: 600; }
+.entry-note { display: block; margin-top: 8rpx; font-size: 21rpx; color: #777; }
+.entry-arrow { position: absolute; top: 21rpx; right: 24rpx; font-size: 30rpx; }
+.me-page .habitat-entry { background: #faf7f8; border-color: #f0e5e9; }
+.suggestion-card { padding: 30rpx; background: #f6f6f3; border-radius: 24rpx; }
+.suggestion-tag { display: inline-block; padding: 6rpx 13rpx; border-radius: 8rpx; background: #f5dce5; color: #6d4352; font-size: 20rpx; }
+.suggestion-title { margin-top: 21rpx; font-size: 40rpx; line-height: 1.4; font-weight: 300; }
+.suggestion-note { margin-top: 15rpx; font-size: 23rpx; line-height: 1.6; color: #737373; }
+.me-page .suggestion-link { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 21rpx 0 0; margin-top: 23rpx; border-top: 1rpx solid #dededb; border-radius: 0; background: transparent; color: #050505; font-size: 24rpx; line-height: 1.5; }
+.suggestion-link text { font-size: 30rpx; }
+.me-signature { margin-top: 36rpx; font-size: 20rpx; text-align: center; color: #999; letter-spacing: 1rpx; }

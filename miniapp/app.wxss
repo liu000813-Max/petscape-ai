@@ -22,6 +22,11 @@ button::after {
   padding: 32rpx 32rpx 140rpx;
 }
 
+.page.tab-page {
+  padding-bottom: 180rpx;
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
+
 .eyebrow {
   color: rgba(0, 0, 0, 0.55);
   font-size: 22rpx;

@@ -1,0 +1,16 @@
+.settings-group-label { margin-bottom: 16rpx; color: #777; font-size: 23rpx; }
+.settings-group { overflow: hidden; border: 1rpx solid #e8e8e8; border-radius: 24rpx; }
+.settings-page .settings-row { display: flex; align-items: center; gap: 20rpx; width: 100%; margin: 0; padding: 27rpx 24rpx; border: 0; border-bottom: 1rpx solid #ededed; border-radius: 0; background: #fff; color: #050505; text-align: left; line-height: 1.4; }
+.settings-row:last-child { border-bottom: 0; }
+.settings-row[disabled] { background: #fafafa; color: #777; }
+.setting-mark { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; border-radius: 17rpx; background: #f6f5f4; }
+.setting-mark image { width: 33rpx; height: 33rpx; }
+.setting-copy { min-width: 0; flex: 1; }
+.setting-title { display: block; font-size: 28rpx; font-weight: 500; }
+.setting-note { display: block; margin-top: 8rpx; font-size: 22rpx; color: #888; line-height: 1.5; }
+.setting-arrow { flex-shrink: 0; font-size: 34rpx; color: #888; }
+.refresh-result, .settings-error { margin-top: 16rpx; padding: 18rpx 22rpx; border-radius: 14rpx; font-size: 23rpx; line-height: 1.7; }
+.refresh-result { background: #f3f5f1; color: #4f6147; }
+.settings-error { background: #fff2f4; color: #82505d; }
+.settings-footer { margin-top: 74rpx; text-align: center; font-size: 21rpx; line-height: 2; color: #999; }
+.settings-footer image { width: 228rpx; height: 85rpx; margin-bottom: 12rpx; }

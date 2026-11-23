@@ -3,6 +3,7 @@ const { getSpeciesMeta } = require('../../utils/species');
 const { track } = require('../../utils/analytics');
 const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
+const { syncTabBar } = require('../../utils/navigation');
 
 // Existing care records are free text. Never assume a unit for old values.
 function weightInGrams(value, unit) {
@@ -108,6 +109,7 @@ Page({
   },
 
   onShow() {
+    syncTabBar(this, Boolean(this.data.activeModal));
     if (this.isWriting() || this.data.activeModal) return;
     this.setData({ mockMode: getApp().globalData.mockMode });
     track('home.view');
@@ -203,6 +205,7 @@ Page({
   openWeightModal() {
     if (this.data.loading || this.isWriting() || this.data.activeModal || !this.data.pet) return;
     this.setData({ activeModal: 'weight', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name, ...(!this.data.weightUnconfirmed && !this.data.weightError ? { weightNotice: '' } : {}) });
+    syncTabBar(this, true);
   },
   onWeightInput(event) {
     if (this.data.activeModal === 'weight' && !this.isWriting()) this.setData({ weightInput: event.detail.value });
@@ -246,6 +249,7 @@ Page({
 
   dismissModal() {
     this.setData({ activeModal: '', modalPetId: '', modalPetName: '', keyboardHeight: 0 });
+    syncTabBar(this);
   },
 
   setChartMode(event) {
@@ -274,6 +278,7 @@ Page({
     this.setData({ activeModal: 'care', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name, careKind: kind,
       careLatest: kind === '喂食' ? this.data.latestFeeding : null,
       ...(draft || { careValue: '', careNote: '', careUnconfirmed: false, careNotice: '' }) });
+    syncTabBar(this, true);
   },
 
   onCareValue(event) { if (this.data.activeModal === 'care' && !this.isWriting()) this.setData({ careValue: event.detail.value }); },
@@ -312,6 +317,7 @@ Page({
   openDeviceModal() {
     if (this.data.loading || this.isWriting() || this.data.activeModal || !this.data.pet) return;
     this.setData({ activeModal: 'device', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name });
+    syncTabBar(this, true);
   },
 
   onAvatarError(event) {

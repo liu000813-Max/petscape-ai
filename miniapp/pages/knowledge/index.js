@@ -1,5 +1,6 @@
 const { listArticles } = require('../../utils/request');
 const { track } = require('../../utils/analytics');
+const { syncTabBar } = require('../../utils/navigation');
 
 Page({
   data: {
@@ -10,7 +11,7 @@ Page({
     error: '',
   },
 
-  onShow() { return this.loadArticles(); },
+  onShow() { syncTabBar(this); return this.loadArticles(); },
 
   async loadArticles() {
     const sequence = (this.sequence || 0) + 1; this.sequence = sequence;

@@ -9,6 +9,8 @@
     "pages/care-log/index",
     "pages/services/index",
     "pages/pet/index",
+    "pages/me/index",
+    "pages/settings/index",
     "pages/pet-edit/index",
     "pages/design/index",
     "pages/order/index",
@@ -22,6 +24,7 @@
     "backgroundTextStyle": "light"
   },
   "tabBar": {
+    "custom": true,
     "color": "#737373",
     "selectedColor": "#050505",
     "backgroundColor": "#ffffff",
@@ -29,8 +32,9 @@
     "list": [
       { "pagePath": "pages/home/index", "text": "首页" },
       { "pagePath": "pages/knowledge/index", "text": "知识" },
+      { "pagePath": "pages/pet/index", "text": "宠物" },
       { "pagePath": "pages/community/index", "text": "社区" },
-      { "pagePath": "pages/pet/index", "text": "我的宠物" }
+      { "pagePath": "pages/me/index", "text": "我的" }
     ]
   },
   "style": "v2",
