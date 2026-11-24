@@ -19,3 +19,10 @@
 - 社区及宠物真实数据库集成 14 项通过、零跳过。私有回执位于 petscape-dev-runtime/postgres16/runs/20261116104710732_13250e/receipt.json。
 - 仓库外无云凭据快照的 Next 构建成功，真实 HTTP 与 PostgreSQL 验收 11 项通过、零跳过；实际页面提交亚成体，数据库确认新建 sizeLevel=null、编辑省略体型后旧值 4 保留。私有回执：petscape-dev-runtime/postgres16/runs/20261116104911869_a246a3/http-receipt.json。
 - 线上发布结果在实际完成后追加；不由本地通过推断预览或生产已更新。
+
+## 2026-11-24 物种参考补充
+
+- AAV《Care for Senior Parrots》表 1 另列桃脸牡丹鹦鹉、非洲灰鹦鹉、Galah、白凤头鹦鹉、蓝顶亚马逊鹦鹉和琉璃金刚鹦鹉的老年养护年龄参考。
+- 依精确中文别名或学名显示各物种老年养护参考，其余三个阶段继续标“年月待核实”。通用“鹦鹉”或其他鹦鹉学名不会套用，且老年养护界限不代表普适物种标准。
+- AAV 和中国政府公开名录用作这六项的物种名称及年龄依据。来源见 [AAV 2022 手册](https://cdn.ymaws.com/www.aav.org/resource/collection/AE20E93E-0F61-4C20-AB88-E237BD795B43/AAV-care-for-senior-parrots.pdf) 与 [福建省官方鹦鹉名录](https://lyt.fj.gov.cn/zwgk/zcjd/bmzcwj/202512/P020251229623130337040.pdf)。
+- 共 7 条既有及新增鹦鹉参考通过回归，检查各精确学名显示对应老年界限、前三阶段仍待核实、其他物种分类与泛称不命中。

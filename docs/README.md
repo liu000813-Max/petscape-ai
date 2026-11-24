@@ -12,6 +12,7 @@
 | 数据库目前实现了什么 | [Prisma schema](../packages/server/prisma/schema.prisma) | [migrations](../packages/server/prisma/migrations/)、集成测试和真实数据库 evidence |
 | API 或跨进程输入目前长什么样 | [Zod contracts](../packages/server/src/contracts/) | Route Handler、应用层、调用方和契约测试 |
 | 原生小程序内容/社区与养护如何验收 | [小程序内容规范](specs/miniapp-content.md) | [整合说明](miniapp-integration.md)、`miniapp/`、对应单元与集成用例 |
+| 小程序蓝牙温湿度设备怎样配对和验收 | [BLE 设备规范](specs/miniapp-ble-environment-devices.md) | 设备 GATT 协议、原生页面状态、真实 Android/iOS 连接验收 |
 | Windows 本机如何做真实数据库联调 | [运行手册](runbooks/miniapp-local-postgres.md) | [数据库验收记录](operations/miniapp-database-2026-10-16.md)、独立运行目录中的原始日志 |
 | 小程序 HTTP 是否已连真实库、怎样准备账号 | [HTTP 验收记录](operations/miniapp-http-2026-10-16.md) | [账号准备指引](runbooks/miniapp-account-setup.md)、[整合说明](miniapp-integration.md) |
 | 个人版入口与宠物表单是否可用 | [个人版验收](operations/miniapp-personal-2026-10-16.md) | [客户端说明](../miniapp/README.md)、配置诊断与真实 HTTP 证据 |

@@ -1060,6 +1060,28 @@ test('bird senior ages remain species-specific and do not fill unrelated life st
   assert.equal(form.data.lifeStageOptions[3].label, '老年（超过 12 年）');
 });
 
+test('AAV geriatric ages match only six exact parrot species and leave earlier stages pending', () => {
+  const { getLifeStageReference, getLifeStageOptions } = require(path.join(root, 'utils/life-stages.js'));
+  const references = [
+    ['Agapornis roseicollis', '桃脸牡丹鹦鹉', '超过 10 年'],
+    ['Psittacus erithacus', '非洲灰鹦鹉', '超过 15 年'],
+    ['Eolophus roseicapilla', '粉红凤头鹦鹉（Galah）', '超过 18 年'],
+    ['Cacatua alba', '白凤头鹦鹉', '超过 20 年'],
+    ['Amazona aestiva', '蓝顶亚马逊鹦鹉', '超过 25 年'],
+    ['Ara ararauna', '琉璃金刚鹦鹉（蓝黄金刚鹦鹉）', '超过 30 年'],
+  ];
+  for (const [latinName, speciesName, senior] of references) {
+    const reference = getLifeStageReference('parrot', latinName);
+    assert.equal(reference.speciesName, speciesName);
+    assert.equal(reference.ranges.senior, senior);
+    assert.ok(getLifeStageOptions(reference).slice(0, 3).every(option => option.label.includes('年月待核实')));
+    assert.match(reference.note, /老年养护参考/);
+  }
+  for (const broadName of ['鹦鹉', '金刚鹦鹉', '凤头鹦鹉', '牡丹鹦鹉']) {
+    assert.equal(getLifeStageReference('parrot', broadName).ranges, null);
+  }
+});
+
 test('rat senior reference is visible before input and does not spread to other rodents', async () => {
   const { getLifeStageReference, getLifeStageOptions } = require(path.join(root, 'utils/life-stages.js'));
   const form = page('pet-edit');
