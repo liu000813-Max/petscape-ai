@@ -248,7 +248,7 @@ test('four tabs and custom component resources agree with the native app manifes
   assert.equal(typeof bar.switchTab, 'function');
   for (const tab of TABS) {
     assert.ok(config.pages.includes(tab.pagePath));
-    for (const color of ['black', 'gray']) assert.ok(fs.existsSync(path.join(root, `assets/nav-${tab.icon}-${color}.png`)));
+    for (const color of ['white', 'gray']) assert.ok(fs.existsSync(path.join(root, `assets/nav-${tab.icon}-${color}.png`)));
     globalThis.getCurrentPages = () => [{ route: tab.pagePath, data: {} }];
     bar.sync();
     assert.equal(bar.data.selected, tab.pagePath);

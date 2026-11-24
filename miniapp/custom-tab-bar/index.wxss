@@ -1,15 +1,28 @@
 .tab-dock { position: fixed; z-index: 30; left: 24rpx; right: 24rpx; bottom: 12rpx; bottom: calc(12rpx + env(safe-area-inset-bottom)); }
 .tab-bar { display: flex; align-items: stretch; height: 112rpx; padding: 0 8rpx; border: 1rpx solid #e8e8e8; border-radius: 38rpx; background: #fff; box-shadow: 0 8rpx 30rpx rgba(0,0,0,.08); }
-.tab-bar .tab-item { position: relative; display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; min-width: 0; width: auto; margin: 0; padding: 6rpx 0 12rpx; border: 0; border-radius: 28rpx; color: #777; background: transparent; line-height: 1; }
+.tab-bar .tab-item { position: relative; display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; min-width: 0; width: auto; margin: 0; padding: 6rpx 0 12rpx; overflow: visible; border: 0; border-radius: 28rpx; color: #777; background: transparent; line-height: 1; }
 .tab-item::after { border: 0; }
-.tab-symbol { display: flex; align-items: center; justify-content: center; width: 68rpx; height: 48rpx; border-radius: 999rpx; transition: transform 140ms ease; }
+.tab-symbol { position: relative; display: flex; align-items: center; justify-content: center; width: 68rpx; height: 48rpx; transition: transform 140ms ease; }
+.tab-icon-disc { display: flex; align-items: center; justify-content: center; }
 .tab-icon { width: 38rpx; height: 38rpx; }
 .tab-label { margin-top: 8rpx; font-size: 21rpx; line-height: 1.2; }
-.tab-bar .is-selected { color: #050505; font-weight: 700; }
-.is-selected .tab-symbol { background: #f7dce6; }
+.tab-bar .is-selected { z-index: 1; color: #050505; font-weight: 700; }
+.is-selected .tab-icon-disc {
+  position: absolute;
+  bottom: -4rpx;
+  left: 50%;
+  box-sizing: border-box;
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -44rpx;
+  border: 5rpx solid #fff;
+  border-radius: 50%;
+  background: #080808;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, .16);
+}
 .tab-bar .tab-pressed { opacity: .76; }
 .tab-pressed .tab-symbol { transform: scale(.90); }
-.is-selected .tab-icon { animation: tab-icon-arrive 210ms ease-out; }
+.is-selected .tab-icon { width: 43rpx; height: 43rpx; animation: tab-icon-arrive 210ms ease-out; }
 
 @keyframes tab-icon-arrive {
   0% { transform: scale(.88); }
