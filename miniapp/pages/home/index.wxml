@@ -2,9 +2,11 @@
 <view class="page tab-page home-page" aria-hidden="{{!!activeModal}}">
   <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
   <view wx:if="{{mockMode}}" class="badge">演示模式 · 示例内容与服务</view>
-  <view class="eyebrow">PETSCAPE HABITAT</view>
-  <view class="title"><view>给每一只宠物，</view><view>一处合适的宠境。</view></view>
-  <view class="subtitle">记录宠物档案，查找养护知识，把每天的照料留在这里。</view>
+  <block wx:if="{{!pet && !loading && !loadError}}">
+    <view class="eyebrow">PETSCAPE HABITAT</view>
+    <view class="title"><view>给每一只宠物，</view><view>一处合适的宠境。</view></view>
+    <view class="subtitle">记录宠物档案，查找养护知识，把每天的照料留在这里。</view>
+  </block>
 
   <view wx:if="{{!pet && !loading && !loadError}}" class="hero-card" bindtap="openCare">
     <view class="hero-orbit orbit-one"></view>
@@ -24,29 +26,31 @@
     <view class="muted error-detail">{{loadErrorDetail}}</view>
     <button class="secondary-button section" bindtap="loadSummary">重试读取</button>
   </view>
-  <view wx:elif="{{pet}}" class="pet-family section">
-    <view class="section-head">
-      <view><text class="section-title">我的宠物家庭</text><text class="family-count">{{petCount}} 位成员</text></view>
-      <button class="text-button" disabled="{{weightSaving || careSaving}}" data-path="/pages/pet-edit/index" bindtap="openAction">＋ 添加</button>
-    </view>
-    <view class="pet-carousel-shell">
-      <swiper wx:if="{{!weightSaving && !careSaving && !activeModal}}" class="pet-carousel" current="{{petIndex}}" circular="{{petCount > 2}}" previous-margin="{{petCount > 1 ? '220rpx' : '0rpx'}}" next-margin="{{petCount > 1 ? '220rpx' : '0rpx'}}" duration="280" bindchange="onPetSwipe" aria-label="左右滑动切换宠物，点头像查看详情">
-        <swiper-item wx:for="{{pets}}" wx:key="id" class="pet-slide {{selectedPetId === item.id ? 'is-current' : ''}}">
-          <button class="carousel-pet" data-id="{{item.id}}" bindtap="openPetProfile" disabled="{{weightSaving || careSaving}}" aria-label="查看{{item.name}}的详情">
-            <view class="carousel-avatar"><image wx:if="{{item.avatarUrl}}" class="carousel-image" src="{{item.avatarUrl}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><text wx:else>{{item.speciesEmoji}}</text></view>
-            <text class="carousel-name">{{item.name}}</text>
-            <text class="carousel-species">{{item.speciesLabel}}</text>
-          </button>
-        </swiper-item>
-      </swiper>
-      <view wx:else class="pet-carousel carousel-saving is-current">
-        <view class="carousel-pet">
-          <view class="carousel-avatar"><image wx:if="{{pet.avatarUrl}}" class="carousel-image" src="{{pet.avatarUrl}}" mode="aspectFill" data-id="{{pet.id}}" binderror="onAvatarError" /><text wx:else>{{pet.speciesEmoji}}</text></view>
-          <text class="carousel-name">{{pet.name}}</text><text class="carousel-species">{{pet.speciesLabel}}</text>
+  <view wx:elif="{{pet}}" class="pet-family">
+    <view class="family-portrait">
+      <view class="section-head">
+        <view><text class="section-title">我的宠物家庭</text><text class="family-count">{{petCount}} 位成员</text></view>
+        <button class="text-button" disabled="{{weightSaving || careSaving}}" data-path="/pages/pet-edit/index" bindtap="openAction">＋ 添加</button>
+      </view>
+      <view class="pet-carousel-shell">
+        <swiper wx:if="{{!weightSaving && !careSaving && !activeModal}}" class="pet-carousel" current="{{petIndex}}" circular="{{petCount > 2}}" previous-margin="{{petCount > 1 ? '220rpx' : '0rpx'}}" next-margin="{{petCount > 1 ? '220rpx' : '0rpx'}}" duration="280" bindchange="onPetSwipe" aria-label="左右滑动切换宠物，点头像查看详情">
+          <swiper-item wx:for="{{pets}}" wx:key="id" class="pet-slide {{selectedPetId === item.id ? 'is-current' : ''}}">
+            <button class="carousel-pet" data-id="{{item.id}}" bindtap="openPetProfile" disabled="{{weightSaving || careSaving}}" aria-label="查看{{item.name}}的详情" hover-class="portrait-pressed" hover-start-time="20" hover-stay-time="80">
+              <view class="carousel-avatar"><image wx:if="{{item.avatarUrl}}" class="carousel-image" src="{{item.avatarUrl}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><text wx:else>{{item.speciesEmoji}}</text></view>
+              <text class="carousel-name">{{item.name}}</text>
+              <text class="carousel-species">{{item.speciesLabel}}</text>
+            </button>
+          </swiper-item>
+        </swiper>
+        <view wx:else class="pet-carousel carousel-saving is-current">
+          <view class="carousel-pet">
+            <view class="carousel-avatar"><image wx:if="{{pet.avatarUrl}}" class="carousel-image" src="{{pet.avatarUrl}}" mode="aspectFill" data-id="{{pet.id}}" binderror="onAvatarError" /><text wx:else>{{pet.speciesEmoji}}</text></view>
+            <text class="carousel-name">{{pet.name}}</text><text class="carousel-species">{{pet.speciesLabel}}</text>
+          </view>
         </view>
       </view>
+      <view class="carousel-caption"><text>{{weightSaving || careSaving ? '正在保存记录 · 暂停切换' : (petCount > 1 ? '左右滑动切换 · 点头像查看详情' : '点头像查看宠物详情')}}</text><text class="carousel-counter">{{petIndex + 1}} / {{petCount}}</text></view>
     </view>
-    <view class="carousel-caption"><text>{{weightSaving || careSaving ? '正在保存记录 · 暂停切换' : (petCount > 1 ? '左右滑动切换 · 点头像查看详情' : '点头像查看宠物详情')}}</text><text class="carousel-counter">{{petIndex + 1}} / {{petCount}}</text></view>
     <button class="device-card card device-empty" bindtap="openDeviceModal" disabled="{{weightSaving || careSaving}}" aria-label="为{{pet.name}}添加温湿度设备，尚未连接">
       <view><text class="device-title">宠境环境</text><text class="device-subtitle">尚未连接温湿度设备</text></view>
       <view class="device-add"><view class="device-plus">＋</view><text>添加设备</text></view>
@@ -63,7 +67,7 @@
     </view>
     <view class="daily-grid">
       <view class="daily-card weight-card card">
-        <view class="daily-card-heading"><text>体重记录</text><text class="daily-card-tag">g</text></view>
+        <view class="daily-card-heading"><text>体重记录</text></view>
         <view wx:if="{{weightLoading}}" class="daily-empty">正在读取</view>
         <view wx:elif="{{weightError}}" class="daily-empty">暂未加载</view>
         <block wx:elif="{{latestWeight}}">
@@ -86,10 +90,10 @@
           <text class="daily-time">{{latestWeight.time}}</text>
         </block>
         <view wx:else class="daily-empty"><view class="weight-empty-mark">g</view><text>近期暂无可显示的体重</text></view>
-        <button class="daily-add" disabled="{{weightSaving || careSaving}}" bindtap="openWeightModal">＋ 记体重</button>
+        <button class="daily-add" disabled="{{weightSaving || careSaving}}" bindtap="openWeightModal" hover-class="daily-add-pressed" hover-start-time="20" hover-stay-time="80">＋ 记体重</button>
       </view>
       <view class="daily-card feeding-card card">
-        <view class="daily-card-heading"><text>喂食记录</text><text class="daily-card-tag">食</text></view>
+        <view class="daily-card-heading"><text>喂食记录</text></view>
         <view wx:if="{{weightLoading}}" class="daily-empty">正在读取</view>
         <view wx:elif="{{weightError}}" class="daily-empty">暂未加载</view>
         <view wx:elif="{{latestFeeding}}" class="feeding-content">
@@ -97,16 +101,24 @@
           <text wx:if="{{latestFeeding.note}}" class="feeding-note">{{latestFeeding.note}}</text>
           <view wx:for="{{earlierFeedings}}" wx:key="id" class="feeding-earlier-item"><text>{{item.shortTime}}</text><text>{{item.displayValue}}</text></view>
         </view>
-        <view wx:else class="daily-empty"><view class="weight-empty-mark">食</view><text>近期暂无喂食记录</text></view>
-        <button class="daily-add" data-kind="喂食" disabled="{{weightSaving || careSaving}}" bindtap="openCareModal">＋ 记喂食</button>
+        <view wx:else class="daily-empty"><view class="weight-empty-mark"><image class="care-icon" src="/assets/care-feeding.png" mode="aspectFit" aria-hidden="true" /></view><text>近期暂无喂食记录</text></view>
+        <button class="daily-add" data-kind="喂食" disabled="{{weightSaving || careSaving}}" bindtap="openCareModal" hover-class="daily-add-pressed" hover-start-time="20" hover-stay-time="80">＋ 记喂食</button>
       </view>
     </view>
     <view wx:if="{{weightError}}" class="records-error"><text>{{weightError}}</text><text class="error-detail">{{weightDiagnostic}}</text><button class="secondary-button" disabled="{{weightSaving || careSaving}}" bindtap="loadWeights">重试读取记录</button></view>
-    <view wx:if="{{weightNotice}}" class="weight-notice">{{weightNotice}}</view>
-    <view wx:if="{{recordNotice}}" class="weight-notice">{{recordNotice}}</view>
+    <view wx:if="{{weightNotice && !activeModal}}" class="weight-notice record-feedback">
+      <view wx:if="{{weightNotice === '体重已保存'}}" class="record-check" aria-hidden="true"></view><text>{{weightNotice}}</text>
+    </view>
+    <view wx:if="{{recordNotice && !activeModal}}" class="weight-notice record-feedback">
+      <view class="record-check" aria-hidden="true"></view><text>{{recordNotice}}</text>
+    </view>
     <view class="weight-footnote">从最多 100 条近期养护中提取：体重最多 7 次，喂食最多 3 次。</view>
     <view class="care-puzzle">
-      <button wx:for="{{careKinds}}" wx:key="kind" class="care-tile" data-kind="{{item.kind}}" bindtap="openCareModal" disabled="{{weightSaving || careSaving}}"><view class="care-mark">{{item.mark}}</view><view class="care-tile-copy"><text class="care-tile-title">{{item.kind}}</text><text class="care-tile-hint">{{item.hint}}</text></view><text class="care-tile-plus">＋</text></button>
+      <button wx:for="{{careKinds}}" wx:key="kind" class="care-tile" data-kind="{{item.kind}}" bindtap="openCareModal" disabled="{{weightSaving || careSaving}}" hover-class="care-tile-pressed" hover-start-time="20" hover-stay-time="80">
+        <view class="care-mark"><image class="care-icon" src="/assets/care-{{item.icon}}.png" mode="aspectFit" aria-hidden="true" /></view>
+        <view class="care-tile-copy"><text class="care-tile-title">{{item.kind}}</text><text class="care-tile-hint">{{item.hint}}</text></view>
+        <text class="care-tile-plus" aria-hidden="true">＋</text>
+      </button>
     </view>
     <button class="care-history-link" bindtap="openCare" disabled="{{weightSaving || careSaving}}">查看养护历史与提醒 →</button>
   </view>

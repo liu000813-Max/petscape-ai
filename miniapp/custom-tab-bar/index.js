@@ -16,6 +16,9 @@ Component({
       this.navigating = true;
       wx.switchTab({
         url: '/' + path,
+        success: () => {
+          if (typeof wx.vibrateShort === 'function') wx.vibrateShort({ type: 'light', fail() {} });
+        },
         fail: () => wx.showToast({ title: '切换未完成，请重试', icon: 'none' }),
         complete: () => { this.navigating = false; this.sync(); },
       });

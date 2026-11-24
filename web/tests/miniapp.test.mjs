@@ -187,6 +187,8 @@ test('custom navigation keeps actual route after failure and ignores duplicate o
   const bar = tabBar();
   let call;
   wx.switchTab = (options) => { call = options; };
+  const vibrations = [];
+  wx.vibrateShort = ({ type }) => { vibrations.push(type); };
   bar.sync();
   bar.switchTab({ currentTarget: { dataset: { path: 'pages/me/index' } } });
   assert.equal(call.url, '/pages/me/index');
@@ -198,9 +200,40 @@ test('custom navigation keeps actual route after failure and ignores duplicate o
   call = undefined;
   bar.switchTab({ currentTarget: { dataset: { path: 'pages/viewer/index' } } });
   assert.equal(call, undefined);
+  assert.deepEqual(vibrations, []);
   globalThis.getCurrentPages = () => [{ route: 'pages/pet/index', data: {} }];
   bar.sync();
   assert.equal(bar.data.selected, 'pages/pet/index');
+});
+
+test('tab navigation vibrates once after switching and works when haptics are unavailable', () => {
+  const bar = tabBar();
+  let route = 'pages/home/index';
+  let pending;
+  const vibrations = [];
+  globalThis.getCurrentPages = () => [{ route, data: {} }];
+  wx.switchTab = (options) => { pending = options; };
+  wx.vibrateShort = ({ type, fail }) => { vibrations.push(type); fail(); };
+  const tap = (path) => bar.switchTab({ currentTarget: { dataset: { path } } });
+
+  tap(route);
+  assert.equal(pending, undefined);
+  tap('pages/pet/index');
+  assert.deepEqual(vibrations, []);
+  route = 'pages/pet/index';
+  pending.success();
+  pending.complete();
+  assert.deepEqual(vibrations, ['light']);
+  assert.equal(bar.data.selected, route);
+
+  delete wx.vibrateShort;
+  tap('pages/me/index');
+  route = 'pages/me/index';
+  pending.success();
+  pending.complete();
+  assert.deepEqual(vibrations, ['light']);
+  assert.equal(bar.data.selected, route);
+  assert.equal(notices.length, 0);
 });
 
 test('five tabs and custom component resources agree with the native app manifest', () => {

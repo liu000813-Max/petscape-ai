@@ -22,10 +22,10 @@ function weightSummary(logs, petId) {
 }
 
 const CARE_KINDS = [
-  { kind: '喂食', mark: '食', hint: '记录进食与食量' },
-  { kind: '换水', mark: '水', hint: '留下换水时间' },
-  { kind: '清洁', mark: '净', hint: '记录清洁与整理' },
-  { kind: '生病', mark: '护', hint: '记录症状与观察' },
+  { kind: '喂食', icon: 'feeding', hint: '记录进食与食量' },
+  { kind: '换水', icon: 'water', hint: '留下换水时间' },
+  { kind: '清洁', icon: 'cleaning', hint: '记录清洁与整理' },
+  { kind: '生病', icon: 'health', hint: '记录症状与观察' },
 ];
 
 function careSummary(logs, petId, kind) {

@@ -16,6 +16,10 @@ const drawings = {
   habitat: '<path d="M3 21V9l9-6 9 6v12zM9 21v-6h6v6"/><path d="M12 12c0-5 5-5 5-5s1 5-5 5zm0 0c0-4-5-4-5-4s0 4 5 4z"/>',
   permission: '<path d="m12 3 8 3v6c0 5-8 9-8 9S4 17 4 12V6zM8 12l3 3 5-6"/>',
   refresh: '<path d="M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5m-4 8a8 8 0 0 0 14 3l3-3m0 5v-5h-5"/>',
+  'care-feeding': '<path d="M3 12h18l-2 6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M7 8h.1M12 6h.1M17 8h.1" stroke-width="2.8"/>',
+  'care-water': '<path d="M12 3c-3 4.5-7 8.7-7 12a7 7 0 0 0 14 0c0-3.3-4-7.5-7-12zM8.5 15.5a3.5 3.5 0 0 0 3.5 3"/>',
+  'care-cleaning': '<path d="m15 3 5 5-5 5-5-5zM10 8l-6 6a2 2 0 0 0 0 3l3 3a2 2 0 0 0 3 0l6-6M5 13l6 6M20 13v5m-2.5-2.5h5"/>',
+  'care-health': '<path d="M20.8 4.6a5.2 5.2 0 0 0-7.4 0L12 6l-1.4-1.4a5.2 5.2 0 0 0-7.4 7.4L12 21l8.8-9a5.2 5.2 0 0 0 0-7.4zM8 12h2l1.5-3 2 6 1.5-3h1"/>',
 };
 let count = 0;
 for (const [name, content] of Object.entries(drawings)) {
@@ -23,8 +27,9 @@ for (const [name, content] of Object.entries(drawings)) {
     ? { black: '#050505', gray: '#818181' } : name === 'paw' ? { black: '#050505', white: '#ffffff' } : { black: '#050505' };
   for (const [variant, color] of Object.entries(colors)) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="96" height="96"><g fill="none" stroke="${color}" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">${content}</g></svg>`;
-    await sharp(Buffer.from(svg)).png().toFile(path.join(root, `miniapp/assets/nav-${name}-${variant}.png`));
+    const filename = name.startsWith('care-') ? name : `nav-${name}-${variant}`;
+    await sharp(Buffer.from(svg)).png().toFile(path.join(root, `miniapp/assets/${filename}.png`));
     count++;
   }
 }
-console.log(`Generated ${count} native navigation icons.`);
+console.log(`Generated ${count} native miniapp icons.`);
