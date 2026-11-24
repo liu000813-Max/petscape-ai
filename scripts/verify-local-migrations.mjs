@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { cp, mkdir, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
-const latestMigration = '20261123085740_miniapp_owner_profile';
-const tables = ['content_article', 'community_post', 'community_comment', 'community_post_like', 'care_log', 'care_reminder', 'service_provider', 'analytics_event'];
+const latestMigration = '20261124170000_pet_growth_diary';
+const tables = ['content_article', 'community_post', 'community_comment', 'community_post_like', 'care_log', 'care_reminder', 'service_provider', 'analytics_event', 'pet_growth_entry', 'pet_growth_entry_photo'];
 
 export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade, withClient, runPrisma }) {
   const source = path.join(repo, 'packages/server/prisma');
@@ -25,12 +25,14 @@ export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade
   await withClient(fresh, async (client) => {
     assert.equal((await client.query("SELECT to_regclass('public.miniapp_profile') IS NOT NULL AS present")).rows[0].present, true);
     assert.equal((await client.query("SELECT 1 FROM pg_constraint WHERE conrelid='miniapp_profile'::regclass AND contype='f'")).rowCount, 2);
+    assert.equal((await client.query("SELECT 1 FROM pg_constraint WHERE conrelid='pet_growth_entry'::regclass AND contype='f'")).rowCount, 2);
+    assert.equal((await client.query("SELECT 1 FROM pg_constraint WHERE conrelid='pet_growth_entry_photo'::regclass AND contype='f'")).rowCount, 2);
     const installed = await client.query('SELECT tablename FROM pg_tables WHERE schemaname=$1 AND tablename=ANY($2) ORDER BY tablename', ['public', tables]);
     assert.deepEqual(installed.rows.map((row) => row.tablename), [...tables].sort());
     const checks = await client.query("SELECT conname FROM pg_constraint WHERE contype='c' AND conrelid IN (SELECT oid FROM pg_class WHERE relname=ANY($1)) ORDER BY conname", [tables]);
     assert.deepEqual(checks.rows.map((row) => row.conname), ['community_comment_status_valid', 'community_post_status_valid', 'content_article_status_valid', 'service_provider_status_valid']);
     const foreignKeys = await client.query("SELECT conname FROM pg_constraint WHERE contype='f' AND conrelid IN (SELECT oid FROM pg_class WHERE relname=ANY($1))", [tables]);
-    assert.equal(foreignKeys.rowCount, 11);
+    assert.equal(foreignKeys.rowCount, 15);
     const lifeStages = await client.query('SELECT enumlabel FROM pg_enum WHERE enumtypid=\'"PetLifeStage"\'::regtype ORDER BY enumsortorder');
     assert.deepEqual(lifeStages.rows.map((row) => row.enumlabel).sort(), ['adult', 'juvenile', 'senior', 'subadult', 'unknown']);
     const now = new Date();
@@ -45,9 +47,18 @@ export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade
         await client.query('ROLLBACK TO SAVEPOINT rejection');
       };
       await client.query('INSERT INTO miniapp_profile ("userId",nickname,"updatedAt") VALUES ($1,$2,$3)', ['migration-check', '主人资料', now]);
+      await client.query('INSERT INTO pet (id,"ownerUserId",name,"behaviorTraits","updatedAt") VALUES ($1,$2,$3,$4,$5)', ['migration-pet', 'migration-check', '成长记录宠物', [], now]);
+      await client.query('INSERT INTO pet_growth_entry (id,"ownerUserId","petId",note,"recordedAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6)', ['migration-growth-entry', 'migration-check', 'migration-pet', null, now, now]);
+      await client.query('INSERT INTO asset (id,"ownerUserId",kind,mime,size,"ossKey",status,"updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', ['migration-photo-asset', 'migration-check', 'growth_photo', 'image/png', 16, 'uploads/raw/migration-check/growth', 'available', now]);
+      await client.query('INSERT INTO asset (id,"ownerUserId",kind,mime,size,"ossKey",status,"updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', ['migration-photo-asset-second', 'migration-check', 'growth_photo', 'image/png', 16, 'uploads/raw/migration-check/growth-second', 'available', now]);
+      await client.query('INSERT INTO pet_growth_entry_photo (id,"entryId","assetId",position) VALUES ($1,$2,$3,$4)', ['migration-photo', 'migration-growth-entry', 'migration-photo-asset', 0]);
       await rejectSql('INSERT INTO miniapp_profile ("userId",nickname,"updatedAt") VALUES ($1,$2,$3)', ['migration-check', '重复', now], '23505');
       await rejectSql('INSERT INTO miniapp_profile ("userId",nickname,"updatedAt") VALUES ($1,$2,$3)', ['missing-user', '跨账号', now], '23503');
       await rejectSql('UPDATE miniapp_profile SET "avatarAssetId"=$1 WHERE "userId"=$2', ['missing-asset', 'migration-check'], '23503');
+      await rejectSql('INSERT INTO pet_growth_entry (id,"ownerUserId","petId","recordedAt","updatedAt") VALUES ($1,$2,$3,$4,$4)', ['growth-missing-pet', 'migration-check', 'missing-pet', now], '23503');
+      await rejectSql('INSERT INTO pet_growth_entry_photo (id,"entryId","assetId",position) VALUES ($1,$2,$3,$4)', ['growth-missing-asset', 'migration-growth-entry', 'missing-growth-asset', 1], '23503');
+      await rejectSql('INSERT INTO pet_growth_entry_photo (id,"entryId","assetId",position) VALUES ($1,$2,$3,$4)', ['growth-duplicate-asset', 'migration-growth-entry', 'migration-photo-asset', 1], '23505');
+      await rejectSql('INSERT INTO pet_growth_entry_photo (id,"entryId","assetId",position) VALUES ($1,$2,$3,$4)', ['growth-duplicate-position', 'migration-growth-entry', 'migration-photo-asset-second', 0], '23505');
       await rejectSql('INSERT INTO community_post_like (id,"postId","ownerUserId") VALUES ($1,$2,$3)', ['migration-like-duplicate', 'migration-post', 'migration-check'], '23505');
       await rejectSql('INSERT INTO community_post_like (id,"postId","ownerUserId") VALUES ($1,$2,$3)', ['migration-like-foreign', 'missing-post', 'migration-check'], '23503');
       await rejectSql('UPDATE community_post SET status=$1 WHERE id=$2', ['draft', 'migration-post'], '23514');
@@ -93,5 +104,5 @@ export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade
   // Pin a hash of the actual migration file in the receipt without copying SQL into docs.
   const { createHash } = await import('node:crypto');
   const migrationSha256 = createHash('sha256').update(await readFile(path.join(source, 'migrations', latestMigration, 'migration.sql'))).digest('hex');
-  return { migrations: migrations.length, checkedTables: tables.length + 1, foreignKeys: 13, statusChecks: 4, sqlRejections: 9, repeatedDeploy: 'unchanged', oldDataUpgrade: 'preserved', migrationSha256 };
+  return { migrations: migrations.length, checkedTables: tables.length + 1, foreignKeys: 17, statusChecks: 4, sqlRejections: 13, repeatedDeploy: 'unchanged', oldDataUpgrade: 'preserved', migrationSha256 };
 }

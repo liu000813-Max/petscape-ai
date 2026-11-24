@@ -22,6 +22,13 @@ export function petApiError(
   return userId ? Object.assign(response, { _loggedUserId: userId }) : response;
 }
 
+/** Pet records can contain private notes and short-lived signed photo URLs. */
+export async function privatePetApiResponse(response: Promise<Response>): Promise<Response> {
+  const result = await response;
+  result.headers.set('cache-control', 'private, no-store');
+  return result;
+}
+
 export function invalidPetRequest(
   error: { issues: readonly { path: readonly PropertyKey[]; message: string }[] },
   userId: string,

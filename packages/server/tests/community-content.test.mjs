@@ -4,6 +4,7 @@ import { listContentArticles, listCommunityComments, createCareLog, moderateCont
 import { ContentArticleListResponseSchema, ModerateContentSchema } from '../src/contracts/community-content.ts';
 import { NotFoundError } from '../src/domain/index.ts';
 import { AdminRequiredError } from '../src/application/check-runs.ts';
+import { CreatePetGrowthEntrySchema, PetGrowthEntryResponseSchema, PetGrowthPhotoUploadSchema } from '../src/contracts/pet-growth.ts';
 
 test('public articles contain only contract fields, no moderation or author identifiers', async () => {
   const now = new Date('2026-10-16T08:00:00.000Z');
@@ -51,4 +52,16 @@ test('retrying a like request preserves the same desired state', async () => {
 test('completing another owner reminder is rejected', async () => {
   const prisma = { careReminder: { findFirst: async ({ where }) => { assert.equal(where.ownerUserId, 'a'); return null; } } };
   await assert.rejects(() => completeCareReminder({ prisma, ownerUserId: 'a', reminderId: 'b-reminder' }), NotFoundError);
+});
+
+test('growth diary accepts text or up to six valid photo assets and rejects empty entries', () => {
+  assert.equal(CreatePetGrowthEntrySchema.safeParse({ note: '第一次探索', photoAssetIds: [] }).success, true);
+  assert.equal(CreatePetGrowthEntrySchema.safeParse({ note: null, photoAssetIds: ['asset-1'] }).success, true);
+  assert.equal(CreatePetGrowthEntrySchema.safeParse({ note: null, photoAssetIds: [] }).success, false);
+  assert.equal(CreatePetGrowthEntrySchema.safeParse({ note: '重复', photoAssetIds: ['asset-1', 'asset-1'] }).success, false);
+  assert.equal(CreatePetGrowthEntrySchema.safeParse({ note: '超过照片上限', photoAssetIds: Array.from({length: 7}, (_, i) => 'asset-' + i) }).success, false);
+  assert.equal(PetGrowthPhotoUploadSchema.safeParse({ filename: 'photo.png', mime: 'image/png', size: 100 }).success, true);
+  assert.equal(PetGrowthPhotoUploadSchema.safeParse({ filename: 'photo.svg', mime: 'image/svg+xml', size: 100 }).success, false);
+  assert.equal(PetGrowthEntryResponseSchema.safeParse({ id: 'entry', petId: 'pet', note: null, recordedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), photos: [] }).success, true);
 });

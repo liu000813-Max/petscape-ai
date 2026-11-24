@@ -52,6 +52,7 @@ model User {
   sessions Session[]
   accounts Account[]
   miniappProfile MiniappProfile?
+  growthEntries PetGrowthEntry[]
 
   // WP-3.2：Prisma 要求关系双向声明（Project.owner / Asset.owner 的反向字段）。
   projects              Project[]
@@ -301,6 +302,7 @@ model Asset {
 
   petsWithCover Pet[] @relation("PetCoverAsset")
   miniappProfiles MiniappProfile[] @relation("MiniappProfileAvatar")
+  growthPhotos PetGrowthEntryPhoto[]
 
   @@index([ownerUserId])
   @@index([projectId])
@@ -443,6 +445,7 @@ model Pet {
 
   careLogs CareLog[]
   careReminders CareReminder[]
+  growthEntries PetGrowthEntry[]
 
   @@index([ownerUserId, deletedAt])
   @@index([coverAssetId])
@@ -940,6 +943,38 @@ model CareReminder {
 
   @@index([ownerUserId, completedAt, dueAt])
   @@map("care_reminder")
+}
+
+model PetGrowthEntry {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  owner       User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  petId       String
+  pet         Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  note        String?
+  recordedAt  DateTime
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  photos      PetGrowthEntryPhoto[]
+
+  @@index([ownerUserId, petId, recordedAt, id])
+  @@index([ownerUserId, deletedAt])
+  @@map("pet_growth_entry")
+}
+
+model PetGrowthEntryPhoto {
+  id        String         @id @default(cuid())
+  entryId   String
+  entry     PetGrowthEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  assetId   String         @unique
+  asset     Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  position  Int
+  createdAt DateTime       @default(now())
+
+  @@unique([entryId, position])
+  @@index([entryId, position])
+  @@map("pet_growth_entry_photo")
 }
 
 model ServiceProvider {

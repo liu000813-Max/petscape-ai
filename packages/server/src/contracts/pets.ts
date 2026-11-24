@@ -133,7 +133,7 @@ export const PetListResponseSchema = z.strictObject({ pets: z.array(PetResponseS
 export const DeletePetResponseSchema = z.strictObject({ deleted: z.literal(true), id: z.string().min(1) });
 
 export const PetApiErrorSchema = z.strictObject({
-  error: z.enum(['unauthorized', 'invalid_json', 'invalid_request', 'not_found', 'invalid_cover_asset']),
+  error: z.enum(['unauthorized', 'invalid_json', 'invalid_request', 'not_found', 'invalid_cover_asset', 'invalid_growth_photo']),
   detail: z.string().optional(),
   issues: z
     .array(

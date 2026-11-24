@@ -29,7 +29,7 @@ export { NotFoundError };
 // 「用户直传原图」入口的合法取值；调用方传入不在此列表中的 kind 视为编程错误，
 // 直接拒绝而不是原样建 Asset——防止路由层疏忽把客户端 body 里的 kind 字段透传
 // 进来时静默放行）。
-const ALLOWED_UPLOAD_KINDS = ['upload_raw', 'pet_cover', 'user_avatar'] as const;
+const ALLOWED_UPLOAD_KINDS = ['upload_raw', 'pet_cover', 'user_avatar', 'growth_photo'] as const;
 
 export class InvalidAssetKindError extends Error {
   constructor(kind: string) {

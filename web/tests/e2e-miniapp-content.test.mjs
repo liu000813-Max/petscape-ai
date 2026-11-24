@@ -122,6 +122,43 @@ test('native cover upload authenticates and rejects foreign pets before reading 
   await http(`/api/v1/pets/${pet.id}`, { method: 'DELETE', headers: nativeHeaders('owner') });
 });
 
+test('growth diary HTTP keeps entry ownership scoped to the selected pet', async (t) => {
+  const pet = await http('/api/v1/pets', { method: 'POST', data: { name: run + '-growth-pet' }, headers: nativeHeaders('owner') }, 201);
+  t.after(() => http('/api/v1/pets/' + pet.id, { method: 'DELETE', headers: nativeHeaders('owner') }));
+  const foreign = await http('/api/v1/pets', { method: 'POST', data: { name: run + '-growth-foreign' }, headers: nativeHeaders('other') }, 201);
+  t.after(() => http('/api/v1/pets/' + foreign.id, { method: 'DELETE', headers: nativeHeaders('other') }));
+  const ownPath = `/api/v1/pets/${pet.id}/growth-entries`;
+  const foreignPath = `/api/v1/pets/${foreign.id}/growth-entries`;
+  await http(ownPath, {}, 401);
+  await http(ownPath, { method: 'POST', data: { note: 'unauthenticated', photoAssetIds: [] } }, 401);
+  await http(ownPath, { headers: nativeHeaders('other') }, 404);
+  await http(foreignPath, { method: 'POST', headers: nativeHeaders('owner'), data: { note: 'foreign pet', photoAssetIds: [] } }, 404);
+  await http(ownPath, { method: 'POST', headers: nativeHeaders('owner'), data: { note: null, photoAssetIds: [] } }, 400);
+  await http(`/api/v1/pets/${foreign.id}/growth-entries/photos`, {
+    method: 'POST', headers: { ...nativeHeaders('owner'), 'content-type': 'image/png' },
+    raw: Buffer.from('89504e470d0a1a0a0000000000000000', 'hex'),
+  }, 404);
+  for (const mime of ['image/gif', 'image/png']) {
+    await http(`/api/v1/pets/${pet.id}/growth-entries/photos`, {
+      method: 'POST', headers: { ...nativeHeaders('owner'), 'content-type': mime }, raw: Buffer.from('GIF89a'),
+    }, 400);
+  }
+
+  const first = await http(ownPath, { method: 'POST', headers: nativeHeaders('owner'), data: { note: '第一次记录', recordedAt: '2026-01-01T00:00:00.000Z' } }, 201);
+  const second = await http(ownPath, { method: 'POST', headers: nativeHeaders('owner'), data: { note: '最近记录', recordedAt: '2026-02-01T00:00:00.000Z' } }, 201);
+  assert.equal(first.petId, pet.id);
+  const listResponse = await fetch(new URL(ownPath + '?limit=1', base), { headers: nativeHeaders('owner') });
+  assert.equal(listResponse.status, 200);
+  assert.match(listResponse.headers.get('cache-control'), /private, no-store/);
+  assert.deepEqual((await listResponse.json()).entries.map((entry) => entry.id), [second.id]);
+  const changed = await http(ownPath + '/' + first.id, { method: 'PATCH', headers: nativeHeaders('owner'), data: { note: '已修改记录' } });
+  assert.equal(changed.note, '已修改记录');
+  await http(ownPath + '/' + first.id, { method: 'PATCH', headers: nativeHeaders('other'), data: { note: '越权修改' } }, 404);
+  await http(ownPath + '/' + first.id, { method: 'DELETE', headers: nativeHeaders('other') }, 404);
+  await http(ownPath + '/' + first.id, { method: 'DELETE', headers: nativeHeaders('owner') });
+  assert.deepEqual((await http(ownPath + '?limit=10', { headers: nativeHeaders('owner') })).entries.map((entry) => entry.id), [second.id]);
+});
+
 test('owner profile HTTP guards ownership, strict fields, expired sessions and private caching', async () => {
   for (const headers of [{}, nativeHeaders('expired')]) {
     await http('/api/v1/profile', { headers }, 401);
@@ -344,16 +381,16 @@ test('home weight editor persists normalized weights only for its selected pet t
     home.onWeightInput({ detail: { value: '0.325' } });
     home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
     await home.saveWeight();
-    assert.equal(home.data.latestWeight.grams, 325);
+    assert.equal(home.data.weightChart.latest.grams, 325);
     assert.equal(home.data.weightNotice, '体重已保存');
     assert.equal(home.data.activeModal, '');
     const records = await prisma.careLog.findMany({ where: { petId: first.id, ownerUserId: users.owner } });
     assert.equal(records.length, 1); assert.equal(records[0].value, '325g');
     await home.selectPet({ currentTarget: { dataset: { id: second.id } } });
-    assert.equal(home.data.latestWeight, null); assert.equal(home.data.weightInput, '');
+    assert.equal(home.data.weightChart.latest, null); assert.equal(home.data.weightInput, '');
     assert.equal(await prisma.careLog.count({ where: { petId: second.id } }), 0);
     await home.selectPet({ currentTarget: { dataset: { id: first.id } } });
-    assert.equal(home.data.latestWeight.grams, 325);
+    assert.equal(home.data.weightChart.latest.grams, 325);
     const hidden = await http('/api/v1/care-logs?petId=' + first.id, { headers: nativeHeaders('other') });
     assert.deepEqual(hidden.logs, []);
   } finally { await client.drain(); }
@@ -380,7 +417,7 @@ test('home care confirmation popups persist all four kinds through HTTP without 
     assert.equal(home.data.latestFeeding.displayValue, '蟋蟀2只');
     assert.equal(await prisma.careLog.count({ where: { petId: other.id } }), 0);
     await home.selectPet({ currentTarget: { dataset: { id: other.id } } });
-    assert.equal(home.data.latestFeeding, null); assert.equal(home.data.latestWeight, null);
+    assert.equal(home.data.latestFeeding, null); assert.equal(home.data.weightChart.latest, null);
   } finally { await client.drain(); }
 });
 

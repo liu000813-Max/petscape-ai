@@ -38,6 +38,12 @@
 
 底栏改为首页／宠物／社区／我的。已发布文章复用原内容接口显示为官方帖，原知识入口转到社区。星标保存在当前设备，演示与实际收藏分开；已收藏重新查询文章可见性。线上公开文章接口于 2026-11-24 返回空列表，示例素材仅用于开发验收。运营台发布养护文章后，社区从同一接口读取。
 
+## 单宠成长记录数据增量（2026-11-24）
+
+`PetGrowthEntry` 按 owner 与 pet 关联，支持文字、记录时间和软删除。`PetGrowthEntryPhoto` 按顺序关联已有 Asset，一条记录最多六张照片，同一 Asset 只能用于一条成长记录。照片使用独立 `growth_photo` kind，经现有签名上传、确认、魔数校验和短时私有下载流程，不复用 `coverAssetId`。含私有记录和签名照片地址的响应设置 `Cache-Control: private, no-store`。
+
+新增 `GET/POST /api/v1/pets/:id/growth-entries`、`PATCH/DELETE /api/v1/pets/:id/growth-entries/:entryId` 和 `POST /api/v1/pets/:id/growth-entries/photos`。接口以当前 session 验证本人和有效宠物，列表按时间倒序分页，创建支持纯文字或照片。界面稿仍待确认，接口与 schema 不代表首页或详情页已接入。
+
 ## 接口分工
 
 具体字段以 [Zod contract](../../packages/server/src/contracts/community-content.ts) 为准。

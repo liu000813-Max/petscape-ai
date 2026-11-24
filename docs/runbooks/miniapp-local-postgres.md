@@ -28,7 +28,7 @@
 
 - `install`：校验固定 ZIP 后提取服务器运行文件，不覆盖已有文件。
 - `start`：仅在未初始化时创建数据目录；已启动时复用同一实例。端口被别的进程占用时失败，不接管其他实例。
-- `test`：每轮新建独立 fresh/upgrade 库，执行迁移验收与两份真实集成测试；任何失败或跳过均不算通过。通过后迁移固定开发库 `petscape_miniapp_dev`。
+- `test`：每轮新建独立 fresh/upgrade 库，执行迁移验收与四份真实集成测试；任何失败或跳过均不算通过。通过后迁移固定开发库 `petscape_miniapp_dev`。
 - `http`：每轮新建独立 HTTP 库并迁移，重新构建当前 Web API，仅在 loopback 的临时端口启动，运行实际 HTTP 验收。结束关闭本轮 Web 进程；数据库原先未运行时也关闭数据库，保留数据。日志与 `http-receipt.json` 写入本轮运行目录。
 - `status`：报告本项目数据库进程状态。
 - `stop`：正常停止数据库，保留数据和密码；可以重复调用。
@@ -37,17 +37,17 @@
 
 ## 验收内容
 
-1. 空库部署全部迁移；再次 deploy，迁移历史逐行保持不变。
-2. 核对八张内容表、十一条外键、四项状态约束；实际拒绝重复点赞、悬空外键和四种非法内容状态。
-3. 独立库只部署 P1 以前的十五个迁移，写入用户、微信 Account、Session 和中文宠物数据；再部署本轮迁移，逐字段比较旧数据。
-4. 运行 `community-content.integration.test.mjs` 和 `pets.integration.test.mjs`，验证公开内容边界、管理员授权、所有权、软删除、并发幂等、服务筛选和七日统计。
+1. 空库部署全部 19 项迁移；再次 deploy，迁移历史逐行保持不变。
+2. 核对十张内容表、17 条外键、四项状态约束；实际拒绝重复点赞、悬空外键、重复成长照片关联和四种非法内容状态。
+3. 独立库部署到 P1 内容迁移为止，写入用户、微信 Account、Session、中文宠物数据和公开动态，再部署后续迁移并逐字段比较旧数据。
+4. 运行 `community-content.integration.test.mjs`、`pets.integration.test.mjs`、`pet-growth.integration.test.mjs` 和 `miniapp-profile.integration.test.mjs`，验证公开内容边界、管理员授权、所有权、软删除、并发幂等、服务筛选、七日统计、成长记录与照片资产归属。
 5. 输出 `runs/<本轮编号>/receipt.json`、Prisma 日志及 `integration.tap`。失败测试写入 `integration-failed.log`，不会生成成功 receipt。
 
 完整命令逻辑见 [迁移验收器](../../scripts/verify-local-migrations.mjs)。新增迁移后须更新其中的升级基线，不能悄悄把最新迁移当作本轮已验收对象。
 
 ## 微信联调衔接
 
-开发库只供本地联调，不包含真实微信账户。`http` 使用随机临时服务密钥和数据库 Session fixture，关闭小程序请求层的 mock，经实际 HTTP 验证社区、养护和宠物档案；wx 的 HTTP/存储用 Node 适配，不模拟真实微信登录成功。
+开发库只供本地联调，不包含真实微信账户。`http` 使用随机临时服务密钥和数据库 Session fixture，关闭小程序请求层的 mock，经实际 HTTP 验证社区、养护、宠物档案、主人资料与成长记录 API；wx 的 HTTP/存储用 Node 适配，不模拟真实微信登录成功。
 
 数据库功能可以在无 OSS 配置时运行；文件操作首次访问 OSS 时才校验完整配置。HTTP 入口移除继承的阿里云/微信环境变量；若项目根或 `web/` 的生产 `.env*` 含这类键则直接拒绝，不编辑配置文件，也不使用虚假云凭据。独立验收不能复用已有管理员、测试库或其他监听进程。
 
