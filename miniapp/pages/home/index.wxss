@@ -220,11 +220,16 @@
 .weight-card .daily-add { border-color: #f4c1d3; background: #f4c1d3; color: #171313; font-weight: 700; }
 .weight-card .daily-add[disabled] { border-color: #53434a; background: #352d31; color: #bfb1b7; }
 .daily-add-pressed { opacity: .83; transform: scale(.97); }
-.feeding-content { flex: 1; min-width: 0; padding-top: 22rpx; }
-.feeding-value { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: #292020; font-size: 30rpx; font-weight: 600; line-height: 1.45; word-break: break-all; }
-.feeding-note { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical; margin-top: 16rpx; color: #73645f; font-size: 22rpx; line-height: 1.6; word-break: break-all; }
-.feeding-earlier-item { display: flex; flex-direction: column; gap: 2rpx; margin-top: 10rpx; color: #75685f; font-size: 20rpx; line-height: 1.5; }
-.feeding-earlier-item text:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.feeding-card .compact-unit, .feeding-card .compact-change, .feeding-card .compact-chart-dates { color: #6b5260; }
+.feeding-card .chart-tabs { background: #f7edf1; }
+.feeding-card .chart-tab { color: #6b5260; }
+.feeding-card .chart-tab.active { background: #f4c1d3; color: #171313; }
+.feeding-card .compact-bar-chart, .feeding-card .compact-line-chart { border-color: #c5adb6; }
+.feeding-card .compact-bar { background: #ae8494; }
+.feeding-card .compact-bar.latest, .feeding-card .chart-line-segment { background: #98536e; }
+.feeding-card .compact-line-chart { background: linear-gradient(to bottom, transparent 49%, #eee4e7 50%, transparent 51%); }
+.feeding-card .chart-line-point { border-color: #fff; background: #98536e; }
+.feeding-legacy-summary { display: -webkit-box; width: 100%; margin-top: 6rpx; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: #503c43; word-break: break-all; }
 .records-error { display: flex; flex-direction: column; gap: 10rpx; margin-top: 18rpx; padding: 22rpx; border-radius: 18rpx; background: #fbf3f5; color: #71394b; font-size: 24rpx; }
 .records-error .secondary-button { width: 100%; margin-top: 8rpx; }
 .care-puzzle { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14rpx; margin-top: 24rpx; }
@@ -257,8 +262,10 @@
 .modal-save { margin-top: 28rpx; }
 .care-value-input, .care-note-input { width: 100%; padding: 20rpx; border: 1rpx solid #ded5d0; border-radius: 16rpx; background: #fcfaf8; font-size: 27rpx; }
 .care-value-input { height: 88rpx; }
+.feeding-unit { flex-shrink: 0; padding: 0 22rpx; color: #65565b; font-size: 28rpx; }
 .care-note-input { height: 170rpx; }
 .recent-care { display: flex; flex-direction: column; gap: 8rpx; margin-top: 20rpx; padding: 18rpx; border-radius: 14rpx; background: #f8f4f1; color: #69574e; font-size: 22rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.recent-care-note { white-space: pre-wrap; }
 .device-modal-body { text-align: center; }
 .device-plus.large { width: 94rpx; height: 94rpx; margin: 10rpx auto 24rpx; font-size: 48rpx; }
 .device-modal-title { display: block; font-size: 28rpx; font-weight: 600; }

@@ -807,7 +807,7 @@ test('home ignores stale pet and weight responses including late failures', asyn
     ] });
     await initial;
     assert.equal(home.data.pet.id, 'pet-b');
-    assert.equal(home.data.latestWeight.grams, 720);
+    assert.equal(home.data.weightChart.latest.grams, 720);
     assert.equal(home.data.weightError, '');
   }
   const oldPets = deferred(); let calls = 0;
@@ -846,9 +846,9 @@ test('home weight history filters foreign, malformed and unitless records and or
     { petId: 'pet-a', kind: '喂食', value: '999g', recordedAt: '2026-11-18T00:00:00Z' },
   ] }) });
   await home.loadSummary();
-  assert.equal(home.data.latestWeight.grams, 325);
-  assert.equal(home.data.weightChange, '+5 g');
-  assert.deepEqual(home.data.weightHistory.map((x) => x.id), ['old', 'new']);
+  assert.equal(home.data.weightChart.latest.grams, 325);
+  assert.equal(home.data.weightChart.change, '+5 g');
+  assert.deepEqual(home.data.weightChart.history.map((x) => x.id), ['old', 'new']);
 });
 
 test('home invalid weight never writes and an unconfirmed save requires a read before another write', async () => {
@@ -875,8 +875,8 @@ test('home read failure clears stale weights and a successful save stays success
   await home.loadSummary(); home.openWeightModal(); home.onWeightInput({ detail: { value: '325' } });
   await home.saveWeight();
   assert.equal(home.data.weightInput, ''); assert.match(home.data.weightNotice, /已保存/);
-  assert.ok(home.data.weightError); assert.deepEqual(home.data.weightHistory, []);
-  assert.equal(home.data.latestWeight, null); assert.equal(home.data.weightSaving, false);
+  assert.ok(home.data.weightError); assert.deepEqual(home.data.weightChart.history, []);
+  assert.equal(home.data.weightChart.latest, null); assert.equal(home.data.weightSaving, false);
 });
 
 test('home uses existing cover photos and falls back to species art without breaking other pets', async () => {
@@ -922,7 +922,7 @@ test('home carousel ignores late weights and cannot swipe or open a profile duri
   const initial = home.loadSummary(); await Promise.resolve();
   await home.onPetSwipe({ detail: { current: 1, source: 'touch' } });
   old.resolve({ logs: [] }); await initial;
-  assert.equal(home.data.latestWeight.grams, 720);
+  assert.equal(home.data.weightChart.latest.grams, 720);
   home.openWeightModal();
   home.onWeightInput({ detail: { value: '725' } });
   const write = home.saveWeight();
@@ -1167,29 +1167,70 @@ test('home weight editor opens as a modal and fixes the pet until canceled or sa
 test('home line and bar views use the same valid weights and single measurements never gain fake segments', async () => {
   let logs = [{ id: 'one', petId: 'pet-a', kind: '体重', value: '320g', recordedAt: '2026-11-15T00:00:00Z' }];
   const home = page('home', { ...careApi, listCareLogs: async () => ({ logs }) });
-  await home.loadSummary(); assert.equal(home.data.weightLinePoints.length, 1); assert.equal(home.data.weightLineSegments.length, 0);
+  await home.loadSummary(); assert.equal(home.data.weightChart.points.length, 1); assert.equal(home.data.weightChart.segments.length, 0);
   logs.push({ id: 'two', petId: 'pet-a', kind: '体重', value: '0.325kg', recordedAt: '2026-11-16T00:00:00Z' });
   await home.loadWeights();
-  const history = structuredClone(home.data.weightHistory);
+  const history = structuredClone(home.data.weightChart.history);
   home.setChartMode({ currentTarget: { dataset: { mode: 'line' } } });
-  assert.equal(home.data.weightChartMode, 'line'); assert.equal(home.data.weightLineSegments.length, 1);
-  assert.equal(home.data.weightLinePoints.at(-1).grams, 325);
-  assert.ok(home.data.weightLineSegments.every(line => Number.isFinite(line.angle) && line.length > 0));
+  assert.equal(home.data.weightChartMode, 'line'); assert.equal(home.data.weightChart.segments.length, 1);
+  assert.equal(home.data.weightChart.points.at(-1).grams, 325);
+  assert.ok(home.data.weightChart.segments.every(line => Number.isFinite(line.angle) && line.length > 0));
   home.setChartMode({ currentTarget: { dataset: { mode: 'bar' } } });
-  assert.deepEqual(home.data.weightHistory, history);
+  assert.deepEqual(home.data.weightChart.history, history);
 });
 
 test('home feeding card reads only the selected pets latest feeding without inventing quantities', async () => {
   const home = page('home', { ...careApi, listCareLogs: async () => ({ logs: [
     { id: 'old', petId: 'pet-a', kind: '喂食', value: '2只蟋蟀', recordedAt: '2026-11-14T00:00:00Z' },
     { id: 'latest', petId: 'pet-a', kind: '喂食', value: null, note: '正常进食', recordedAt: '2026-11-16T00:00:00Z' },
+    { id: 'unitless', petId: 'pet-a', kind: '喂食', value: '88', recordedAt: '2026-11-14T00:00:00Z' },
+    { id: 'combined', petId: 'pet-a', kind: '喂食', value: '主粮 5 g + 蟋蟀 2 只', recordedAt: '2026-11-15T00:00:00Z' },
     { id: 'foreign', petId: 'pet-b', kind: '喂食', value: '999g', recordedAt: '2026-11-17T00:00:00Z' },
     { id: 'water', petId: 'pet-a', kind: '换水', value: '100ml', recordedAt: '2026-11-18T00:00:00Z' },
   ] }) });
   await home.loadSummary();
   assert.equal(home.data.latestFeeding.id, 'latest');
-  assert.equal(home.data.latestFeeding.displayValue, '已记录喂食'); assert.equal(home.data.earlierFeedings.length, 1);
+  assert.equal(home.data.latestFeeding.displayValue, '已记录喂食');
   assert.equal(home.data.latestFeeding.note, '正常进食');
+  assert.deepEqual(home.data.feedingChart.history, []);
+  assert.equal(home.data.feedingChart.latest, null);
+});
+
+test('home feeding grams use the existing care payload and chart without mixing with body weight or other pets', async () => {
+  const logs = [
+    { id: 'old', petId: 'pet-a', kind: '喂食', value: '5 克', recordedAt: '2026-11-14T00:00:00Z' },
+    { id: 'weight', petId: 'pet-a', kind: '体重', value: '300g', recordedAt: '2026-11-15T00:00:00Z' },
+    { id: 'other', petId: 'pet-b', kind: '喂食', value: '99g', recordedAt: '2026-11-15T00:00:00Z' },
+  ];
+  const writes = [];
+  const home = page('home', { ...careApi, listCareLogs: async () => ({ logs }),
+    createCareLog: async (payload) => { writes.push(payload); logs.push({ id: 'new', ...payload }); } });
+  await home.loadSummary();
+  assert.equal(home.data.feedingChart.points.length, 1);
+  assert.deepEqual(home.data.feedingChart.segments, []);
+  home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  home.onFeedingGrams({ detail: { value: '0.0001' } });
+  await home.saveCareRecord();
+  assert.equal(writes.length, 0);
+  assert.equal(home.data.activeModal, 'care');
+  home.onFeedingGrams({ detail: { value: '5.625' } });
+  home.onCareValue({ detail: { value: '主粮' } });
+  home.onCareNote({ detail: { value: '正常进食' } });
+  await home.saveCareRecord();
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].petId, 'pet-a');
+  assert.equal(writes[0].kind, '喂食');
+  assert.equal(writes[0].value, '5.625g');
+  assert.equal(writes[0].note, '食物：主粮\n正常进食');
+  assert.deepEqual(home.data.feedingChart.history.map(item => item.grams), [5, 5.625]);
+  assert.equal(home.data.feedingChart.change, '+0.625 g');
+  assert.equal(home.data.feedingChart.segments.length, 1);
+  home.setChartMode({ currentTarget: { dataset: { kind: '喂食', mode: 'line' } } });
+  assert.equal(home.data.feedingChartMode, 'line');
+  assert.equal(home.data.weightChartMode, 'bar');
+  assert.equal(home.data.weightChart.latest.grams, 300);
+  await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
+  assert.deepEqual(home.data.feedingChart.history.map(item => item.grams), [99]);
 });
 
 test('home four care buttons open confirmation modals and save once to their fixed pet', async () => {
@@ -1259,14 +1300,14 @@ test('illness observations require a description and device entry never fabricat
 test('home care drafts stay with their pet after switching away and returning', async () => {
   const home = page('home', careApi);
   await home.loadSummary(); home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
-  home.onCareValue({ detail: { value: '5g' } }); home.onCareNote({ detail: { value: 'A 的草稿' } }); home.closeModal();
+  home.onCareValue({ detail: { value: '主粮' } }); home.onFeedingGrams({ detail: { value: '5.5' } }); home.onCareNote({ detail: { value: 'A 的草稿' } }); home.closeModal();
   await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
   home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
-  assert.equal(home.data.careValue, ''); assert.equal(home.data.careNote, '');
+  assert.equal(home.data.careValue, ''); assert.equal(home.data.careNote, ''); assert.equal(home.data.feedingGrams, '');
   home.onCareNote({ detail: { value: 'B 的草稿' } }); home.closeModal();
   await home.selectPet({ currentTarget: { dataset: { id: 'pet-a' } } });
   home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
-  assert.equal(home.data.careValue, '5g'); assert.equal(home.data.careNote, 'A 的草稿');
+  assert.equal(home.data.careValue, '主粮'); assert.equal(home.data.careNote, 'A 的草稿'); assert.equal(home.data.feedingGrams, '5.5');
 });
 
 test('confirmed home care writes remain saved when their following read fails', async () => {

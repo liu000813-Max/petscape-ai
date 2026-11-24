@@ -7,9 +7,9 @@ function weightInGrams(value, unit) {
   return Number.isFinite(grams) && grams > 0 && grams <= 1000000 ? grams : null;
 }
 
-function recentWeights(logs, petId) {
+function recentWeights(logs, petId, kind = '体重') {
   return logs.flatMap((log) => {
-    if (log.petId !== petId || log.kind !== '体重' || typeof log.value !== 'string') return [];
+    if (log.petId !== petId || log.kind !== kind || typeof log.value !== 'string') return [];
     const match = /^\s*((?:\d+(?:\.\d{1,3})?|\.\d{1,3}))\s*(kg|g|千克|公斤|克)\s*$/i.exec(log.value);
     const timestamp = log.recordedAt ? Date.parse(log.recordedAt) : NaN;
     if (!match || !Number.isFinite(timestamp)) return [];

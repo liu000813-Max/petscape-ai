@@ -6,20 +6,20 @@ const { formatDateTime } = require('../../utils/format');
 const { syncTabBar } = require('../../utils/navigation');
 const { weightInGrams, recentWeights, weightChange } = require('../../utils/weight-records');
 
-function weightSummary(logs, petId) {
-  const records = recentWeights(logs, petId);
-  const latestWeight = records.length ? records[records.length - 1] : null;
+function chartSummary(records) {
+  const latest = records[records.length - 1] || null;
   const max = records.length ? Math.max(...records.map((record) => record.grams)) : 1;
-  const weightLinePoints = records.map((record, index) => ({ id: record.id, grams: record.grams,
+  const points = records.map((record, index) => ({ id: record.id, grams: record.grams,
     x: records.length === 1 ? 122 : 10 + index * 224 / (records.length - 1), y: 110 - record.grams / max * 100 }));
-  const weightLineSegments = weightLinePoints.slice(1).map((point, index) => {
-    const previous = weightLinePoints[index]; const dx = point.x - previous.x; const dy = point.y - previous.y;
+  const segments = points.slice(1).map((point, index) => {
+    const previous = points[index]; const dx = point.x - previous.x; const dy = point.y - previous.y;
     return { id: point.id, x: previous.x, y: previous.y, length: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI };
   });
-  return { latestWeight, weightChange: weightChange(records),
-    weightHistory: records.map((record) => ({ ...record, height: record.grams / max * 100, isLatest: record === latestWeight })),
-    weightCount: records.length, firstWeightDate: records.length > 1 ? records[0].date : '', weightLinePoints, weightLineSegments };
+  return { latest, change: weightChange(records), count: records.length, firstDate: records[0]?.date || '', points, segments,
+    history: records.map((record) => ({ ...record, height: record.grams / max * 100, isLatest: record === latest })) };
 }
+
+const EMPTY_CHART = chartSummary([]);
 
 const CARE_KINDS = [
   { kind: '喂食', icon: 'feeding', hint: '记录进食与食量' },
@@ -28,11 +28,10 @@ const CARE_KINDS = [
   { kind: '生病', icon: 'health', hint: '记录症状与观察' },
 ];
 
-function careSummary(logs, petId, kind) {
-  return logs.filter((log) => log.petId === petId && log.kind === kind && Number.isFinite(new Date(log.recordedAt).getTime()))
-    .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime() || String(b.id).localeCompare(String(a.id)))
-    .slice(0, 3).map((log) => ({ ...log, time: formatDateTime(log.recordedAt), shortTime: formatDateTime(log.recordedAt).slice(5),
-      displayValue: log.value || `已记录${kind}` }));
+function latestCareRecord(logs, petId, kind) {
+  const [log] = logs.filter((item) => item.petId === petId && item.kind === kind && Number.isFinite(Date.parse(item.recordedAt)))
+    .sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt) || String(b.id).localeCompare(String(a.id)));
+  return log ? { ...log, time: formatDateTime(log.recordedAt), displayValue: log.value || `已记录${kind}` } : null;
 }
 
 function presentPet(pet) {
@@ -53,11 +52,8 @@ Page({
     loadErrorTitle: '',
     loadErrorDetail: '',
     mockMode: true,
-    weightHistory: [],
-    weightCount: 0,
-    firstWeightDate: '',
-    latestWeight: null,
-    weightChange: '',
+    weightChart: EMPTY_CHART,
+    feedingChart: EMPTY_CHART,
     weightLoading: false,
     weightSaving: false,
     weightError: '',
@@ -71,13 +67,12 @@ Page({
     modalPetName: '',
     keyboardHeight: 0,
     weightChartMode: 'bar',
-    weightLinePoints: [],
-    weightLineSegments: [],
+    feedingChartMode: 'bar',
     latestFeeding: null,
-    earlierFeedings: [],
     careKinds: CARE_KINDS,
     careKind: '',
     careValue: '',
+    feedingGrams: '',
     careNote: '',
     careSaving: false,
     careNotice: '',
@@ -108,10 +103,8 @@ Page({
     const sequence = (this.summarySequence || 0) + 1; this.summarySequence = sequence;
     this.weightSequence = (this.weightSequence || 0) + 1;
     this.setData({ pet: null, pets: [], petCount: 0, loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '',
-      weightHistory: [],
-    weightCount: 0,
-    firstWeightDate: '', latestWeight: null, weightChange: '', weightLinePoints: [], weightLineSegments: [],
-      latestFeeding: null, earlierFeedings: [], careLatest: null, weightError: '', weightDiagnostic: '', weightLoading: false });
+      weightChart: EMPTY_CHART, feedingChart: EMPTY_CHART, latestFeeding: null, careLatest: null,
+      weightError: '', weightDiagnostic: '', weightLoading: false });
     try {
       const result = await listPets();
       if (sequence !== this.summarySequence) return;
@@ -170,15 +163,16 @@ Page({
     const petId = this.data.selectedPetId;
     if (!petId) return false;
     const sequence = (this.weightSequence || 0) + 1; this.weightSequence = sequence;
-    this.setData({ weightLoading: true, weightError: '', weightDiagnostic: '', weightHistory: [], weightCount: 0, firstWeightDate: '', latestWeight: null, weightChange: '',
-      weightLinePoints: [], weightLineSegments: [], latestFeeding: null, earlierFeedings: [], careLatest: null });
+    this.setData({ weightLoading: true, weightError: '', weightDiagnostic: '', weightChart: EMPTY_CHART,
+      feedingChart: EMPTY_CHART, latestFeeding: null, careLatest: null });
     try {
       const result = await listCareLogs({ petId, limit: 100 });
       if (sequence !== this.weightSequence || petId !== this.data.selectedPetId) return false;
       const logs = result.logs || [];
-      const feedingHistory = careSummary(logs, petId, '喂食');
-      this.setData({ ...weightSummary(logs, petId), earlierFeedings: feedingHistory.slice(1), latestFeeding: feedingHistory[0] || null,
-        careLatest: careSummary(logs, petId, this.data.careKind)[0] || null, weightLoading: false, weightUnconfirmed: false,
+      const latestFeeding = latestCareRecord(logs, petId, '喂食');
+      this.setData({ weightChart: chartSummary(recentWeights(logs, petId)), feedingChart: chartSummary(recentWeights(logs, petId, '喂食')),
+        latestFeeding, careLatest: this.data.careKind === '喂食' ? latestFeeding : latestCareRecord(logs, petId, this.data.careKind),
+        weightLoading: false, weightUnconfirmed: false,
         ...(this.data.weightUnconfirmed ? { weightNotice: '记录已刷新，请核对后再保存。' } : {}) });
       return true;
     } catch (error) {
@@ -240,8 +234,8 @@ Page({
   },
 
   setChartMode(event) {
-    const mode = event.currentTarget.dataset.mode;
-    if (mode === 'bar' || mode === 'line') this.setData({ weightChartMode: mode });
+    const { mode, kind } = event.currentTarget.dataset;
+    if (mode === 'bar' || mode === 'line') this.setData({ [kind === '喂食' ? 'feedingChartMode' : 'weightChartMode']: mode });
   },
 
   closeModal() {
@@ -249,7 +243,7 @@ Page({
     if (this.data.activeModal === 'care') {
       if (!this.careDrafts) this.careDrafts = new Map();
       this.careDrafts.set(`${this.data.modalPetId}:${this.data.careKind}`, {
-        careValue: this.data.careValue, careNote: this.data.careNote,
+        careValue: this.data.careValue, careNote: this.data.careNote, feedingGrams: this.data.feedingGrams,
         careUnconfirmed: this.data.careUnconfirmed, careNotice: this.data.careNotice,
       });
     }
@@ -264,12 +258,17 @@ Page({
     this.careModalSequence = (this.careModalSequence || 0) + 1;
     this.setData({ activeModal: 'care', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name, careKind: kind,
       careLatest: kind === '喂食' ? this.data.latestFeeding : null,
-      ...(draft || { careValue: '', careNote: '', careUnconfirmed: false, careNotice: '' }) });
+      ...(draft || { careValue: '', careNote: '', feedingGrams: '', careUnconfirmed: false, careNotice: '' }) });
     syncTabBar(this, true);
   },
 
   onCareValue(event) { if (this.data.activeModal === 'care' && !this.isWriting()) this.setData({ careValue: event.detail.value }); },
   onCareNote(event) { if (this.data.activeModal === 'care' && !this.isWriting()) this.setData({ careNote: event.detail.value }); },
+  onFeedingGrams(event) {
+    if (this.data.activeModal === 'care' && this.data.careKind === '喂食' && !this.isWriting()) {
+      this.setData({ feedingGrams: event.detail.value });
+    }
+  },
 
   async refreshCareRecords() {
     if (this.data.activeModal !== 'care' || this.isWriting() || this.data.weightLoading) return;
@@ -283,14 +282,22 @@ Page({
 
   async saveCareRecord() {
     if (this.data.activeModal !== 'care' || this.isWriting() || this.data.weightLoading || this.data.weightError || this.data.careUnconfirmed) return;
-    const { modalPetId: petId, careKind: kind, careValue: value, careNote: note } = this.data;
+    const { modalPetId: petId, careKind: kind, careValue, careNote, feedingGrams } = this.data;
     if (!petId || petId !== this.data.selectedPetId || !CARE_KINDS.some(item => item.kind === kind)) return;
-    if (kind === '生病' && !note.trim()) { wx.showToast({ title: '请描述观察到的症状', icon: 'none' }); return; }
+    let value = careValue.trim();
+    let note = careNote.trim();
+    if (kind === '生病' && !note) { wx.showToast({ title: '请描述观察到的症状', icon: 'none' }); return; }
+    if (kind === '喂食' && feedingGrams.trim()) {
+      const grams = weightInGrams(feedingGrams, 'g');
+      if (grams === null) { wx.showToast({ title: '请输入有效克数，最多三位小数', icon: 'none' }); return; }
+      if (value) note = note ? `食物：${value}\n${note}` : `食物：${value}`;
+      value = `${grams}g`;
+    }
     this.setData({ careSaving: true, careNotice: '', recordNotice: '' });
     try {
-      await createCareLog({ petId, kind, value: value.trim() || null, note: note.trim() || null, recordedAt: new Date().toISOString() });
+      await createCareLog({ petId, kind, value: value || null, note: note || null, recordedAt: new Date().toISOString() });
       track('care.save');
-      this.setData({ careValue: '', careNote: '', recordNotice: `${kind}已保存` });
+      this.setData({ careValue: '', careNote: '', feedingGrams: '', recordNotice: `${kind}已保存` });
       if (this.careDrafts) this.careDrafts.delete(`${petId}:${kind}`);
       if (!await this.loadWeights()) this.setData({ recordNotice: `${kind}已保存，记录暂未刷新，请重试读取。` });
       this.dismissModal();

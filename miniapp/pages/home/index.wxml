@@ -1,4 +1,24 @@
 <page-meta page-style="{{activeModal ? 'overflow: hidden;' : ''}}" />
+<template name="daily-amount">
+  <view class="compact-weight"><text class="compact-number">{{chart.latest.displayValue}}</text><text class="compact-unit">g</text></view>
+  <view class="compact-change">{{chart.change ? '比上次 ' + chart.change : (kind === '体重' ? '最近一次体重' : '最近一次有克数的喂食')}}</view>
+  <view class="chart-tabs">
+    <button class="chart-tab {{mode === 'bar' ? 'active' : ''}}" data-kind="{{kind}}" data-mode="bar" bindtap="setChartMode" aria-pressed="{{mode === 'bar'}}">柱状</button>
+    <button class="chart-tab {{mode === 'line' ? 'active' : ''}}" data-kind="{{kind}}" data-mode="line" bindtap="setChartMode" aria-pressed="{{mode === 'line'}}">折线</button>
+  </view>
+  <view wx:if="{{mode === 'bar'}}" class="compact-bar-chart" aria-label="最近{{chart.count}}次{{kind}}柱状图，单位克">
+    <view wx:for="{{chart.history}}" wx:key="id" class="compact-bar-track"><view class="compact-bar {{item.isLatest ? 'latest' : ''}}" style="height:{{item.height}}%;"></view></view>
+  </view>
+  <view wx:else class="compact-line-chart" aria-label="最近{{chart.count}}次{{kind}}折线图，单位克">
+    <view wx:for="{{chart.segments}}" wx:key="id" class="chart-line-segment" style="left:{{item.x}}rpx;top:{{item.y}}rpx;width:{{item.length}}rpx;transform:rotate({{item.angle}}deg);"></view>
+    <view wx:for="{{chart.points}}" wx:key="id" class="chart-line-point" style="left:{{item.x}}rpx;top:{{item.y}}rpx;"></view>
+  </view>
+  <view class="compact-chart-dates {{chart.count === 1 ? 'single' : ''}}">
+    <text wx:if="{{chart.count > 1}}">{{chart.firstDate}}</text><text>{{chart.latest.date}}</text>
+  </view>
+  <text class="daily-time">{{chart.latest.time}}</text>
+</template>
+
 <view class="page tab-page home-page" aria-hidden="{{!!activeModal}}">
   <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
   <view wx:if="{{mockMode}}" class="badge">演示模式 · 示例内容与服务</view>
@@ -70,25 +90,7 @@
         <view class="daily-card-heading"><text>体重记录</text></view>
         <view wx:if="{{weightLoading}}" class="daily-empty">正在读取</view>
         <view wx:elif="{{weightError}}" class="daily-empty">暂未加载</view>
-        <block wx:elif="{{latestWeight}}">
-          <view class="compact-weight"><text class="compact-number">{{latestWeight.displayValue}}</text><text class="compact-unit">g</text></view>
-          <view class="compact-change">{{weightChange ? '比上次 ' + weightChange : '最近一次体重'}}</view>
-          <view class="chart-tabs">
-            <button class="chart-tab {{weightChartMode === 'bar' ? 'active' : ''}}" data-mode="bar" bindtap="setChartMode" aria-pressed="{{weightChartMode === 'bar'}}">柱状</button>
-            <button class="chart-tab {{weightChartMode === 'line' ? 'active' : ''}}" data-mode="line" bindtap="setChartMode" aria-pressed="{{weightChartMode === 'line'}}">折线</button>
-          </view>
-          <view wx:if="{{weightChartMode === 'bar'}}" class="compact-bar-chart" aria-label="最近{{weightCount}}次体重柱状图，单位克">
-            <view wx:for="{{weightHistory}}" wx:key="id" class="compact-bar-track"><view class="compact-bar {{item.isLatest ? 'latest' : ''}}" style="height:{{item.height}}%;"></view></view>
-          </view>
-          <view wx:else class="compact-line-chart" aria-label="最近{{weightCount}}次体重折线图，单位克">
-            <view wx:for="{{weightLineSegments}}" wx:key="id" class="chart-line-segment" style="left:{{item.x}}rpx;top:{{item.y}}rpx;width:{{item.length}}rpx;transform:rotate({{item.angle}}deg);"></view>
-            <view wx:for="{{weightLinePoints}}" wx:key="id" class="chart-line-point" style="left:{{item.x}}rpx;top:{{item.y}}rpx;"></view>
-          </view>
-          <view class="compact-chart-dates {{weightCount === 1 ? 'single' : ''}}">
-            <text wx:if="{{weightCount > 1}}">{{firstWeightDate}}</text><text>{{latestWeight.date}}</text>
-          </view>
-          <text class="daily-time">{{latestWeight.time}}</text>
-        </block>
+        <template wx:elif="{{weightChart.latest}}" is="daily-amount" data="{{chart: weightChart, mode: weightChartMode, kind: '体重'}}" />
         <view wx:else class="daily-empty"><view class="weight-empty-mark">g</view><text>近期暂无可显示的体重</text></view>
         <button class="daily-add" disabled="{{weightSaving || careSaving}}" bindtap="openWeightModal" hover-class="daily-add-pressed" hover-start-time="20" hover-stay-time="80">＋ 记体重</button>
       </view>
@@ -96,12 +98,15 @@
         <view class="daily-card-heading"><text>喂食记录</text></view>
         <view wx:if="{{weightLoading}}" class="daily-empty">正在读取</view>
         <view wx:elif="{{weightError}}" class="daily-empty">暂未加载</view>
-        <view wx:elif="{{latestFeeding}}" class="feeding-content">
-          <text class="feeding-value">{{latestFeeding.displayValue}}</text><text class="daily-time">{{latestFeeding.time}}</text>
-          <text wx:if="{{latestFeeding.note}}" class="feeding-note">{{latestFeeding.note}}</text>
-          <view wx:for="{{earlierFeedings}}" wx:key="id" class="feeding-earlier-item"><text>{{item.shortTime}}</text><text>{{item.displayValue}}</text></view>
+        <template wx:elif="{{feedingChart.latest}}" is="daily-amount" data="{{chart: feedingChart, mode: feedingChartMode, kind: '喂食'}}" />
+        <view wx:else class="daily-empty">
+          <view class="weight-empty-mark"><image class="care-icon" src="/assets/care-feeding.png" mode="aspectFit" aria-hidden="true" /></view>
+          <text>{{latestFeeding ? '近期喂食记录未填写克数' : '近期暂无喂食记录'}}</text>
+          <block wx:if="{{latestFeeding}}">
+            <text class="feeding-legacy-summary">{{latestFeeding.value || latestFeeding.note || latestFeeding.displayValue}}</text>
+            <text class="daily-time">{{latestFeeding.time}}</text>
+          </block>
         </view>
-        <view wx:else class="daily-empty"><view class="weight-empty-mark"><image class="care-icon" src="/assets/care-feeding.png" mode="aspectFit" aria-hidden="true" /></view><text>近期暂无喂食记录</text></view>
         <button class="daily-add" data-kind="喂食" disabled="{{weightSaving || careSaving}}" bindtap="openCareModal" hover-class="daily-add-pressed" hover-start-time="20" hover-stay-time="80">＋ 记喂食</button>
       </view>
     </view>
@@ -112,7 +117,7 @@
     <view wx:if="{{recordNotice && !activeModal}}" class="weight-notice record-feedback">
       <view class="record-check" aria-hidden="true"></view><text>{{recordNotice}}</text>
     </view>
-    <view class="weight-footnote">从最多 100 条近期养护中提取：体重最多 7 次，喂食最多 3 次。</view>
+    <view class="weight-footnote">从最近 100 条养护记录中，分别展示最多 7 次有明确重量的记录。</view>
     <view class="care-puzzle">
       <button wx:for="{{careKinds}}" wx:key="kind" class="care-tile" data-kind="{{item.kind}}" bindtap="openCareModal" disabled="{{weightSaving || careSaving}}" hover-class="care-tile-pressed" hover-start-time="20" hover-stay-time="80">
         <view class="care-mark"><image class="care-icon" src="/assets/care-{{item.icon}}.png" mode="aspectFit" aria-hidden="true" /></view>
@@ -153,7 +158,7 @@
   <view class="modal-backdrop" bindtap="closeModal" catchtouchmove="stopTouch"></view>
   <view class="record-modal" role="dialog" aria-modal="true">
     <view class="modal-handle"></view>
-    <view class="modal-heading"><view><text class="modal-kicker">{{modalPetName}} 的日常</text><text class="modal-title">{{activeModal === 'weight' ? '记录体重' : (activeModal === 'care' ? careKind + '记录' : '添加设备')}}</text></view><button class="modal-close" bindtap="closeModal" disabled="{{weightSaving || careSaving}}" aria-label="关闭弹窗">×</button></view>
+    <view class="modal-heading"><view><text class="modal-kicker">{{modalPetName}} 的日常</text><text class="modal-title">{{activeModal === 'weight' ? '记录体重' : (activeModal === 'care' ? '记录' + careKind : '添加设备')}}</text></view><button class="modal-close" bindtap="closeModal" disabled="{{weightSaving || careSaving}}" aria-label="关闭弹窗">×</button></view>
     <scroll-view scroll-y="{{true}}" class="modal-scroll">
       <view wx:if="{{activeModal === 'weight'}}" class="modal-body">
         <view class="weight-input-label">本次体重</view>
@@ -171,14 +176,20 @@
       </view>
       <view wx:elif="{{activeModal === 'care'}}" class="modal-body">
         <view wx:if="{{careKind === '喂食'}}">
-          <view class="weight-input-label">食物与食量 · 选填</view>
-          <input class="care-value-input" maxlength="200" value="{{careValue}}" bindinput="onCareValue" placeholder="例如：蟋蟀 2 只、主粮 5 g" disabled="{{careSaving}}" adjust-position="{{false}}" bindkeyboardheightchange="onKeyboardHeightChange" />
+          <view class="weight-input-label">本次喂食克数 · 选填</view>
+          <view class="weight-input-row">
+            <input class="weight-input" type="digit" maxlength="16" value="{{feedingGrams}}" bindinput="onFeedingGrams" placeholder="例如 5.5" disabled="{{careSaving}}" adjust-position="{{false}}" bindkeyboardheightchange="onKeyboardHeightChange" aria-label="{{modalPetName}}的喂食克数" />
+            <text class="feeding-unit">g</text>
+          </view>
+          <view class="weight-range-hint">填写大于 0 的克数，最多三位小数。</view>
+          <view class="weight-input-label">食物与份数 · 选填</view>
+          <input class="care-value-input" maxlength="200" value="{{careValue}}" bindinput="onCareValue" placeholder="例如 主粮、蟋蟀 2 只" disabled="{{careSaving}}" adjust-position="{{false}}" bindkeyboardheightchange="onKeyboardHeightChange" />
         </view>
         <view class="weight-input-label">{{careKind === '生病' ? '症状与观察 · 必填' : '备注 · 选填'}}</view>
         <textarea class="care-note-input" maxlength="500" value="{{careNote}}" bindinput="onCareNote" placeholder="{{careKind === '生病' ? '记录发现的症状、食欲或行为变化' : '记录今天的照料情况'}}" disabled="{{careSaving}}" adjust-position="{{false}}" bindkeyboardheightchange="onKeyboardHeightChange" />
         <view class="weight-range-hint">{{careKind === '生病' ? '仅记录你的观察，不生成疾病诊断。保存时间为当前时间。' : '确认后记录本次照料，保存时间为当前时间。'}}</view>
         <view wx:if="{{careNotice}}" class="weight-notice">{{careNotice}}</view><view wx:if="{{weightError}}" class="weight-notice">{{weightError}}<view class="error-detail">{{weightDiagnostic}}</view></view>
-        <view wx:if="{{careUnconfirmed || careLatest}}" class="recent-care"><text>最近一次{{careKind}}</text><block wx:if="{{careLatest}}"><text>{{careLatest.time}} · {{careLatest.displayValue}}</text><text wx:if="{{careLatest.note}}">{{careLatest.note}}</text></block><text wx:else>近期记录中尚未读取到本类记录。</text></view>
+        <view wx:if="{{careUnconfirmed || careLatest}}" class="recent-care"><text>最近一次{{careKind}}</text><block wx:if="{{careLatest}}"><text>{{careLatest.time}} · {{careLatest.displayValue}}</text><text wx:if="{{careLatest.note}}" class="recent-care-note">{{careLatest.note}}</text></block><text wx:else>近期记录中尚未读取到本类记录。</text></view>
         <button wx:if="{{careUnconfirmed || weightError}}" class="secondary-button weight-retry" disabled="{{careSaving || weightLoading}}" bindtap="refreshCareRecords">刷新记录，再核对</button>
         <button class="primary-button modal-save" loading="{{careSaving}}" disabled="{{careSaving || weightLoading || careUnconfirmed || weightError}}" bindtap="saveCareRecord">确认记录{{careKind}}</button>
       </view>
