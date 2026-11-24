@@ -701,10 +701,21 @@ test('release mock mode is controlled by project config despite a stale local to
   vm.runInNewContext(fs.readFileSync(path.join(root, 'app.js'), 'utf8'), {
     App: (value) => { definition = value; },
     wx: { getStorageSync: () => true },
-    require: (id) => id === './utils/config' ? { mockMode: false } : { track() {} },
+    require: (id) => id === './utils/config' ? { mockMode: false }
+      : id === './utils/onboarding' ? { isHomeEntry: () => false, hasCompleted: () => false } : { track() {} },
   });
   definition.onLaunch();
   assert.equal(definition.globalData.mockMode, false);
+});
+
+test('home restores reading in real mode when opening onboarding fails', async () => {
+  const home = page('home', { listPets: async () => ({ pets: [] }) });
+  app.globalData.mockMode = false;
+  let restore; app.openOnboarding = callback => { restore = callback; return true; };
+  try {
+    home.onShow(); assert.equal(home.data.mockMode, false);
+    await restore(); assert.equal(home.data.loading, false);
+  } finally { delete app.openOnboarding; }
 });
 
 test('pet pages expose categorized diagnostics without private native errors and clear them on recovery', async () => {

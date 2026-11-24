@@ -1,5 +1,6 @@
 const config = require('./utils/config');
 const { track } = require('./utils/analytics');
+const onboarding = require('./utils/onboarding');
 
 App({
   globalData: {
@@ -9,8 +10,22 @@ App({
     user: null,
   },
 
-  onLaunch() {
+  onLaunch(options) {
+    this.onboardingPending = onboarding.isHomeEntry(options) && !onboarding.hasCompleted();
     track('app.launch');
+  },
+
+  onShow(options) {
+    if (!onboarding.isHomeEntry(options)) this.onboardingPending = false;
+  },
+
+  openOnboarding(onFailure) {
+    if (!this.onboardingPending) return false;
+    this.onboardingPending = false;
+    wx.navigateTo({ url: '/pages/onboarding/index', fail: () => {
+      if (typeof onFailure === 'function') onFailure();
+    } });
+    return true;
   },
 
   onError() { track('client.error', { code: 'runtime' }); },

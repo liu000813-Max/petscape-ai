@@ -1,0 +1,50 @@
+page { height: 100%; background: #fff; }
+.onboarding-page { height: 100vh; display: flex; flex-direction: column; background: #fff; color: #171619; padding: 14rpx 0 0; }
+.guide-top { flex: none; padding: 0 46rpx; display: flex; align-items: center; justify-content: space-between; height: 74rpx; }
+.step-counter { font-size: 22rpx; color: #827982; }
+.guide-top .skip { margin: 0 -14rpx 0 0; padding: 12rpx 14rpx; width: auto; min-width: 88rpx; background: #fff; font-size: 26rpx; color: #615960; line-height: 1.5; }
+.guide-swiper { flex: 1; min-height: 0; width: 100%; }
+.slide-scroll { height: 100%; }
+.slide-content { padding: 30rpx 48rpx 26rpx; }
+.guide-logo { display: block; width: 260rpx; height: 92rpx; margin: 0 0 32rpx; }
+.guide-title { font-size: 52rpx; font-weight: 700; line-height: 1.5; letter-spacing: 0; }
+.guide-description { margin-top: 24rpx; font-size: 27rpx; color: #716a71; line-height: 1.85; }
+.animal { display: block; background: #fff; border-radius: 0; border: 0; }
+.family-illustration { height: 214rpx; display: flex; align-items: center; justify-content: space-between; margin-top: 42rpx; background: #fff; }
+.main-animal { width: 210rpx; height: 210rpx; }
+.side-animal { width: 134rpx; height: 134rpx; }
+.example-name { margin-top: 10rpx; font-size: 36rpx; font-weight: 700; text-align: center; }
+.example-meta { margin-top: 10rpx; color: #716a71; font-size: 23rpx; text-align: center; }
+.slide-note { border-top: 1rpx solid #eae7e9; padding-top: 30rpx; margin-top: 40rpx; text-align: center; color: #716a71; font-size: 24rpx; line-height: 1.6; }
+.weight-illustration { margin-top: 48rpx; padding-top: 30rpx; border-top: 1rpx solid #eae7e9; }
+.example-head { display: flex; justify-content: space-between; align-items: center; color: #716a71; font-size: 26rpx; }
+.example-tag { font-size: 21rpx; color: #934563; padding: 8rpx 18rpx; background: #f7e9ef; border-radius: 8rpx; }
+.example-weight { font-size: 76rpx; font-weight: 700; margin-top: 8rpx; }
+.example-weight text { font-size: 28rpx; font-weight: 400; margin-left: 12rpx; color: #716a71; }
+.example-chart { position: relative; width: 560rpx; height: 190rpx; margin: 24rpx auto 0; }
+.chart-grid { position: absolute; left: 0; width: 100%; border-top: 1rpx solid #eae7e9; }
+.grid-top { top: 38rpx; } .grid-mid { top: 102rpx; } .grid-bottom { top: 166rpx; }
+.chart-segment { position: absolute; height: 4rpx; background: #ad5272; transform-origin: left center; }
+.s1 { left: 10rpx; top: 159rpx; width: 94.9rpx; transform: rotate(-18.4deg); }
+.s2 { left: 100rpx; top: 129rpx; width: 90.6rpx; transform: rotate(6.3deg); }
+.s3 { left: 190rpx; top: 139rpx; width: 100.6rpx; transform: rotate(-26.6deg); }
+.s4 { left: 280rpx; top: 94rpx; width: 102.9rpx; transform: rotate(-29.1deg); }
+.s5 { left: 370rpx; top: 44rpx; width: 91.2rpx; transform: rotate(9.5deg); }
+.s6 { left: 460rpx; top: 59rpx; width: 101.5rpx; transform: rotate(-27.6deg); }
+.chart-point { position: absolute; width: 12rpx; height: 12rpx; margin: -5rpx 0 0 -6rpx; border-radius: 50%; background: #ad5272; }
+.p1 { left: 10rpx; top: 159rpx; } .p2 { left: 100rpx; top: 129rpx; } .p3 { left: 190rpx; top: 139rpx; } .p4 { left: 280rpx; top: 94rpx; } .p5 { left: 370rpx; top: 44rpx; } .p6 { left: 460rpx; top: 59rpx; } .p7 { left: 550rpx; top: 12rpx; }
+.chart-dates { margin: 0 auto; width: 560rpx; display: flex; justify-content: space-between; font-size: 21rpx; color: #716a71; }
+.care-labels { text-align: center; margin-top: 36rpx; font-size: 26rpx; }
+.species-illustration { display: flex; justify-content: space-between; align-items: center; height: 180rpx; margin: 40rpx 0 20rpx; background: #fff; }
+.species-illustration .animal { width: 165rpx; height: 165rpx; }
+.feature-row { display: flex; align-items: flex-start; gap: 24rpx; padding: 30rpx 0; border-top: 1rpx solid #eae7e9; }
+.feature-row image { width: 42rpx; height: 42rpx; flex: none; margin-top: 4rpx; }
+.feature-title { font-size: 32rpx; font-weight: 700; }
+.feature-description { margin-top: 12rpx; color: #716a71; font-size: 24rpx; line-height: 1.6; }
+.guide-footer { flex: none; padding: 20rpx 48rpx 30rpx; padding-bottom: calc(30rpx + env(safe-area-inset-bottom)); background: #fff; }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 18rpx; height: 22rpx; margin-bottom: 28rpx; }
+.page-dot { width: 10rpx; height: 10rpx; background: #d9d3d7; border-radius: 6rpx; }
+.page-dot.active { width: 32rpx; background: #ad5272; }
+.guide-footer .guide-next { margin: 0; width: 100%; min-height: 96rpx; padding: 24rpx 16rpx; border-radius: 12rpx; line-height: 1.5; color: #fff; background: #171619; font-weight: 700; font-size: 30rpx; }
+.guide-footer .guide-next[disabled] { color: #fff; background: #514d51; }
+@media (max-width: 340px) { .guide-title { font-size: 46rpx; } .guide-description { font-size: 26rpx; } }

@@ -35,4 +35,5 @@ Page({
     wx.showModal({ title: '关于 PETSCAPE', showCancel: false, confirmText: '知道了',
       content: `给每一只宠物，一处合适的宠境。\n\n记录宠物档案，查看养护知识，留下每天的照料。\n\n${this.data.accountLabel} · ${this.data.versionLabel}` });
   },
+  openGuide() { wx.navigateTo({ url: '/pages/onboarding/index' }); },
 });

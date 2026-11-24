@@ -96,8 +96,9 @@ Page({
 
   onShow() {
     syncTabBar(this, Boolean(this.data.activeModal));
-    if (this.isWriting() || this.data.activeModal) return;
     this.setData({ mockMode: getApp().globalData.mockMode });
+    if (getApp().openOnboarding && getApp().openOnboarding(() => this.loadSummary())) return;
+    if (this.isWriting() || this.data.activeModal) return;
     track('home.view');
     return this.loadSummary();
   },

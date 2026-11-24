@@ -1,0 +1,57 @@
+<view class="onboarding-page">
+  <view class="guide-top"><text class="step-counter">0{{current + 1}} / 03</text><button class="skip" bindtap="finish" disabled="{{leaving}}">跳过</button></view>
+  <swiper class="guide-swiper" current="{{current}}" bindchange="onChange" duration="240" circular="{{false}}">
+    <swiper-item>
+      <scroll-view class="slide-scroll" scroll-y>
+        <view class="slide-content">
+          <image class="guide-logo" src="/assets/petscape-logo.png" mode="aspectFit" />
+          <view class="guide-title"><view>每一位家人，</view><view>都有自己的档案。</view></view>
+          <view class="guide-description">留下名字、照片和物种，<view>从认识它开始，照顾每一天。</view></view>
+          <view class="family-illustration" aria-label="示例宠物：守宫、花枝鼠和鹦鹉">
+            <image class="animal side-animal" src="/assets/onboarding/gecko.png" mode="aspectFit" />
+            <image class="animal main-animal" src="/assets/onboarding/rat.png" mode="aspectFit" />
+            <image class="animal side-animal" src="/assets/onboarding/parrot.png" mode="aspectFit" />
+          </view>
+          <view class="example-name">米粒</view><view class="example-meta">示例宠物 · 花枝鼠 · 支持上传头像</view>
+          <view class="slide-note">一个宠物家庭，容纳不同的它们</view>
+        </view>
+      </scroll-view>
+    </swiper-item>
+    <swiper-item>
+      <scroll-view class="slide-scroll" scroll-y>
+        <view class="slide-content">
+          <view class="guide-title"><view>把日常照料，</view><view>留成看得见的变化。</view></view>
+          <view class="guide-description">记体重、记喂食，<view>也记下换水、清洁和身体观察。</view></view>
+          <view class="weight-illustration" aria-label="示例体重曲线，非真实宠物数据">
+            <view class="example-head"><text>米粒的体重</text><text class="example-tag">示例记录</text></view>
+            <view class="example-weight">382<text>g</text></view>
+            <view class="example-chart">
+              <view class="chart-grid grid-top"></view><view class="chart-grid grid-mid"></view><view class="chart-grid grid-bottom"></view>
+              <view class="chart-segment s1"></view><view class="chart-segment s2"></view><view class="chart-segment s3"></view><view class="chart-segment s4"></view><view class="chart-segment s5"></view><view class="chart-segment s6"></view>
+              <view class="chart-point p1"></view><view class="chart-point p2"></view><view class="chart-point p3"></view><view class="chart-point p4"></view><view class="chart-point p5"></view><view class="chart-point p6"></view><view class="chart-point p7"></view>
+            </view>
+            <view class="chart-dates"><text>11/04</text><text>11/23</text></view>
+          </view>
+          <view class="care-labels">喂食 / 换水 / 清洁 / 生病</view>
+        </view>
+      </scroll-view>
+    </swiper-item>
+    <swiper-item>
+      <scroll-view class="slide-scroll" scroll-y>
+        <view class="slide-content">
+          <view class="guide-title"><view>多了解一点，</view><view>让宠境更适合它。</view></view>
+          <view class="guide-description">按物种查找养护知识，<view>也为宠境想法起个名字。</view></view>
+          <view class="species-illustration" aria-label="蛇类、蜘蛛和鹦鹉">
+            <image class="animal" src="/assets/onboarding/snake.png" mode="aspectFit" /><image class="animal" src="/assets/onboarding/spider.png" mode="aspectFit" /><image class="animal" src="/assets/onboarding/parrot.png" mode="aspectFit" />
+          </view>
+          <view class="feature-row"><image src="/assets/nav-book-black.png" mode="aspectFit" /><view><view class="feature-title">养护知识</view><view class="feature-description">找到适合当前物种的内容</view></view></view>
+          <view class="feature-row"><image src="/assets/nav-habitat-black.png" mode="aspectFit" /><view><view class="feature-title">宠境想法</view><view class="feature-description">先保存一个项目名字</view></view></view>
+        </view>
+      </scroll-view>
+    </swiper-item>
+  </swiper>
+  <view class="guide-footer">
+    <view class="pagination" aria-label="第{{current + 1}}页，共3页"><view class="page-dot {{current === 0 ? 'active' : ''}}"></view><view class="page-dot {{current === 1 ? 'active' : ''}}"></view><view class="page-dot {{current === 2 ? 'active' : ''}}"></view></view>
+    <button class="guide-next" bindtap="next" disabled="{{leaving}}">{{current === 2 ? '开始我的宠境' : '下一步'}}</button>
+  </view>
+</view>

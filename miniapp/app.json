@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/home/index",
+    "pages/onboarding/index",
     "pages/knowledge/index",
     "pages/community/index",
     "pages/community-edit/index",
