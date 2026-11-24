@@ -2,7 +2,7 @@ const { listPets, getProfile } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
 const { lifeStageLabel } = require('../../utils/life-stages');
 const { describeError } = require('../../utils/errors');
-const { syncTabBar } = require('../../utils/navigation');
+const { syncTabBar, openOfficialPosts } = require('../../utils/navigation');
 
 Page({
   data: { pets: [], loading: true, loaded: false, loadError: '', loadErrorTitle: '', loadErrorDetail: '', ownerName: '养宠人', ownerAvatar: '', ownerNotice: '' },
@@ -58,5 +58,5 @@ Page({
   openSettings() { wx.navigateTo({ url: '/pages/settings/index' }); },
   openCare() { wx.navigateTo({ url: '/pages/care-log/index' }); },
   openHabitat() { wx.navigateTo({ url: '/pages/design/index' }); },
-  openKnowledge() { wx.switchTab({ url: '/pages/knowledge/index' }); },
+  openKnowledge() { openOfficialPosts(); },
 });

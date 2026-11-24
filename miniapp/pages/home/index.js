@@ -3,7 +3,7 @@ const { getSpeciesMeta } = require('../../utils/species');
 const { track } = require('../../utils/analytics');
 const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
-const { syncTabBar } = require('../../utils/navigation');
+const { syncTabBar, openOfficialPosts } = require('../../utils/navigation');
 const { weightInGrams, recentWeights, weightChange } = require('../../utils/weight-records');
 
 function chartSummary(records) {
@@ -323,7 +323,8 @@ Page({
   openAction(event) {
     if (this.isWriting() || this.data.activeModal) return;
     const url = event.currentTarget.dataset.path;
-    if (url === '/pages/knowledge/index' || url === '/pages/pet/index') wx.switchTab({ url });
+    if (url === '/pages/knowledge/index') openOfficialPosts();
+    else if (url === '/pages/pet/index') wx.switchTab({ url });
     else wx.navigateTo({ url });
   },
 

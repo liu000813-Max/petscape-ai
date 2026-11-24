@@ -34,7 +34,6 @@
     "borderStyle": "black",
     "list": [
       { "pagePath": "pages/home/index", "text": "首页" },
-      { "pagePath": "pages/knowledge/index", "text": "知识" },
       { "pagePath": "pages/pet/index", "text": "宠物" },
       { "pagePath": "pages/community/index", "text": "社区" },
       { "pagePath": "pages/me/index", "text": "我的" }

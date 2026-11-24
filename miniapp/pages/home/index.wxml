@@ -144,7 +144,7 @@
   <view class="section">
     <view class="section-head">
       <text class="section-title">给养宠人的一页</text>
-      <text class="section-link" bindtap="openAction" data-path="/pages/knowledge/index">全部知识 →</text>
+      <text class="section-link" bindtap="openAction" data-path="/pages/knowledge/index">查看官方帖 →</text>
     </view>
     <view wx:for="{{highlights}}" wx:key="title" class="highlight-card card">
       <text class="badge">{{item.tag}}</text>

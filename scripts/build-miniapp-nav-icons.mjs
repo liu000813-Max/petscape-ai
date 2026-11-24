@@ -24,7 +24,7 @@ const drawings = {
 let count = 0;
 for (const [name, content] of Object.entries(drawings)) {
   const colors = ['home', 'book', 'person', 'community'].includes(name)
-    ? { black: '#050505', gray: '#818181' } : name === 'paw' ? { black: '#050505', white: '#ffffff' } : { black: '#050505' };
+    ? { black: '#050505', gray: '#818181' } : name === 'paw' ? { black: '#050505', gray: '#818181', white: '#ffffff' } : { black: '#050505' };
   for (const [variant, color] of Object.entries(colors)) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="96" height="96"><g fill="none" stroke="${color}" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">${content}</g></svg>`;
     const filename = name.startsWith('care-') ? name : `nav-${name}-${variant}`;

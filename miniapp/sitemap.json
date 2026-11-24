@@ -7,10 +7,6 @@
     },
     {
       "action": "allow",
-      "page": "pages/knowledge/index"
-    },
-    {
-      "action": "allow",
       "page": "pages/community/index"
     },
     {

@@ -5,10 +5,12 @@
 }
 
 .community-head .title {
-  margin-top: 10rpx;
+  margin: 0;
+  font-weight: 700;
 }
 
-.compose-button {
+.community-head .compose-button {
+  width: auto;
   min-width: 142rpx;
   height: 68rpx;
   margin: 0;
@@ -70,6 +72,21 @@
   color: rgba(0, 0, 0, 0.55);
   font-size: 23rpx;
 }
+
+.community-sections { display: flex; gap: 24rpx; margin-top: 34rpx; border-bottom: 1rpx solid #e9e2e4; }
+.community-sections .community-section { width: auto; min-height: 76rpx; margin: 0; padding: 12rpx 12rpx 14rpx; border-bottom: 5rpx solid transparent; border-radius: 0; background: #fff; color: #675d60; font-size: 27rpx; line-height: 1.6; }
+.community-sections .community-section.selected { border-color: #d389a2; color: #171313; font-weight: 700; }
+.topic-row .category-button { width: auto; margin: 0; background: #fff; line-height: 1.5; }
+.topic-row .category-button { flex-shrink: 0; }
+.topic-row .category-button.selected { background: #050505; }
+.official-card { box-shadow: none; }
+.official-header, .official-tags { display: flex; align-items: center; gap: 14rpx; }
+.official-header { justify-content: space-between; }
+.official-badge { background: #171313; color: #fff; }
+.official-category, .official-summary { color: #62565a; font-size: 24rpx; }
+.official-summary { margin-top: 12rpx; line-height: 1.6; }
+.official-header .star-button { flex-shrink: 0; width: 82rpx; min-height: 82rpx; margin: 0; padding: 0; border-radius: 50%; background: #f5f1f2; color: #453a3e; font-size: 43rpx; line-height: 82rpx; }
+.official-header .star-button.is-starred { background: #f7dce6; color: #78324d; }
 
 .post-stats {
   margin-top: 14rpx;

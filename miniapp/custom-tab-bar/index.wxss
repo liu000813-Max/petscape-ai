@@ -7,11 +7,6 @@
 .tab-label { margin-top: 8rpx; font-size: 21rpx; line-height: 1.2; }
 .tab-bar .is-selected { color: #050505; font-weight: 700; }
 .is-selected .tab-symbol { background: #f7dce6; }
-.tab-bar .tab-center { padding-top: 0; overflow: visible; color: #050505; }
-.tab-center .tab-symbol { width: 96rpx; height: 96rpx; margin-top: -34rpx; border: 7rpx solid #fff; border-radius: 50%; background: #050505; box-shadow: 0 0 0 2rpx #ded5d8; }
-.tab-center .tab-icon { width: 45rpx; height: 45rpx; }
-.tab-center .tab-label { margin-top: 5rpx; }
-.tab-center.is-selected .tab-symbol { box-shadow: 0 0 0 4rpx #eaa0b9; }
 .tab-bar .tab-pressed { opacity: .76; }
 .tab-pressed .tab-symbol { transform: scale(.90); }
 .is-selected .tab-icon { animation: tab-icon-arrive 210ms ease-out; }

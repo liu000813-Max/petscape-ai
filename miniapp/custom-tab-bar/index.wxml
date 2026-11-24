@@ -1,7 +1,7 @@
 <view wx:if="{{!hidden}}" class="tab-dock" role="navigation" aria-label="主导航">
   <view class="tab-bar">
-    <button wx:for="{{tabs}}" wx:key="pagePath" class="tab-item {{item.central ? 'tab-center' : ''}} {{selected === item.pagePath ? 'is-selected' : ''}}" data-path="{{item.pagePath}}" bindtap="switchTab" aria-label="{{item.text}}" aria-current="{{selected === item.pagePath ? 'page' : 'false'}}" hover-class="tab-pressed" hover-start-time="20" hover-stay-time="80">
-      <view class="tab-symbol"><image class="tab-icon" src="/assets/nav-{{item.icon}}{{item.central ? '-white' : selected === item.pagePath ? '-black' : '-gray'}}.png" mode="aspectFit" /></view>
+    <button wx:for="{{tabs}}" wx:key="pagePath" class="tab-item {{selected === item.pagePath ? 'is-selected' : ''}}" data-path="{{item.pagePath}}" bindtap="switchTab" aria-label="{{item.text}}" aria-current="{{selected === item.pagePath ? 'page' : 'false'}}" hover-class="tab-pressed" hover-start-time="20" hover-stay-time="80">
+      <view class="tab-symbol"><image class="tab-icon" src="/assets/nav-{{item.icon}}{{selected === item.pagePath ? '-black' : '-gray'}}.png" mode="aspectFit" /></view>
       <text class="tab-label">{{item.text}}</text>
     </button>
   </view>

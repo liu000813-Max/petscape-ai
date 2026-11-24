@@ -16,6 +16,7 @@ const notices = [];
 let navigation;
 function resetWx() {
   app.globalData.mockMode = true; storage.clear(); notices.length = 0;
+  delete app.officialPostsEntry;
   globalThis.getApp = () => app;
   globalThis.getCurrentPages = () => [{ route: 'pages/home/index' }];
   globalThis.wx = {
@@ -236,16 +237,18 @@ test('tab navigation vibrates once after switching and works when haptics are un
   assert.equal(notices.length, 0);
 });
 
-test('five tabs and custom component resources agree with the native app manifest', () => {
+test('four tabs and custom component resources agree with the native app manifest', () => {
   const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json')));
   const { TABS, syncTabBar } = require(path.join(root, 'utils/navigation.js'));
   assert.equal(config.tabBar.custom, true);
+  assert.deepEqual(TABS.map(({ text }) => text), ['首页', '宠物', '社区', '我的']);
   assert.deepEqual(config.tabBar.list, TABS.map(({ pagePath, text }) => ({ pagePath, text })));
   const bar = tabBar();
   for (const extension of ['.js', '.json', '.wxml', '.wxss']) assert.ok(fs.existsSync(path.join(root, 'custom-tab-bar/index' + extension)));
   assert.equal(typeof bar.switchTab, 'function');
   for (const tab of TABS) {
     assert.ok(config.pages.includes(tab.pagePath));
+    for (const color of ['black', 'gray']) assert.ok(fs.existsSync(path.join(root, `assets/nav-${tab.icon}-${color}.png`)));
     globalThis.getCurrentPages = () => [{ route: tab.pagePath, data: {} }];
     bar.sync();
     assert.equal(bar.data.selected, tab.pagePath);
@@ -386,13 +389,52 @@ test('local assets fit the main package budget and official species retain image
   assert.equal(getSpeciesMeta('unknown').value, 'other');
 });
 
-test('home knowledge action uses switchTab and article filters load the correct public set', async () => {
+test('home and old knowledge entry route into official community posts and preserve species filters', async () => {
   page('home').openAction({ currentTarget: { dataset: { path: '/pages/knowledge/index' } } });
-  assert.deepEqual(navigation, ['switchTab', '/pages/knowledge/index']);
-  const knowledge = page('knowledge');
-  await knowledge.selectCategory({ currentTarget: { dataset: { category: '鹦鹉' } } });
-  assert.equal(knowledge.data.articles.length, 1);
-  assert.equal(knowledge.data.articles[0].category, '鹦鹉');
+  assert.deepEqual(navigation, ['switchTab', '/pages/community/index']);
+  const community = page('community');
+  await community.onShow();
+  assert.equal(community.data.section, 'official');
+  assert.equal(app.officialPostsEntry, undefined);
+  await community.selectCategory({ currentTarget: { dataset: { category: '鹦鹉' } } });
+  assert.equal(community.data.articles.length, 1);
+  assert.equal(community.data.articles[0].category, '鹦鹉');
+  page('knowledge').onLoad();
+  await community.onShow();
+  assert.equal(community.data.category, '全部');
+  assert.ok(community.data.articles.length > 1);
+});
+
+test('official bookmarks persist across list and article and skip withdrawn articles', async () => {
+  const community = page('community');
+  const select = (section) => community.selectSection({ currentTarget: { dataset: { section } } });
+  await select('official');
+  const id = community.data.articles[0].id;
+  community.starArticle({ currentTarget: { dataset: { id } } });
+  assert.equal(community.data.articles[0].starred, true);
+  community.openArticle({ currentTarget: { dataset: { id } } });
+  assert.deepEqual(navigation, ['navigateTo', `/pages/article/index?id=${id}`]);
+  const detail = page('article');
+  await detail.onLoad({ id });
+  assert.equal(detail.data.starred, true);
+  require(path.join(root, 'utils/official-bookmarks.js')).toggleBookmark('withdrawn');
+  await select('saved');
+  assert.deepEqual(community.data.articles.map(item => item.id), [id]);
+  detail.starArticle();
+  await community.onShow();
+  assert.deepEqual(community.data.articles, []);
+});
+
+test('late load of official posts cannot overwrite bookmarks view', async () => {
+  const pending = deferred();
+  const community = page('community', { listArticles: () => pending.promise });
+  const select = (section) => community.selectSection({ currentTarget: { dataset: { section } } });
+  const old = select('official');
+  await select('saved');
+  pending.resolve({ articles: [{ id: 'late' }] });
+  await old;
+  assert.equal(community.data.section, 'saved');
+  assert.deepEqual(community.data.articles, []);
 });
 
 test('pending posts and comments never appear as publicly published content in preview', async () => {

@@ -1,2 +1,7 @@
 .article-title { font-size: 44rpx; line-height: 1.3; }
 .article-body { display: block; margin-top: 36rpx; white-space: pre-wrap; line-height: 1.85; }
+.article-header { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-bottom: 20rpx; }
+.official-badge { background: #171313; color: #fff; }
+.article-category { margin-left: 12rpx; color: #62565a; font-size: 24rpx; }
+.article-header .article-star { flex-shrink: 0; width: auto; min-height: 78rpx; margin: 0; padding: 0 20rpx; border-radius: 999rpx; background: #f5f1f2; color: #453a3e; font-size: 26rpx; line-height: 78rpx; }
+.article-header .article-star.is-starred { background: #f7dce6; color: #78324d; }
