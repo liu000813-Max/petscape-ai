@@ -7,8 +7,8 @@ const { routePetId } = require('../../utils/pet-route');
 const { recentWeights, weightChange, weightLabel, careAmountLabel } = require('../../utils/weight-records');
 const { chooseImageFiles } = require('../../utils/pet-photo');
 
-const PLOT_WIDTH = 608;
-const PLOT_HEIGHT = 144;
+const PLOT_WIDTH = 270;
+const PLOT_HEIGHT = 128;
 const GROWTH_PAGE_SIZE = 12;
 
 function plotFor(records, barMode) {
@@ -24,8 +24,9 @@ function plotFor(records, barMode) {
   const ticks = [upper, (upper + lower) / 2, lower].map(weightLabel);
   const points = records.map((record, index) => ({
     id: record.id,
-    x: records.length === 1 ? PLOT_WIDTH / 2 : 24 + index * (PLOT_WIDTH - 48) / (records.length - 1),
+    x: records.length === 1 ? PLOT_WIDTH / 2 : 14 + index * (PLOT_WIDTH - 28) / (records.length - 1),
     y: PLOT_HEIGHT * (1 - (record.grams - lower) / (upper - lower)),
+    barHeight: PLOT_HEIGHT * record.grams / upper,
     latest: index === records.length - 1,
   }));
   const segments = points.slice(1).map((point, index) => {

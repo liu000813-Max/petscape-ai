@@ -1236,6 +1236,9 @@ test('pet detail charts only valid recorded weights and ignores late responses a
   assert.deepEqual(detail.data.recentCare.map(row => row.kind), ['喂食']);
   detail.setChartMode({ currentTarget: { dataset: { mode: 'bar' } } });
   assert.equal(detail.data.plot.ticks.at(-1), '0');
+  const [olderBar, newerBar] = detail.data.plot.points;
+  assert.ok(olderBar.barHeight > 0 && newerBar.barHeight > olderBar.barHeight);
+  assert.ok(Math.abs(olderBar.barHeight / newerBar.barHeight - 376 / 382) < 1e-9);
   assert.equal(detail.data.latestWeight.grams, 382);
 });
 
