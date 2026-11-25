@@ -5,6 +5,7 @@ const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
 const { syncTabBar, openOfficialPosts } = require('../../utils/navigation');
 const { weightInGrams, recentWeights, weightChange } = require('../../utils/weight-records');
+const { ranges, quantityIndexes, wheelQuantity } = require('../../utils/quantity-picker');
 
 function chartSummary(records) {
   const latest = records[records.length - 1] || null;
@@ -62,6 +63,8 @@ Page({
     weightUnconfirmed: false,
     weightInput: '',
     weightUnit: 'g',
+    quantityRanges: ranges,
+    quantitySelection: quantityIndexes(''),
     activeModal: '',
     modalPetId: '',
     modalPetName: '',
@@ -185,15 +188,47 @@ Page({
 
   openWeightModal() {
     if (this.data.loading || this.isWriting() || this.data.activeModal || !this.data.pet) return;
-    this.setData({ activeModal: 'weight', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name, ...(!this.data.weightUnconfirmed && !this.data.weightError ? { weightNotice: '' } : {}) });
+    this.setData({ activeModal: 'weight', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name,
+      quantitySelection: quantityIndexes(this.data.weightInput, this.data.weightUnit),
+      ...(!this.data.weightUnconfirmed && !this.data.weightError ? { weightNotice: '' } : {}) });
     syncTabBar(this, true);
   },
+  onQuantityChange(event) {
+    if (this.isWriting()) return;
+    const isWeight = this.data.activeModal === 'weight';
+    if (!isWeight && (this.data.activeModal !== 'care' || this.data.careKind !== '喂食')) return;
+    const unit = isWeight ? this.data.weightUnit : 'g';
+    const selection = event.detail.value;
+    const value = wheelQuantity(selection, unit);
+    const grams = weightInGrams(value, unit);
+    if (value === '0') {
+      this.setData({ [isWeight ? 'weightInput' : 'feedingGrams']: '', quantitySelection: selection });
+      return;
+    }
+    if (grams === null) {
+      wx.showToast({ title: '请选择有效重量', icon: 'none' });
+      this.setData({ quantitySelection: quantityIndexes(isWeight ? this.data.weightInput : this.data.feedingGrams, unit) });
+      return;
+    }
+    this.setData({ [isWeight ? 'weightInput' : 'feedingGrams']: value, quantitySelection: selection });
+  },
+  // Keep the old handlers for existing native test adapters and older page callers.
   onWeightInput(event) {
-    if (this.data.activeModal === 'weight' && !this.isWriting()) this.setData({ weightInput: event.detail.value });
+    if (this.data.activeModal === 'weight' && !this.isWriting()) {
+      const value = String(event.detail.value || '');
+      this.setData({ weightInput: value, quantitySelection: quantityIndexes(value, this.data.weightUnit) });
+    }
+  },
+  onFeedingGrams(event) {
+    if (this.data.activeModal === 'care' && this.data.careKind === '喂食' && !this.isWriting()) {
+      const value = String(event.detail.value || '');
+      this.setData({ feedingGrams: value, quantitySelection: quantityIndexes(value) });
+    }
   },
   onWeightUnit(event) {
     const unit = event.currentTarget.dataset.unit;
-    if (this.data.activeModal === 'weight' && !this.isWriting() && (unit === 'g' || unit === 'kg')) this.setData({ weightUnit: unit });
+    if (this.data.activeModal !== 'weight' || this.isWriting() || unit === this.data.weightUnit || (unit !== 'g' && unit !== 'kg')) return;
+    this.setData({ weightUnit: unit, quantitySelection: quantityIndexes(this.data.weightInput, unit) });
   },
 
   async saveWeight() {
@@ -201,7 +236,7 @@ Page({
     const petId = this.data.modalPetId;
     if (!petId || petId !== this.data.selectedPetId) return;
     const grams = weightInGrams(this.data.weightInput, this.data.weightUnit);
-    if (grams === null) { wx.showToast({ title: '请输入有效正数，最多三位小数', icon: 'none' }); return; }
+    if (grams === null) { wx.showToast({ title: '请选择本次体重', icon: 'none' }); return; }
     this.setData({ weightSaving: true, weightNotice: '' });
     try {
       await createCareLog({ petId, kind: '体重', value: `${grams}g`, note: null, recordedAt: new Date().toISOString() });
@@ -258,15 +293,16 @@ Page({
     this.careModalSequence = (this.careModalSequence || 0) + 1;
     this.setData({ activeModal: 'care', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name, careKind: kind,
       careLatest: kind === '喂食' ? this.data.latestFeeding : null,
+      quantitySelection: quantityIndexes(draft?.feedingGrams, 'g'),
       ...(draft || { careValue: '', careNote: '', feedingGrams: '', careUnconfirmed: false, careNotice: '' }) });
     syncTabBar(this, true);
   },
 
   onCareValue(event) { if (this.data.activeModal === 'care' && !this.isWriting()) this.setData({ careValue: event.detail.value }); },
   onCareNote(event) { if (this.data.activeModal === 'care' && !this.isWriting()) this.setData({ careNote: event.detail.value }); },
-  onFeedingGrams(event) {
+  clearFeedingQuantity() {
     if (this.data.activeModal === 'care' && this.data.careKind === '喂食' && !this.isWriting()) {
-      this.setData({ feedingGrams: event.detail.value });
+      this.setData({ feedingGrams: '', quantitySelection: quantityIndexes('', 'g') });
     }
   },
 

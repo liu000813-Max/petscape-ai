@@ -7,17 +7,6 @@
   <form wx:elif="{{pet}}" bindsubmit="save">
     <text class="growth-pet-name">{{pet.name}}</text>
     <view class="growth-field">
-      <text class="growth-label">记录日期</text>
-      <picker mode="date" value="{{day}}" end="{{today}}" bindchange="onDay" disabled="{{saving || choosing || uncertain || saved}}">
-        <view class="date-field"><text>{{day}}</text><text aria-hidden="true">›</text></view>
-      </picker>
-    </view>
-    <view class="growth-field">
-      <text class="growth-label">记录内容</text>
-      <textarea class="note-field" name="note" value="{{note}}" maxlength="2000" placeholder="今天发生了什么？" bindinput="onNote"
-        disabled="{{saving || choosing || uncertain || saved}}" aria-label="记录内容" />
-    </view>
-    <view class="growth-field">
       <view class="growth-field-heading"><text class="growth-label">照片</text><text class="growth-count">{{photos.length}} / 6</text></view>
       <view class="draft-grid">
         <view wx:for="{{photos}}" wx:key="path" class="draft-tile">
@@ -30,8 +19,19 @@
         </button>
       </view>
     </view>
+    <view class="growth-field">
+      <text class="growth-label">照片日期</text>
+      <picker mode="date" value="{{day}}" end="{{today}}" bindchange="onDay" disabled="{{saving || choosing || uncertain || saved}}">
+        <view class="date-field"><text>{{day}}</text><text aria-hidden="true">›</text></view>
+      </picker>
+    </view>
+    <view class="growth-field">
+      <text class="growth-label">备注 · 选填</text>
+      <textarea class="note-field" name="note" value="{{note}}" maxlength="2000" placeholder="给照片留一句话" bindinput="onNote"
+        disabled="{{saving || choosing || uncertain || saved}}" aria-label="照片备注" />
+    </view>
     <text wx:if="{{notice}}" class="growth-notice" aria-live="polite">{{notice}}</text>
     <button wx:if="{{uncertain}}" class="growth-button save-button" bindtap="retrySave" loading="{{saving}}" disabled="{{saving}}">重试保存</button>
-    <button wx:else class="growth-button save-button" form-type="submit" loading="{{saving}}" disabled="{{saving || choosing || saved}}">{{saved ? '已保存' : '保存记录'}}</button>
+    <button wx:else class="growth-button save-button" form-type="submit" loading="{{saving}}" disabled="{{saving || choosing || saved}}">{{saved ? '已保存' : '保存照片'}}</button>
   </form>
 </view>

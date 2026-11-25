@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { CreatePetRequestSchema, UpdatePetRequestSchema } from '../../packages/server/src/contracts/pets.ts';
 import { AnalyticsEventSchema } from '../../packages/server/src/contracts/community-content.ts';
+import { ranges as quantityRanges, quantityIndexes, wheelQuantity } from '../../miniapp/utils/quantity-picker.js';
 
 const root = fileURLToPath(new URL('../../miniapp/', import.meta.url));
 const require = createRequire(path.join(root, 'app.js'));
@@ -47,6 +48,94 @@ function page(name, overrides = {}) {
 }
 function files(directory) { return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? files(path.join(directory, entry.name)) : [path.join(directory, entry.name)]); }
 test.beforeEach(resetWx);
+
+test('quantity wheels round-trip grams and kilograms within the supported weight range', () => {
+  for (const unit of ['g', 'kg']) {
+    for (const value of unit === 'g' ? ['0', '5', '5.625', '999.999', '1000', '1000.001', '999999.999', '1000000']
+      : ['0', '0.325', '1.25', '999.999', '1000']) {
+      assert.equal(wheelQuantity(quantityIndexes(value, unit), unit), String(Number(value)));
+    }
+  }
+  assert.equal(wheelQuantity(quantityIndexes('1000000.001', 'g'), 'g'), null);
+  assert.equal(wheelQuantity(quantityIndexes('1000.001', 'kg'), 'kg'), null);
+  assert.equal(quantityRanges.g.length, 5);
+  assert.equal(quantityRanges.kg.length, 4);
+  assert.equal(quantityRanges.g[0].length, 1001);
+  assert.equal(quantityRanges.kg[0].length, 1001);
+  assert.equal(quantityRanges.g[0][1000], '1,000,');
+  assert.equal(quantityRanges.g[1][5], '005');
+});
+
+test('quantity wheel selections update body weight and optional feeding grams', async () => {
+  const writes = [];
+  const home = page('home', { ...careApi, createCareLog: async payload => { writes.push(payload); } });
+  await home.loadSummary();
+  home.openWeightModal();
+  home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+  home.onQuantityChange({ detail: { value: quantityIndexes('0.325', 'kg') } });
+  assert.equal(home.data.weightInput, '0.325');
+  await home.saveWeight();
+  assert.equal(writes[0].value, '325g');
+
+  home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  home.onQuantityChange({ detail: { value: quantityIndexes('5.625', 'g') } });
+  home.onCareValue({ detail: { value: '主粮' } });
+  await home.saveCareRecord();
+  assert.equal(writes[1].value, '5.625g');
+  assert.equal(home.data.feedingChart.history.length, 0, 'the isolated fixture intentionally reads no records');
+
+  home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  home.clearFeedingQuantity();
+  assert.equal(home.data.feedingGrams, '');
+  assert.equal(wheelQuantity(home.data.quantitySelection, 'g'), '0');
+});
+
+test('feeding without grams keeps its text record and only explicit grams enter the chart', async () => {
+  const logs = [];
+  const writes = [];
+  const home = page('home', { ...careApi, listCareLogs: async () => ({ logs }),
+    createCareLog: async payload => { writes.push(payload); logs.push({ id: `feeding-${writes.length}`, ...payload }); } });
+  await home.loadSummary();
+  home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  home.onCareValue({ detail: { value: '主粮 2 份' } });
+  await home.saveCareRecord();
+  assert.equal(writes[0].value, '主粮 2 份');
+  assert.deepEqual(home.data.feedingChart.history, []);
+
+  home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  home.onQuantityChange({ detail: { value: quantityIndexes('5.625', 'g') } });
+  home.onCareValue({ detail: { value: '主粮' } });
+  await home.saveCareRecord();
+  assert.equal(writes[1].value, '5.625g');
+  assert.equal(home.data.feedingChart.latest.grams, 5.625);
+});
+
+test('growth album plus opens the matching pet editor and passes selected photos', async () => {
+  const photos = [{ tempFilePath: '/camera.jpg', size: 120 }, { tempFilePath: '/album.png', size: 240 }];
+  let received;
+  let destination;
+  let chosenCount = 0;
+  wx.chooseMedia = ({ count, success }) => { chosenCount = count; success({ tempFiles: photos }); };
+  const detail = page('pet-detail');
+  detail.loadSequence = 4;
+  detail.setData({ pet: { id: 'pet/photo', name: '团子' } });
+  wx.navigateTo = options => {
+    destination = options.url;
+    options.success({ eventChannel: { emit(name, files) { assert.equal(name, 'growthPhotosChosen'); received = files; } } });
+  };
+  await detail.openGrowthEditor();
+  assert.equal(chosenCount, 6);
+  assert.equal(destination, '/pages/pet-growth-edit/index?petId=pet%2Fphoto');
+  assert.deepEqual(received, photos);
+  assert.equal(detail.data.choosingGrowthPhotos, false);
+
+  let listener;
+  const editor = page('pet-growth-edit', { getPet: async id => ({ id, name: '团子' }) });
+  editor.getOpenerEventChannel = () => ({ on(name, callback) { assert.equal(name, 'growthPhotosChosen'); listener = callback; }, off() {} });
+  await editor.onLoad({ petId: 'pet/photo' });
+  listener(photos);
+  assert.deepEqual(editor.data.photos.map(photo => photo.path), photos.map(photo => photo.tempFilePath));
+});
 
 test('growth editor keeps confirmed photo uploads when a later photo fails', async () => {
   const uploads = [];

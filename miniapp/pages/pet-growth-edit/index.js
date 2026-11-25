@@ -15,12 +15,18 @@ Page({
   onLoad(options) {
     this.petId = routePetId(options?.petId);
     this.draftPhotos = [];
+    this.opener = this.getOpenerEventChannel?.();
+    this.receivePhotos = files => this.addPhotos(files);
+    this.opener?.on('growthPhotosChosen', this.receivePhotos);
     const today = formatDateTime(new Date()).slice(0, 10);
     this.setData({ today, day: today });
     return this.loadPet();
   },
 
-  onUnload() { this.closed = true; },
+  onUnload() {
+    this.closed = true;
+    this.opener?.off('growthPhotosChosen', this.receivePhotos);
+  },
 
   async loadPet() {
     this.setData({ loading: true, loadError: '' });
@@ -50,21 +56,24 @@ Page({
     this.setData({ photos: this.draftPhotos.map(({ path }) => ({ path })) });
   },
 
+  addPhotos(files) {
+    if (this.closed || !files.length) return;
+    const paths = new Set(this.draftPhotos.map(photo => photo.path));
+    for (const { tempFilePath } of files) {
+      if (!tempFilePath || paths.has(tempFilePath) || this.draftPhotos.length >= PHOTO_LIMIT) continue;
+      paths.add(tempFilePath);
+      this.draftPhotos.push({ path: tempFilePath, assetId: null });
+    }
+    this.syncPhotos();
+    this.setData({ notice: '' });
+  },
+
   async choosePhotos() {
     const remaining = PHOTO_LIMIT - this.draftPhotos.length;
     if (this.blocked() || remaining <= 0) return;
     this.setData({ choosing: true });
     try {
-      const files = await chooseImageFiles(remaining);
-      if (this.closed || !files.length) return;
-      const paths = new Set(this.draftPhotos.map(photo => photo.path));
-      for (const { tempFilePath } of files) {
-        if (!tempFilePath || paths.has(tempFilePath) || this.draftPhotos.length >= PHOTO_LIMIT) continue;
-        paths.add(tempFilePath);
-        this.draftPhotos.push({ path: tempFilePath, assetId: null });
-      }
-      this.syncPhotos();
-      this.setData({ notice: '' });
+      this.addPhotos(await chooseImageFiles(remaining));
     } catch (error) {
       if (!this.closed) this.setData({ notice: error.message });
     } finally {

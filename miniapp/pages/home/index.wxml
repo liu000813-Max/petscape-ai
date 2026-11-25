@@ -18,6 +18,14 @@
   </view>
   <text class="daily-time">{{chart.latest.time}}</text>
 </template>
+<template name="quantity-wheel">
+  <picker class="quantity-picker" mode="multiSelector" range="{{range}}" value="{{selection}}" bindchange="onQuantityChange" disabled="{{disabled}}" aria-label="{{label}}">
+    <view class="quantity-trigger">
+      <text class="{{amount ? 'quantity-value' : 'quantity-placeholder'}}">{{amount || placeholder}}</text>
+      <text class="quantity-suffix">{{unit}} <text class="quantity-chevron" aria-hidden="true">⌄</text></text>
+    </view>
+  </picker>
+</template>
 
 <view class="page tab-page home-page" aria-hidden="{{!!activeModal}}">
   <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
@@ -101,7 +109,7 @@
         <template wx:elif="{{feedingChart.latest}}" is="daily-amount" data="{{chart: feedingChart, mode: feedingChartMode, kind: '喂食'}}" />
         <view wx:else class="daily-empty">
           <view class="weight-empty-mark"><image class="care-icon" src="/assets/care-feeding.png" mode="aspectFit" aria-hidden="true" /></view>
-          <text>{{latestFeeding ? '近期喂食记录未填写克数' : '近期暂无喂食记录'}}</text>
+          <text>{{latestFeeding ? '上次喂食未填克数，暂不显示图表' : '近期暂无喂食记录'}}</text>
           <block wx:if="{{latestFeeding}}">
             <text class="feeding-legacy-summary">{{latestFeeding.value || latestFeeding.note || latestFeeding.displayValue}}</text>
             <text class="daily-time">{{latestFeeding.time}}</text>
@@ -163,13 +171,12 @@
       <view wx:if="{{activeModal === 'weight'}}" class="modal-body">
         <view class="weight-input-label">本次体重</view>
         <view class="weight-input-row">
-          <input class="weight-input" type="digit" maxlength="16" value="{{weightInput}}" bindinput="onWeightInput" placeholder="输入体重" disabled="{{weightSaving}}" adjust-position="{{false}}" bindkeyboardheightchange="onKeyboardHeightChange" aria-label="{{modalPetName}}的体重" />
+          <template is="quantity-wheel" data="{{range: quantityRanges[weightUnit], selection: quantitySelection, amount: weightInput, unit: weightUnit, placeholder: '选择体重', label: '选择体重', disabled: weightSaving}}" />
           <view class="weight-units">
             <button class="unit-button {{weightUnit === 'g' ? 'is-active' : ''}}" data-unit="g" bindtap="onWeightUnit" disabled="{{weightSaving}}">g</button>
             <button class="unit-button {{weightUnit === 'kg' ? 'is-active' : ''}}" data-unit="kg" bindtap="onWeightUnit" disabled="{{weightSaving}}">kg</button>
           </view>
         </view>
-        <view class="weight-range-hint">大于 0，最多三位小数，上限 1000 kg。保存时间为当前时间。</view>
         <view wx:if="{{weightNotice}}" class="weight-notice">{{weightNotice}}</view><view wx:if="{{weightError}}" class="weight-notice">{{weightError}}<view class="error-detail">{{weightDiagnostic}}</view></view>
         <button wx:if="{{weightUnconfirmed || weightError}}" class="secondary-button weight-retry" disabled="{{weightSaving || weightLoading}}" bindtap="loadWeights">刷新记录，再核对</button>
         <button class="primary-button modal-save" loading="{{weightSaving}}" disabled="{{weightSaving || weightLoading || weightUnconfirmed || weightError}}" bindtap="saveWeight">保存体重</button>
@@ -178,10 +185,10 @@
         <view wx:if="{{careKind === '喂食'}}">
           <view class="weight-input-label">本次喂食克数 · 选填</view>
           <view class="weight-input-row">
-            <input class="weight-input" type="digit" maxlength="16" value="{{feedingGrams}}" bindinput="onFeedingGrams" placeholder="例如 5.5" disabled="{{careSaving}}" adjust-position="{{false}}" bindkeyboardheightchange="onKeyboardHeightChange" aria-label="{{modalPetName}}的喂食克数" />
-            <text class="feeding-unit">g</text>
+            <template is="quantity-wheel" data="{{range: quantityRanges.g, selection: quantitySelection, amount: feedingGrams, unit: 'g', placeholder: '选择克数', label: '选择喂食克数', disabled: careSaving}}" />
+            <button wx:if="{{feedingGrams}}" class="quantity-clear" bindtap="clearFeedingQuantity" disabled="{{careSaving}}">清除</button>
           </view>
-          <view class="weight-range-hint">填写大于 0 的克数，最多三位小数。</view>
+          <view class="weight-range-hint">克数选填。留空仍会保存食物与备注，只在填入克数后计入喂食图表。</view>
           <view class="weight-input-label">食物与份数 · 选填</view>
           <input class="care-value-input" maxlength="200" value="{{careValue}}" bindinput="onCareValue" placeholder="例如 主粮、蟋蟀 2 只" disabled="{{careSaving}}" adjust-position="{{false}}" bindkeyboardheightchange="onKeyboardHeightChange" />
         </view>

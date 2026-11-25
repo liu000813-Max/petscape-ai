@@ -46,6 +46,7 @@
 .detail-environment { display: flex; justify-content: space-between; align-items: center; gap: 20rpx; margin-top: 16rpx; padding: 26rpx; border-radius: 16rpx; background: #f8f5f6; }
 .environment-title { display: block; color: #171619; font-size: 29rpx; font-weight: 600; }
 .growth-section .detail-heading { align-items: center; }
+.detail-page .growth-upload-tile { display: flex; flex: 0 0 88rpx; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; margin: 0; padding: 0; border: 1rpx dashed #c9abb7; border-radius: 16rpx; background: #faf3f6; color: #753448; font-size: 42rpx; line-height: 1; }
 .growth-entry { margin-top: 20rpx; padding: 22rpx 24rpx; border-radius: 16rpx; background: #f8f5f6; }
 .growth-date { display: block; color: #171619; font-size: 24rpx; font-weight: 700; font-variant-numeric: tabular-nums; }
 .growth-note { display: block; margin-top: 12rpx; color: #514a4e; font-size: 27rpx; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }

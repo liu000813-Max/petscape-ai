@@ -76,7 +76,7 @@
     <view class="detail-section growth-section">
       <view class="detail-heading">
         <text class="detail-title">成长记录</text>
-        <button class="detail-button" bindtap="openGrowthEditor">＋ 写记录</button>
+        <button class="growth-upload-tile" bindtap="openGrowthEditor" disabled="{{choosingGrowthPhotos}}" aria-label="从相册添加成长照片">＋</button>
       </view>
       <view wx:for="{{growthEntries}}" wx:key="id" wx:for-item="entry" class="growth-entry">
         <text class="growth-date">{{entry.dateLabel}}</text>
@@ -95,7 +95,7 @@
         <text>{{growthError.message}}</text><text class="detail-diagnostic">{{growthError.detail}}</text>
         <button class="detail-button" bindtap="retryGrowth">重试读取</button>
       </view>
-      <view wx:elif="{{!growthEntries.length}}" class="records-status">还没有成长记录</view>
+      <view wx:elif="{{!growthEntries.length}}" class="records-status">添加宠物成长照片</view>
       <button wx:elif="{{growthHasMore}}" class="detail-button growth-more" bindtap="loadMoreGrowth">查看更早记录</button>
     </view>
 

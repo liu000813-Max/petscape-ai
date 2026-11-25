@@ -5,6 +5,7 @@ const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
 const { routePetId } = require('../../utils/pet-route');
 const { recentWeights, weightChange } = require('../../utils/weight-records');
+const { chooseImageFiles } = require('../../utils/pet-photo');
 
 const PLOT_WIDTH = 608;
 const PLOT_HEIGHT = 144;
@@ -57,6 +58,7 @@ Page({
     pet: null, petLoading: true, petError: null, recordsLoading: false, recordsError: null,
     weights: [], latestWeight: null, weightDelta: '', chartMode: 'line', plot: null, dates: null, recentCare: [], hasRecentCare: false,
     growthEntries: [], growthLoading: false, growthError: null, growthHasMore: false, growthOffset: 0,
+    choosingGrowthPhotos: false,
   },
 
   onLoad(options) { this.petId = routePetId(options?.id); },
@@ -172,8 +174,30 @@ Page({
   retryGrowth() { return this.loadGrowth(!this.data.growthEntries.length); },
   loadMoreGrowth() { if (this.data.growthHasMore) return this.loadGrowth(false); },
 
-  openGrowthEditor() {
-    if (this.data.pet) wx.navigateTo({ url: '/pages/pet-growth-edit/index?petId=' + encodeURIComponent(this.data.pet.id) });
+  async openGrowthEditor() {
+    const petId = this.data.pet?.id;
+    if (!petId || this.data.choosingGrowthPhotos) return;
+    const sequence = this.loadSequence;
+    this.setData({ choosingGrowthPhotos: true });
+    try {
+      const files = await chooseImageFiles(6);
+      if (sequence !== this.loadSequence || this.data.pet?.id !== petId || !files.length) return;
+      await new Promise((resolve, reject) => {
+        wx.navigateTo({
+          url: '/pages/pet-growth-edit/index?petId=' + encodeURIComponent(petId),
+          success: ({ eventChannel }) => {
+            if (!eventChannel || typeof eventChannel.emit !== 'function') { reject(new Error('照片传递失败，请返回后重试')); return; }
+            try { eventChannel.emit('growthPhotosChosen', files); resolve(); }
+            catch { reject(new Error('照片传递失败，请返回后重试')); }
+          },
+          fail: () => reject(new Error('无法打开照片确认页')),
+        });
+      });
+    } catch (error) {
+      if (sequence === this.loadSequence) wx.showToast({ title: error.message, icon: 'none' });
+    } finally {
+      if (sequence === this.loadSequence) this.setData({ choosingGrowthPhotos: false });
+    }
   },
 
   previewGrowthPhoto(event) {

@@ -168,7 +168,13 @@
 .weight-input-label { margin-bottom: 14rpx; color: #4c4545; font-size: 24rpx; }
 .weight-range-hint { margin-top: 12rpx; color: #77716e; font-size: 20rpx; line-height: 1.6; }
 .weight-input-row { display: flex; align-items: center; gap: 18rpx; }
-.weight-input { flex: 1; width: 0; min-width: 0; height: 88rpx; padding: 0 22rpx; border: 1rpx solid #ddd7d6; border-radius: 16rpx; background: #fcfbfa; font-size: 32rpx; }
+.quantity-picker { flex: 1; min-width: 0; }
+.quantity-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; min-height: 88rpx; padding: 0 22rpx; border: 1rpx solid #ddd7d6; border-radius: 16rpx; background: #fcfbfa; }
+.quantity-value { color: #171619; font-size: 30rpx; font-weight: 600; font-variant-numeric: tabular-nums; }
+.quantity-placeholder, .quantity-suffix { color: #6d6869; font-size: 25rpx; }
+.quantity-suffix { flex-shrink: 0; }
+.quantity-chevron { margin-left: 6rpx; font-size: 28rpx; }
+.modal-body .quantity-clear { flex-shrink: 0; width: auto; margin: 0; padding: 8rpx 12rpx; background: transparent; color: #803c54; font-size: 24rpx; line-height: 2; }
 .weight-units { display: flex; flex-shrink: 0; width: 160rpx; padding: 6rpx; border-radius: 16rpx; background: #f3efed; }
 .weight-units .unit-button { flex: 1; width: 72rpx; min-width: 0; margin: 0; padding: 8rpx 12rpx; border-radius: 12rpx; background: transparent; color: #716766; font-size: 26rpx; line-height: 1.7; }
 .weight-units .unit-button.is-active { background: #050505; color: #fff; }
@@ -257,12 +263,10 @@
 .modal-scroll { flex: 0 1 auto; min-height: 0; max-height: 60vh; }
 .modal-body { padding-bottom: 4rpx; }
 .modal-body .weight-input-label { margin-top: 18rpx; }
-.modal-body .weight-input { height: 92rpx; }
 .modal-body .primary-button, .modal-body .secondary-button { width: 100%; }
 .modal-save { margin-top: 28rpx; }
 .care-value-input, .care-note-input { width: 100%; padding: 20rpx; border: 1rpx solid #ded5d0; border-radius: 16rpx; background: #fcfaf8; font-size: 27rpx; }
 .care-value-input { height: 88rpx; }
-.feeding-unit { flex-shrink: 0; padding: 0 22rpx; color: #65565b; font-size: 28rpx; }
 .care-note-input { height: 170rpx; }
 .recent-care { display: flex; flex-direction: column; gap: 8rpx; margin-top: 20rpx; padding: 18rpx; border-radius: 14rpx; background: #f8f4f1; color: #69574e; font-size: 22rpx; line-height: 1.6; overflow-wrap: anywhere; }
 .recent-care-note { white-space: pre-wrap; }
