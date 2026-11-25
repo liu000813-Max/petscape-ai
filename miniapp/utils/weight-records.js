@@ -41,4 +41,4 @@ function weightChange(records) {
   return (rounded ? (change > 0 ? '+' : '−') : '') + rounded + ' g';
 }
 
-module.exports = { weightInGrams, recentWeights, weightChange, weightLabel, careAmountLabel };
+module.exports = { weightInGrams, recordedGrams, recentWeights, weightChange, weightLabel, careAmountLabel };

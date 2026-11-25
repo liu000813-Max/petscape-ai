@@ -370,6 +370,7 @@ Page({
 
   openCare() {
     if (this.isWriting() || this.data.activeModal) return;
-    wx.navigateTo({ url: '/pages/care-log/index' });
+    const petId = this.data.selectedPetId;
+    wx.navigateTo({ url: '/pages/care-log/index' + (petId ? '?petId=' + encodeURIComponent(petId) : '') });
   },
 });

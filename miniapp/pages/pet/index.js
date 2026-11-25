@@ -43,9 +43,10 @@ Page({
     this.setData({ [`pets[${index}].speciesImage`]: pet.speciesImage === fallback ? '' : fallback });
   },
 
-  editPet(event) {
+  openPetDetail(event) {
     const id = event.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/pet-edit/index?id=${id}` });
+    if (!this.data.pets.some(pet => pet.id === id)) return;
+    wx.navigateTo({ url: `/pages/pet-detail/index?id=${encodeURIComponent(id)}` });
   },
 
   openDesign() {

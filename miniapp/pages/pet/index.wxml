@@ -11,7 +11,7 @@
     <button class="secondary-button section" bindtap="loadPets">重试读取</button>
   </view>
   <view wx:elif="{{pets.length}}" class="section">
-    <view wx:for="{{pets}}" wx:key="id" class="pet-card card" data-id="{{item.id}}" bindtap="editPet">
+    <view wx:for="{{pets}}" wx:key="id" class="pet-card card" data-id="{{item.id}}" bindtap="openPetDetail" role="button" aria-label="查看{{item.name}}的详情">
       <view class="pet-avatar"><image wx:if="{{item.speciesImage}}" class="species-image" src="{{item.speciesImage}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><text wx:else>{{item.speciesEmoji}}</text></view>
       <view class="pet-main">
         <text class="pet-name">{{item.name}}</text>

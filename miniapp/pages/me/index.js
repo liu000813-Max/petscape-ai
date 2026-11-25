@@ -48,10 +48,10 @@ Page({
     const pet = this.data.pets[index];
     this.setData({ [`pets[${index}].avatarUrl`]: pet.avatarUrl === pet.fallbackImage ? '' : pet.fallbackImage });
   },
-  editPet(event) {
+  openPetDetail(event) {
     const id = event.currentTarget.dataset.id;
     if (!this.data.pets.some((pet) => pet.id === id)) return;
-    wx.navigateTo({ url: `/pages/pet-edit/index?id=${encodeURIComponent(id)}` });
+    wx.navigateTo({ url: `/pages/pet-detail/index?id=${encodeURIComponent(id)}` });
   },
   addPet() { wx.navigateTo({ url: '/pages/pet-edit/index' }); },
   openPets() { wx.switchTab({ url: '/pages/pet/index' }); },

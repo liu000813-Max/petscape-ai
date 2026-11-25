@@ -199,12 +199,28 @@ function mockRequest(path, options) {
   }
   if (path === '/api/v1/care-logs' && (!options.method || options.method === 'GET')) {
     const petId = options.data && options.data.petId;
-    return Promise.resolve({ logs: petId ? mockCareLogs.filter((item) => item.petId === petId) : mockCareLogs });
+    const logs = mockCareLogs.filter(item => !petId || item.petId === petId)
+      .sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt));
+    return Promise.resolve({ logs: logs.slice(0, options.data?.limit || 50) });
   }
   if (path === '/api/v1/care-logs' && options.method === 'POST') {
     const log = { id: `mock-log-${Date.now()}`, ...options.data, createdAt: new Date().toISOString() };
     mockCareLogs.unshift(log);
     return Promise.resolve(log);
+  }
+  const careLogMatch = /^\/api\/v1\/care-logs\/([^/]+)$/.exec(path);
+  if (careLogMatch && ['PATCH', 'DELETE'].includes(options.method)) {
+    const id = decodeURIComponent(careLogMatch[1]);
+    const index = mockCareLogs.findIndex(item => item.id === id && mockPets.some(pet => pet.id === item.petId));
+    if (index < 0) return Promise.reject({ statusCode: 404 });
+    if (options.method === 'DELETE') {
+      mockCareLogs.splice(index, 1);
+      return Promise.resolve({ id });
+    }
+    const { value, note, recordedAt } = options.data;
+    const updated = { ...mockCareLogs[index], value, note, recordedAt };
+    mockCareLogs[index] = updated;
+    return Promise.resolve(updated);
   }
   if (path === '/api/v1/service-providers' && (!options.method || options.method === 'GET')) {
     const query = options.data || {};
@@ -304,6 +320,8 @@ function createCommunityComment(id, data) { return request(`/api/v1/community/po
 function toggleCommunityPostLike(id, liked) { return request(`/api/v1/community/posts/${id}/like`, { method: 'POST', data: { liked } }); }
 function listCareLogs(query = {}) { return request('/api/v1/care-logs', { data: query }); }
 function createCareLog(data) { return request('/api/v1/care-logs', { method: 'POST', data }); }
+function updateCareLog(id, data) { return request('/api/v1/care-logs/' + encodeURIComponent(id), { method: 'PATCH', data }); }
+function deleteCareLog(id) { return request('/api/v1/care-logs/' + encodeURIComponent(id), { method: 'DELETE' }); }
 function listServiceProviders(query = {}) { return request('/api/v1/service-providers', { data: query, auth: false }); }
 function trackEvent(data) { return request('/api/v1/analytics/events', { method: 'POST', data, auth: false }); }
 function getArticle(id) { return request(`/api/v1/content/articles/${id}`, { auth: false }); }
@@ -341,6 +359,8 @@ module.exports = {
   toggleCommunityPostLike,
   listCareLogs,
   createCareLog,
+  updateCareLog,
+  deleteCareLog,
   listServiceProviders,
   trackEvent,
   getArticle,

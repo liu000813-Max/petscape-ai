@@ -19,7 +19,7 @@
     </view>
     <scroll-view wx:elif="{{pets.length}}" class="pet-strip" scroll-x enhanced show-scrollbar="{{false}}" aria-label="横向滑动查看宠物">
       <view class="pet-track">
-        <button wx:for="{{pets}}" wx:key="id" class="companion-card" data-id="{{item.id}}" bindtap="editPet" aria-label="{{'编辑' + item.name + '的档案'}}">
+        <button wx:for="{{pets}}" wx:key="id" class="companion-card" data-id="{{item.id}}" bindtap="openPetDetail" aria-label="查看{{item.name}}的详情">
           <view class="companion-portrait"><image wx:if="{{item.avatarUrl}}" class="companion-image" src="{{item.avatarUrl}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><image wx:else class="companion-fallback" src="/assets/nav-paw-black.png" mode="aspectFit" /></view>
           <text class="companion-name">{{item.name}}</text><text class="companion-species">{{item.speciesLabel}} · {{item.lifeStageLabel}}</text>
         </button>

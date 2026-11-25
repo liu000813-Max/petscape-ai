@@ -349,10 +349,10 @@ test('my pet card opens only a loaded pet and image fallback stops after species
   const me = page('me', { listPets: async () => ({ pets: [{ id: 'my/pet', speciesCode: 'rat', coverUrl: 'https://private.example/pet' }] }) });
   await me.onShow();
   navigation = undefined;
-  me.editPet({ currentTarget: { dataset: { id: 'someone-else' } } });
+  me.openPetDetail({ currentTarget: { dataset: { id: 'someone-else' } } });
   assert.equal(navigation, undefined);
-  me.editPet({ currentTarget: { dataset: { id: 'my/pet' } } });
-  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-edit/index?id=my%2Fpet']);
+  me.openPetDetail({ currentTarget: { dataset: { id: 'my/pet' } } });
+  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=my%2Fpet']);
   me.onAvatarError({ currentTarget: { dataset: { id: 'my/pet' } } });
   assert.equal(me.data.pets[0].avatarUrl, '/assets/species-rat.png');
   me.onAvatarError({ currentTarget: { dataset: { id: 'my/pet' } } });
@@ -776,7 +776,7 @@ test('home loads the pet independently of project APIs and exposes native care a
   assert.equal(home.data.pet.speciesLabel, '刺猬');
   assert.equal(home.data.loading, false);
   assert.equal(projectRequests, 0);
-  home.openCare(); assert.deepEqual(navigation, ['navigateTo', '/pages/care-log/index']);
+  home.openCare(); assert.deepEqual(navigation, ['navigateTo', '/pages/care-log/index?petId=pet']);
   const action = home.data.quickActions.find((item) => item.path === '/pages/pet/index'); assert.ok(action);
   home.openAction({ currentTarget: { dataset: action } });
   assert.deepEqual(navigation, ['switchTab', '/pages/pet/index']);

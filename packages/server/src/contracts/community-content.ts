@@ -87,6 +87,10 @@ export const CreateCareLogSchema = z.strictObject({
   value: z.string().trim().max(200).nullable().optional(),
   recordedAt: dateSchema,
 });
+export const CareLogParamsSchema = z.strictObject({ id: idSchema });
+export const UpdateCareLogSchema = CreateCareLogSchema.omit({ petId: true, kind: true }).extend({
+  recordedAt: dateSchema.refine(value => Date.parse(value) <= Date.now(), '记录时间不能晚于现在'),
+});
 export const CareLogResponseSchema = z.strictObject({
   id: idSchema,
   petId: idSchema,

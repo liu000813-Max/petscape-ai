@@ -5,6 +5,7 @@ import {
   ContentArticleQuerySchema,
   CommunityPostQuerySchema,
   CreateCareLogSchema,
+  UpdateCareLogSchema,
   CreateCommunityCommentSchema,
   CreateCommunityPostSchema,
   ServiceProviderQuerySchema,
@@ -91,7 +92,7 @@ export async function toggleCommunityPostLike({ prisma, ownerUserId, postId, lik
 export async function listCareLogs({ prisma, ownerUserId, query }: { prisma: PrismaClient; ownerUserId: string; query: unknown }) {
   const input = CareLogQuerySchema.parse(query);
   const rows = await prisma.careLog.findMany({ where: { ownerUserId, pet: { deletedAt: null }, ...(input.petId ? { petId: input.petId } : {}) }, orderBy: { recordedAt: 'desc' }, take: input.limit });
-  return rows.map((row) => ({ id: row.id, petId: row.petId, kind: row.kind, note: row.note, value: row.value, recordedAt: row.recordedAt.toISOString(), createdAt: row.createdAt.toISOString() }));
+  return rows.map(careLogDto);
 }
 
 export async function createCareLog({ prisma, ownerUserId, input }: { prisma: PrismaClient; ownerUserId: string; input: CreateCareLog }) {
@@ -99,7 +100,28 @@ export async function createCareLog({ prisma, ownerUserId, input }: { prisma: Pr
   const pet = await prisma.pet.findFirst({ where: { id: parsed.petId, ownerUserId, deletedAt: null }, select: { id: true } });
   if (!pet) throw new NotFoundError('Pet');
   const row = await prisma.careLog.create({ data: { ownerUserId, petId: parsed.petId, kind: parsed.kind, note: parsed.note ?? null, value: parsed.value ?? null, recordedAt: new Date(parsed.recordedAt) } });
-  return { id: row.id, petId: row.petId, kind: row.kind, note: row.note, value: row.value, recordedAt: row.recordedAt.toISOString(), createdAt: row.createdAt.toISOString() };
+  return careLogDto(row);
+}
+
+function careLogDto(row: { id: string; petId: string; kind: string; note: string | null; value: string | null; recordedAt: Date; createdAt: Date }) {
+  return { id: row.id, petId: row.petId, kind: row.kind, note: row.note, value: row.value,
+    recordedAt: row.recordedAt.toISOString(), createdAt: row.createdAt.toISOString() };
+}
+
+export async function updateCareLog({ prisma, ownerUserId, id, input }: { prisma: PrismaClient; ownerUserId: string; id: string; input: unknown }) {
+  const parsed = UpdateCareLogSchema.parse(input);
+  const [row] = await prisma.careLog.updateManyAndReturn({
+    where: { id, ownerUserId, pet: { ownerUserId, deletedAt: null } },
+    data: { note: parsed.note, value: parsed.value, recordedAt: new Date(parsed.recordedAt) },
+  });
+  if (!row) throw new NotFoundError('CareLog');
+  return careLogDto(row);
+}
+
+export async function deleteCareLog({ prisma, ownerUserId, id }: { prisma: PrismaClient; ownerUserId: string; id: string }) {
+  const { count } = await prisma.careLog.deleteMany({ where: { id, ownerUserId, pet: { ownerUserId, deletedAt: null } } });
+  if (!count) throw new NotFoundError('CareLog');
+  return { id };
 }
 
 export async function listServiceProviders({ prisma, query }: { prisma: PrismaClient; query: unknown }) {

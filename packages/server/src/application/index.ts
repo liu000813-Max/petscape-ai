@@ -191,6 +191,8 @@ export {
   toggleCommunityPostLike,
   listCareLogs,
   createCareLog,
+  updateCareLog,
+  deleteCareLog,
   listServiceProviders,
   recordAnalyticsEvent,
   moderateContent,

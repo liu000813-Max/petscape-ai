@@ -333,14 +333,69 @@ test('care ownership, concurrent completion and pet soft deletion survive actual
     assert.equal((await owner.api.listCareReminders()).reminders[0].id, reminder.id);
     assert.equal((await other.api.listCareLogs({ petId: pet.id })).logs.length, 0);
     assert.equal((await other.api.listCareReminders({ petId: pet.id })).reminders.length, 0);
+    const logPath = '/api/v1/care-logs/' + log.id;
+    const correction = { value: '5.5g', note: '已核对', recordedAt: '2026-11-20T08:30:00.000Z' };
+    for (const method of ['PATCH', 'DELETE']) {
+      const data = method === 'PATCH' ? correction : undefined;
+      await http(logPath, { method, data }, 401);
+      await http(logPath, { method, data, headers: nativeHeaders('other') }, 404);
+    }
+    await http(logPath, { method: 'PATCH', data: { ...correction, petId: foreignPet.id }, headers: nativeHeaders('owner') }, 400);
+    const corrected = await http(logPath, { method: 'PATCH', data: correction, headers: nativeHeaders('owner') });
+    assert.equal(corrected.id, log.id);
+    assert.equal(corrected.petId, pet.id);
+    assert.equal(corrected.recordedAt, correction.recordedAt);
+    assert.equal(corrected.value, '5.5g');
+    assert.equal((await owner.api.listCareLogs({ petId: pet.id })).logs[0].value, '5.5g');
+    assert.deepEqual(await http(logPath, { method: 'DELETE', headers: nativeHeaders('owner') }), { id: log.id });
+    assert.equal((await owner.api.listCareLogs({ petId: pet.id })).logs.length, 0);
+    const archivedLog = await owner.api.createCareLog(logData);
     const completed = await Promise.all(Array.from({ length: 10 }, () => owner.api.completeCareReminder(reminder.id)));
     assert.equal(new Set(completed.map((item) => item.completedAt)).size, 1);
     assert.equal((await owner.api.completeCareReminder(reminder.id)).completedAt, completed[0].completedAt);
     await http('/api/v1/pets/' + pet.id, { method: 'DELETE', headers: nativeHeaders('owner') });
+    await http('/api/v1/care-logs/' + archivedLog.id, { method: 'PATCH', data: correction, headers: nativeHeaders('owner') }, 404);
+    await http('/api/v1/care-logs/' + archivedLog.id, { method: 'DELETE', headers: nativeHeaders('owner') }, 404);
     assert.equal((await owner.api.listCareLogs()).logs.length, 0);
     assert.equal((await owner.api.listCareReminders()).reminders.length, 0);
     await assert.rejects(owner.api.completeCareReminder(reminder.id), (error) => error.statusCode === 404);
   } finally { await owner.drain(); await other.drain(); }
+});
+
+test('native care history backdates and corrects a measurement for the selected pet', async () => {
+  const client = await nativeClient('owner');
+  try {
+    const pet = await client.api.createPet({ name: run + '-care-editor' });
+    const care = await client.loadPage('care-log');
+    care.onLoad({ petId: pet.id });
+    await care.onShow();
+    assert.equal(care.data.composerOpen, false);
+    assert.equal(care.data.selectedPetId, pet.id);
+    care.openComposer();
+    care.onKindChange({ detail: { value: 3 } });
+    care.onQuantityChange({ detail: { value: [0, 55, 0] } });
+    care.onRecordDate({ detail: { value: '2026-10-20' } });
+    care.onRecordTime({ detail: { value: '08:30' } });
+    await care.submit();
+    const [saved] = care.data.logs;
+    assert.equal(saved.value, '55g');
+    assert.equal(saved.displayTime, '2026-10-20 08:30');
+    care.openEdit({ currentTarget: { dataset: { id: saved.id } } });
+    assert.equal(care.data.amount, '55');
+    care.onQuantityChange({ detail: { value: [0, 5, 5] } });
+    await care.submit();
+    assert.equal(care.data.logs.length, 1);
+    assert.equal(care.data.logs[0].value, '5.5g');
+    assert.equal(care.data.logs[0].recordedAt, saved.recordedAt);
+    const home = await client.loadPage('home');
+    await home.loadSummary();
+    await home.selectPet({ currentTarget: { dataset: { id: pet.id } } });
+    assert.equal(home.data.weightChart.latest.grams, 5.5);
+    await client.api.deleteCareLog(saved.id);
+    await home.loadWeights();
+    assert.equal(home.data.weightChart.latest, null);
+    await http('/api/v1/pets/' + pet.id, { method: 'DELETE', headers: nativeHeaders('owner') });
+  } finally { await client.drain(); }
 });
 
 test('article and service directories expose only published entries and respect filters', async () => {
