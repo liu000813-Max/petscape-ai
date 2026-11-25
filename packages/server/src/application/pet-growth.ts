@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { PrismaClient } from '../infra/db/index.ts';
 import type { OssStorage } from '../infra/oss/index.ts';
 import { getAssetDownloadUrl } from './assets.ts';
@@ -19,6 +20,8 @@ export class InvalidPetGrowthEntryError extends Error {
     this.name = 'InvalidPetGrowthEntryError';
   }
 }
+
+export class GrowthEntrySaveConflictError extends Error {}
 
 function ownedPhotoAssetIds(rows: { id: string; ownerUserId: string; status: string; kind: string; mime: string }[], ownerUserId: string, ids: string[]) {
   const byId = new Map(rows.map((row) => [row.id, row]));
@@ -72,7 +75,28 @@ export async function listPetGrowthEntries(context: GrowthEntryContext & { petId
 export async function createPetGrowthEntry(context: GrowthEntryContext & { petId: string; input: CreatePetGrowthEntry }) {
   const { prisma, ownerUserId, petId, input: rawInput } = context;
   const input = CreatePetGrowthEntrySchema.parse(rawInput);
-  const row = await prisma.$transaction(async (tx) => {
+  const note = input.note || null;
+  const recordedAt = input.recordedAt ? new Date(input.recordedAt) : new Date();
+  const id = input.saveKey
+    ? 'growth_' + createHash('sha256').update(JSON.stringify([ownerUserId, petId, input.saveKey])).digest('hex')
+    : undefined;
+  const findSaved = async () => {
+    if (!id) return null;
+    const saved = await prisma.petGrowthEntry.findFirst({
+      where: { id, ownerUserId, petId, pet: { ownerUserId, deletedAt: null } }, include: photoInclude,
+    });
+    if (saved?.deletedAt) throw new NotFoundError('PetGrowthEntry');
+    if (saved && (saved.note !== note || saved.recordedAt.getTime() !== recordedAt.getTime()
+      || saved.photos.length !== input.photoAssetIds.length
+      || saved.photos.some((photo, index) => photo.assetId !== input.photoAssetIds[index]))) {
+      throw new GrowthEntrySaveConflictError();
+    }
+    return saved;
+  };
+  const saved = await findSaved();
+  if (saved) return toEntry(context, saved);
+
+  const create = () => prisma.$transaction(async (tx) => {
     const pet = await tx.pet.findFirst({ where: { id: petId, ownerUserId, deletedAt: null }, select: { id: true } });
     if (!pet) throw new NotFoundError('Pet');
     if (input.photoAssetIds.length) {
@@ -80,16 +104,26 @@ export async function createPetGrowthEntry(context: GrowthEntryContext & { petId
         select: { id: true, ownerUserId: true, status: true, kind: true, mime: true } });
       ownedPhotoAssetIds(assets, ownerUserId, input.photoAssetIds);
       const used = await tx.petGrowthEntryPhoto.findMany({ where: { assetId: { in: input.photoAssetIds } }, select: { assetId: true } });
-      if (used.length) throw new NotFoundError('Asset');
+      if (used.length) throw new GrowthEntrySaveConflictError();
       // Initialize storage before committing an entry that will require signed photo URLs.
       void context.oss;
     }
     return tx.petGrowthEntry.create({
-      data: { ownerUserId, petId, note: input.note || null, recordedAt: input.recordedAt ? new Date(input.recordedAt) : new Date(),
+      data: { id, ownerUserId, petId, note, recordedAt,
         photos: { create: input.photoAssetIds.map((assetId, position) => ({ assetId, position })) } },
       include: photoInclude,
     });
   });
+  let row;
+  try {
+    row = await create();
+  } catch (error) {
+    // Another request can commit while this request is validating photo ownership.
+    if (!id || !(error instanceof GrowthEntrySaveConflictError
+      || (typeof error === 'object' && error && 'code' in error && error.code === 'P2002'))) throw error;
+    row = await findSaved();
+    if (!row) throw error;
+  }
   return toEntry(context, row);
 }
 

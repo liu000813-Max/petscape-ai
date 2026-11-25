@@ -14,6 +14,7 @@ const MESSAGES = {
   SESSION_EXPIRED: ['登录状态已失效', '自动恢复未成功，请重试登录。'],
   ACCESS_DENIED: ['暂无访问权限', '请确认当前账号有权访问此内容。'],
   SERVICE_UNAVAILABLE: ['服务暂时不可用', '请稍后重试，或将诊断编号提供给管理员。'],
+  GROWTH_REQUIRES_CONNECTION: ['成长记录需要连接服务', '请在联网版本中查看和保存成长记录。'],
   REQUEST_FAILED: ['宠物档案暂未加载', '读取失败，请重试；若仍失败，请提供诊断编号。'],
 };
 

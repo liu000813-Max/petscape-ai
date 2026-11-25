@@ -45,3 +45,12 @@
 .detail-diagnostic { font-size: 21rpx; overflow-wrap: anywhere; }
 .detail-environment { display: flex; justify-content: space-between; align-items: center; gap: 20rpx; margin-top: 16rpx; padding: 26rpx; border-radius: 16rpx; background: #f8f5f6; }
 .environment-title { display: block; color: #171619; font-size: 29rpx; font-weight: 600; }
+.growth-section .detail-heading { align-items: center; }
+.growth-entry { margin-top: 20rpx; padding: 22rpx 24rpx; border-radius: 16rpx; background: #f8f5f6; }
+.growth-date { display: block; color: #171619; font-size: 24rpx; font-weight: 700; font-variant-numeric: tabular-nums; }
+.growth-note { display: block; margin-top: 12rpx; color: #514a4e; font-size: 27rpx; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.growth-photos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; margin-top: 18rpx; }
+.detail-page .growth-photo-tile { position: relative; display: block; width: 100%; height: 154rpx; margin: 0; padding: 0; overflow: hidden; border-radius: 12rpx; background: #fff; }
+.growth-photo-tile image { display: block; width: 100%; height: 100%; }
+.detail-page .growth-photo-refresh { display: flex; align-items: center; justify-content: center; color: #863852; font-size: 22rpx; line-height: 1.4; }
+.detail-page .growth-more { margin-top: 20rpx; }

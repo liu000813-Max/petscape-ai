@@ -1,0 +1,19 @@
+.page.growth-editor { padding-bottom: 52rpx; padding-bottom: calc(52rpx + env(safe-area-inset-bottom)); }
+.growth-pet-name { display: block; margin-bottom: 34rpx; color: #171619; font-size: 45rpx; line-height: 1.25; font-weight: 700; overflow-wrap: anywhere; }
+.growth-field { margin-bottom: 30rpx; }
+.growth-label { display: block; margin-bottom: 12rpx; color: #171619; font-size: 26rpx; font-weight: 600; }
+.growth-field-heading, .date-field { display: flex; justify-content: space-between; align-items: center; gap: 12rpx; }
+.growth-count { margin-bottom: 12rpx; color: #6d686c; font-size: 24rpx; }
+.date-field, .note-field { width: 100%; padding: 20rpx 22rpx; border: 1rpx solid #e3dce0; border-radius: 14rpx; color: #171619; font-size: 27rpx; line-height: 1.5; }
+.note-field { display: block; height: 248rpx; }
+.draft-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; }
+.draft-tile { position: relative; height: 170rpx; overflow: hidden; border-radius: 14rpx; background: #f8f5f6; }
+.draft-tile image { display: block; width: 100%; height: 100%; }
+.growth-editor .remove-photo { position: absolute; top: 4rpx; right: 4rpx; width: 66rpx; height: 66rpx; margin: 0; padding: 0; color: #fff; background: #171619; font-size: 36rpx; line-height: 66rpx; border-radius: 50%; }
+.growth-editor .add-photo { display: flex; width: 100%; margin: 0; padding: 0 4rpx; flex-direction: column; justify-content: center; align-items: center; gap: 6rpx; border: 1rpx dashed #c9b8bf; color: #64535b; font-size: 24rpx; line-height: 1.3; }
+.add-symbol { font-size: 44rpx; line-height: 1; }
+.growth-status, .growth-notice, .growth-error { display: block; color: #6d5861; font-size: 24rpx; line-height: 1.5; overflow-wrap: anywhere; }
+.growth-notice { margin-bottom: 16rpx; }
+.growth-editor .growth-button { width: auto; min-height: 78rpx; margin: 16rpx 0 0; padding: 16rpx 22rpx; border-radius: 14rpx; background: #f4eff1; color: #171619; font-size: 26rpx; font-weight: 600; line-height: 1.5; }
+.growth-editor .save-button { width: 100%; background: #171619; color: #fff; }
+.growth-editor .save-button[disabled] { background: #514a4e; color: #fff; }

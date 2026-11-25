@@ -73,6 +73,32 @@
       <view wx:else class="records-status">近期暂无养护记录</view>
     </view>
 
+    <view class="detail-section growth-section">
+      <view class="detail-heading">
+        <text class="detail-title">成长记录</text>
+        <button class="detail-button" bindtap="openGrowthEditor">＋ 写记录</button>
+      </view>
+      <view wx:for="{{growthEntries}}" wx:key="id" wx:for-item="entry" class="growth-entry">
+        <text class="growth-date">{{entry.dateLabel}}</text>
+        <text wx:if="{{entry.note}}" class="growth-note" user-select="{{true}}">{{entry.note}}</text>
+        <view wx:if="{{entry.photos.length}}" class="growth-photos">
+          <block wx:for="{{entry.photos}}" wx:for-item="photo" wx:key="assetId">
+            <button wx:if="{{photo.unavailable}}" class="growth-photo-tile growth-photo-refresh" bindtap="refreshGrowthPhotos">刷新照片</button>
+            <button wx:else class="growth-photo-tile" data-entry-id="{{entry.id}}" data-asset-id="{{photo.assetId}}" bindtap="previewGrowthPhoto" aria-label="查看照片">
+              <image src="{{photo.downloadUrl}}" mode="aspectFill" lazy-load="{{true}}" data-entry-id="{{entry.id}}" data-asset-id="{{photo.assetId}}" data-url="{{photo.downloadUrl}}" binderror="onGrowthPhotoError" />
+            </button>
+          </block>
+        </view>
+      </view>
+      <view wx:if="{{growthLoading}}" class="records-status">正在读取成长记录</view>
+      <view wx:elif="{{growthError}}" class="detail-error">
+        <text>{{growthError.message}}</text><text class="detail-diagnostic">{{growthError.detail}}</text>
+        <button class="detail-button" bindtap="retryGrowth">重试读取</button>
+      </view>
+      <view wx:elif="{{!growthEntries.length}}" class="records-status">还没有成长记录</view>
+      <button wx:elif="{{growthHasMore}}" class="detail-button growth-more" bindtap="loadMoreGrowth">查看更早记录</button>
+    </view>
+
     <view class="detail-environment">
       <view><text class="environment-title">宠境环境</text><text class="detail-note">温湿度设备未连接</text></view>
       <button class="detail-button" bindtap="openDevice">＋ 添加设备</button>

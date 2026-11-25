@@ -18,8 +18,12 @@ export const ListPetGrowthEntriesQuerySchema = z.strictObject({
 export const CreatePetGrowthEntrySchema = z.strictObject({
   note: optionalNote.optional().default(null),
   recordedAt: z.iso.datetime().optional(),
+  saveKey: z.string().min(12).max(80).regex(/^[A-Za-z0-9_-]+$/).optional(),
   photoAssetIds: photoIds,
 }).superRefine((value, ctx) => {
+  if (value.saveKey && !value.recordedAt) {
+    ctx.addIssue({ code: 'custom', path: ['recordedAt'], message: '重试保存需要固定记录时间' });
+  }
   if (!value.note && value.photoAssetIds.length === 0) {
     ctx.addIssue({ code: 'custom', path: ['note'], message: '记录文字或至少一张照片' });
   }

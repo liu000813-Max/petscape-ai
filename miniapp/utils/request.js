@@ -12,6 +12,9 @@ function app() {
 function request(path, options = {}) {
   const currentApp = app();
   if (currentApp.globalData.mockMode) {
+    if (/^\/api\/v1\/pets\/[^/]+\/growth-entries(?:\/|$)/.test(path)) {
+      return Promise.reject({ code: 'GROWTH_REQUIRES_CONNECTION', stage: 'api' });
+    }
     return mockRequest(path, options);
   }
 
@@ -255,6 +258,32 @@ function uploadPetPhoto(id, photo) {
   });
 }
 
+function growthEntriesPath(petId) {
+  return `/api/v1/pets/${encodeURIComponent(petId)}/growth-entries`;
+}
+
+function listPetGrowthEntries(petId, query = {}) {
+  return request(growthEntriesPath(petId), { data: query });
+}
+
+function createPetGrowthEntry(petId, data) {
+  return request(growthEntriesPath(petId), { method: 'POST', data });
+}
+
+function updatePetGrowthEntry(petId, entryId, data) {
+  return request(`${growthEntriesPath(petId)}/${encodeURIComponent(entryId)}`, { method: 'PATCH', data });
+}
+
+function deletePetGrowthEntry(petId, entryId) {
+  return request(`${growthEntriesPath(petId)}/${encodeURIComponent(entryId)}`, { method: 'DELETE' });
+}
+
+function uploadPetGrowthPhoto(petId, photo) {
+  return request(`${growthEntriesPath(petId)}/photos`, {
+    method: 'POST', data: photo.bytes, header: { 'content-type': photo.mime }, timeout: 60000,
+  });
+}
+
 function listProjects() {
   return request('/api/v1/projects');
 }
@@ -296,6 +325,11 @@ module.exports = {
   createPet,
   updatePet,
   uploadPetPhoto,
+  listPetGrowthEntries,
+  createPetGrowthEntry,
+  updatePetGrowthEntry,
+  deletePetGrowthEntry,
+  uploadPetGrowthPhoto,
   listProjects,
   createProject,
   listOrders,

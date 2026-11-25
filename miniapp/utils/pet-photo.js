@@ -44,24 +44,27 @@ async function cropPetPhoto(photo) {
   return { ...await readPhoto(croppedPath), sourcePath };
 }
 
-async function choosePetPhoto() {
-  const file = await new Promise((resolve, reject) => {
-    wx.chooseMedia({ count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
+function chooseImageFiles(count) {
+  return new Promise((resolve, reject) => {
+    wx.chooseMedia({ count, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
       success(result) {
-        const file = result.tempFiles && result.tempFiles[0];
-        if (!file) { resolve(null); return; }
-        if (file.size > MAX_BYTES) { reject(new Error('请选择不超过 10 MB 的图片')); return; }
-        resolve(file);
+        const files = result.tempFiles || [];
+        if (files.some(file => file.size > MAX_BYTES)) { reject(new Error('请选择不超过 10 MB 的图片')); return; }
+        resolve(files);
       },
       fail(error) {
-        if (error && /cancel/i.test(error.errMsg || '')) resolve(null);
+        if (error && /cancel/i.test(error.errMsg || '')) resolve([]);
         else reject(new Error('无法打开相册或相机，请检查权限'));
       },
     });
   });
+}
+
+async function choosePetPhoto() {
+  const [file] = await chooseImageFiles(1);
   if (!file) return null;
   const source = await readPhoto(file.tempFilePath);
   return cropPetPhoto(source);
 }
 
-module.exports = { choosePetPhoto, cropPetPhoto, readPhoto, imageMime, MAX_BYTES };
+module.exports = { choosePetPhoto, chooseImageFiles, cropPetPhoto, readPhoto, imageMime, MAX_BYTES };

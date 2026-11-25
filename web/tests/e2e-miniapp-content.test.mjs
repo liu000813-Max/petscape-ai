@@ -42,7 +42,7 @@ async function http(path, { method = 'GET', data, headers = {}, raw } = {}, expe
   return body;
 }
 
-async function nativeClient(role, { restoreAs } = {}) {
+async function nativeClient(role, { restoreAs, loseGrowthSaveResponse = false } = {}) {
   const storage = new Map([['petscape_session_token', tokens[role]]]);
   const pending = new Set();
   const nativeModule = { exports: {} };
@@ -69,12 +69,19 @@ async function nativeClient(role, { restoreAs } = {}) {
           const url = new URL(options.url);
           if (options.method === 'GET') for (const [key, value] of Object.entries(options.data || {})) url.searchParams.set(key, value);
           try {
+            const bytes = Object.prototype.toString.call(options.data) === '[object ArrayBuffer]';
             const response = await fetch(url, {
               method: options.method, headers: options.header,
-              body: options.method === 'GET' ? undefined : JSON.stringify(options.data),
+              body: options.method === 'GET' ? undefined : bytes ? options.data : JSON.stringify(options.data),
               signal: AbortSignal.timeout(15000),
             });
-            options.success({ statusCode: response.status, data: await response.json(), header: Object.fromEntries(response.headers) });
+            const data = await response.json();
+            if (loseGrowthSaveResponse && response.status === 201 && options.method === 'POST' && url.pathname.endsWith('/growth-entries')) {
+              loseGrowthSaveResponse = false;
+              options.fail({ errMsg: 'request:fail fixture lost after save' });
+              return;
+            }
+            options.success({ statusCode: response.status, data, header: Object.fromEntries(response.headers) });
           } catch (error) { options.fail(error); }
         })();
         pending.add(task);
@@ -134,29 +141,53 @@ test('growth diary HTTP keeps entry ownership scoped to the selected pet', async
   await http(ownPath, { headers: nativeHeaders('other') }, 404);
   await http(foreignPath, { method: 'POST', headers: nativeHeaders('owner'), data: { note: 'foreign pet', photoAssetIds: [] } }, 404);
   await http(ownPath, { method: 'POST', headers: nativeHeaders('owner'), data: { note: null, photoAssetIds: [] } }, 400);
-  await http(`/api/v1/pets/${foreign.id}/growth-entries/photos`, {
-    method: 'POST', headers: { ...nativeHeaders('owner'), 'content-type': 'image/png' },
-    raw: Buffer.from('89504e470d0a1a0a0000000000000000', 'hex'),
-  }, 404);
+  const owner = await nativeClient('owner');
+  const other = await nativeClient('other');
+  t.after(() => Promise.all([owner.drain(), other.drain()]));
+  const pngHeader = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]).buffer;
+  await assert.rejects(owner.api.uploadPetGrowthPhoto(foreign.id, { mime: 'image/png', bytes: pngHeader }),
+    (error) => error.statusCode === 404 && Boolean(error.requestId));
   for (const mime of ['image/gif', 'image/png']) {
-    await http(`/api/v1/pets/${pet.id}/growth-entries/photos`, {
-      method: 'POST', headers: { ...nativeHeaders('owner'), 'content-type': mime }, raw: Buffer.from('GIF89a'),
-    }, 400);
+    await assert.rejects(owner.api.uploadPetGrowthPhoto(pet.id, { mime, bytes: new TextEncoder().encode('GIF89a').buffer }),
+      (error) => error.statusCode === 400 && error.data.error === 'invalid_growth_photo');
   }
 
-  const first = await http(ownPath, { method: 'POST', headers: nativeHeaders('owner'), data: { note: '第一次记录', recordedAt: '2026-01-01T00:00:00.000Z' } }, 201);
-  const second = await http(ownPath, { method: 'POST', headers: nativeHeaders('owner'), data: { note: '最近记录', recordedAt: '2026-02-01T00:00:00.000Z' } }, 201);
+  const first = await owner.api.createPetGrowthEntry(pet.id, { note: '第一次记录', recordedAt: '2026-01-01T00:00:00.000Z' });
+  const second = await owner.api.createPetGrowthEntry(pet.id, { note: '最近记录', recordedAt: '2026-02-01T00:00:00.000Z' });
   assert.equal(first.petId, pet.id);
   const listResponse = await fetch(new URL(ownPath + '?limit=1', base), { headers: nativeHeaders('owner') });
   assert.equal(listResponse.status, 200);
   assert.match(listResponse.headers.get('cache-control'), /private, no-store/);
   assert.deepEqual((await listResponse.json()).entries.map((entry) => entry.id), [second.id]);
-  const changed = await http(ownPath + '/' + first.id, { method: 'PATCH', headers: nativeHeaders('owner'), data: { note: '已修改记录' } });
+  const nextPage = await owner.api.listPetGrowthEntries(pet.id, { limit: 1, offset: 1 });
+  assert.deepEqual(nextPage.entries.map((entry) => entry.id), [first.id]);
+  assert.equal(nextPage.hasMore, false);
+  const changed = await owner.api.updatePetGrowthEntry(pet.id, first.id, { note: '已修改记录' });
   assert.equal(changed.note, '已修改记录');
   await http(ownPath + '/' + first.id, { method: 'PATCH', headers: nativeHeaders('other'), data: { note: '越权修改' } }, 404);
-  await http(ownPath + '/' + first.id, { method: 'DELETE', headers: nativeHeaders('other') }, 404);
-  await http(ownPath + '/' + first.id, { method: 'DELETE', headers: nativeHeaders('owner') });
-  assert.deepEqual((await http(ownPath + '?limit=10', { headers: nativeHeaders('owner') })).entries.map((entry) => entry.id), [second.id]);
+  await assert.rejects(other.api.deletePetGrowthEntry(pet.id, first.id), (error) => error.statusCode === 404);
+  assert.deepEqual(await owner.api.deletePetGrowthEntry(pet.id, first.id), { deleted: true, id: first.id });
+  assert.deepEqual((await owner.api.listPetGrowthEntries(pet.id)).entries.map((entry) => entry.id), [second.id]);
+});
+
+test('growth editor keeps one entry when the first save response is lost', async (t) => {
+  const client = await nativeClient('owner', { loseGrowthSaveResponse: true });
+  t.after(() => client.drain());
+  const pet = await client.api.createPet({ name: run + '-growth-editor' });
+  t.after(() => http('/api/v1/pets/' + pet.id, { method: 'DELETE', headers: nativeHeaders('owner') }));
+  const form = await client.loadPage('pet-growth-edit');
+  await form.onLoad({ petId: pet.id });
+  form.onDay({ detail: { value: '2026-01-02' } });
+  await form.save({ detail: { value: { note: '保存后响应中断' } } });
+  assert.equal(form.data.uncertain, true);
+  await form.retrySave();
+  assert.equal(form.data.saved, true);
+  const detail = await client.loadPage('pet-detail');
+  detail.onLoad({ id: pet.id });
+  await detail.onShow();
+  assert.equal(detail.data.growthEntries.length, 1);
+  assert.equal(detail.data.growthEntries[0].dateLabel, '2026-01-02');
+  assert.equal(detail.data.growthEntries[0].note, '保存后响应中断');
 });
 
 test('owner profile HTTP guards ownership, strict fields, expired sessions and private caching', async () => {

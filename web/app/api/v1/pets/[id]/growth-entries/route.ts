@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getMiniappAwareSession } from '../../../../../lib/miniapp-auth';
 import { getWebServerContext } from '../../../../../lib/server-context';
 import { withContentApi } from '../../../../../lib/content-api';
-import { createPetGrowthEntry, listPetGrowthEntries, NotFoundError } from '@petscape/server/application';
+import { createPetGrowthEntry, GrowthEntrySaveConflictError, listPetGrowthEntries, NotFoundError } from '@petscape/server/application';
 import {
   CreatePetGrowthEntrySchema,
   ListPetGrowthEntriesQuerySchema,
@@ -52,6 +52,7 @@ export async function POST(req: Request, context: Context) {
       return Object.assign(NextResponse.json(PetGrowthEntryResponseSchema.parse(entry), { status: 201 }), { _loggedUserId: session.user.id });
     } catch (error) {
       if (error instanceof NotFoundError) return petApiError(404, { error: 'not_found' }, session.user.id);
+      if (error instanceof GrowthEntrySaveConflictError) return NextResponse.json({ error: 'conflict' }, { status: 409 });
       throw error;
     }
   }));

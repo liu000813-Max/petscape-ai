@@ -42,7 +42,9 @@
 
 `PetGrowthEntry` 按 owner 与 pet 关联，支持文字、记录时间和软删除。`PetGrowthEntryPhoto` 按顺序关联已有 Asset，一条记录最多六张照片，同一 Asset 只能用于一条成长记录。照片使用独立 `growth_photo` kind，经现有签名上传、确认、魔数校验和短时私有下载流程，不复用 `coverAssetId`。含私有记录和签名照片地址的响应设置 `Cache-Control: private, no-store`。
 
-新增 `GET/POST /api/v1/pets/:id/growth-entries`、`PATCH/DELETE /api/v1/pets/:id/growth-entries/:entryId` 和 `POST /api/v1/pets/:id/growth-entries/photos`。接口以当前 session 验证本人和有效宠物，列表按时间倒序分页，创建支持纯文字或照片。界面稿仍待确认，接口与 schema 不代表首页或详情页已接入。
+新增 `GET/POST /api/v1/pets/:id/growth-entries`、`PATCH/DELETE /api/v1/pets/:id/growth-entries/:entryId` 和 `POST /api/v1/pets/:id/growth-entries/photos`。接口以当前 session 验证本人和有效宠物，列表按时间倒序分页，创建支持纯文字或照片。创建可携带 `saveKey` 和固定的记录时间，原请求重试返回同一条记录，改动已提交内容返回冲突。
+
+单宠详情的「最近养护」下方显示分页成长时间线。用户可打开写记录页，选日期、填文字、从相册或相机选照片，保存后返回查看。照片保持原始比例，缩略图可点开原图。上传失败保留草稿和已确认的照片资产，提交结果未确认时沿用原请求重试。
 
 ## 接口分工
 

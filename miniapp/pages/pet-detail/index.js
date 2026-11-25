@@ -1,4 +1,4 @@
-const { getPet, listCareLogs } = require('../../utils/request');
+const { getPet, listCareLogs, listPetGrowthEntries } = require('../../utils/request');
 const { getSpeciesMeta } = require('../../utils/species');
 const { lifeStageLabel } = require('../../utils/life-stages');
 const { describeError } = require('../../utils/errors');
@@ -8,6 +8,7 @@ const { recentWeights, weightChange } = require('../../utils/weight-records');
 
 const PLOT_WIDTH = 608;
 const PLOT_HEIGHT = 144;
+const GROWTH_PAGE_SIZE = 12;
 
 function plotFor(records, barMode) {
   if (!records.length) return { ticks: [], points: [], segments: [] };
@@ -55,6 +56,7 @@ Page({
   data: {
     pet: null, petLoading: true, petError: null, recordsLoading: false, recordsError: null,
     weights: [], latestWeight: null, weightDelta: '', chartMode: 'line', plot: null, dates: null, recentCare: [], hasRecentCare: false,
+    growthEntries: [], growthLoading: false, growthError: null, growthHasMore: false, growthOffset: 0,
   },
 
   onLoad(options) { this.petId = routePetId(options?.id); },
@@ -66,7 +68,8 @@ Page({
     const sequence = (this.loadSequence || 0) + 1;
     this.loadSequence = sequence;
     this.setData({ pet: null, petLoading: true, petError: null, recordsLoading: false, recordsError: null,
-      weights: [], latestWeight: null, weightDelta: '', plot: null, dates: null, recentCare: [], hasRecentCare: false });
+      weights: [], latestWeight: null, weightDelta: '', plot: null, dates: null, recentCare: [], hasRecentCare: false,
+      growthEntries: [], growthLoading: false, growthError: null, growthHasMore: false, growthOffset: 0 });
 
     try {
       const pet = petId ? await getPet(petId) : null;
@@ -89,7 +92,7 @@ Page({
       else this.setData({ petLoading: false, petError: errorView(error) });
       return;
     }
-    return this.loadRecords();
+    return Promise.all([this.loadRecords(), this.loadGrowth()]);
   },
 
   setUnavailable() {
@@ -141,6 +144,56 @@ Page({
   openCare() {
     if (this.data.pet) wx.navigateTo({ url: '/pages/care-log/index?petId=' + encodeURIComponent(this.data.pet.id) });
   },
+
+  async loadGrowth(reset = true) {
+    const petId = this.data.pet?.id;
+    if (!petId || this.data.growthLoading) return;
+    const sequence = this.loadSequence;
+    const offset = reset ? 0 : this.data.growthOffset;
+    this.setData({ growthLoading: true, growthError: null, ...(reset ? { growthEntries: [], growthHasMore: false, growthOffset: 0 } : {}) });
+    try {
+      const { entries, hasMore } = await listPetGrowthEntries(petId, { limit: GROWTH_PAGE_SIZE, offset });
+      if (sequence !== this.loadSequence) return;
+      const seen = new Set(this.data.growthEntries.map(entry => entry.id));
+      const additions = [];
+      for (const entry of entries) {
+        if (entry.petId !== petId || seen.has(entry.id)) continue;
+        seen.add(entry.id);
+        additions.push({ ...entry, dateLabel: formatDateTime(entry.recordedAt).slice(0, 10) });
+      }
+      const nextOffset = offset + entries.length;
+      this.setData({ growthEntries: [...this.data.growthEntries, ...additions], growthHasMore: Boolean(hasMore) && nextOffset <= 10000,
+        growthOffset: nextOffset, growthLoading: false });
+    } catch (error) {
+      if (sequence === this.loadSequence) this.setData({ growthLoading: false, growthError: errorView(error) });
+    }
+  },
+
+  retryGrowth() { return this.loadGrowth(!this.data.growthEntries.length); },
+  loadMoreGrowth() { if (this.data.growthHasMore) return this.loadGrowth(false); },
+
+  openGrowthEditor() {
+    if (this.data.pet) wx.navigateTo({ url: '/pages/pet-growth-edit/index?petId=' + encodeURIComponent(this.data.pet.id) });
+  },
+
+  previewGrowthPhoto(event) {
+    const { entryId, assetId } = event.currentTarget.dataset;
+    const photos = this.data.growthEntries.find(entry => entry.id === entryId)?.photos || [];
+    const photo = photos.find(item => item.assetId === assetId);
+    if (photo) wx.previewImage({
+      current: photo.downloadUrl, urls: photos.map(item => item.downloadUrl),
+      fail: () => wx.showToast({ title: '请刷新照片后重试', icon: 'none' }),
+    });
+  },
+
+  onGrowthPhotoError(event) {
+    const { entryId, assetId, url } = event.currentTarget.dataset;
+    const entryIndex = this.data.growthEntries.findIndex(entry => entry.id === entryId);
+    const photoIndex = this.data.growthEntries[entryIndex]?.photos.findIndex(photo => photo.assetId === assetId && photo.downloadUrl === url);
+    if (photoIndex >= 0) this.setData({ [`growthEntries[${entryIndex}].photos[${photoIndex}].unavailable`]: true });
+  },
+
+  refreshGrowthPhotos() { return this.loadGrowth(); },
 
   openDevice() {
     if (this.data.pet) wx.showModal({ title: '温湿度设备', content: '该宠物尚未连接设备，配对功能暂未开放。', showCancel: false });

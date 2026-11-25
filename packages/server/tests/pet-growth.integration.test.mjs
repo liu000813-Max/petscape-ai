@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createPrismaClient } from '../src/infra/db/index.ts';
 import { createPet, deletePet } from '../src/application/pets.ts';
-import { createPetGrowthEntry, deletePetGrowthEntry, InvalidPetGrowthEntryError, listPetGrowthEntries, updatePetGrowthEntry } from '../src/application/pet-growth.ts';
+import { createPetGrowthEntry, deletePetGrowthEntry, GrowthEntrySaveConflictError, InvalidPetGrowthEntryError, listPetGrowthEntries, updatePetGrowthEntry } from '../src/application/pet-growth.ts';
 import { uploadPetGrowthPhoto } from '../src/application/pet-growth-assets.ts';
 import { NotFoundError } from '../src/domain/index.ts';
 import { ListPetGrowthEntriesResponseSchema } from '../src/contracts/pet-growth.ts';
@@ -123,5 +123,16 @@ if (!databaseUrl) {
     const stored = await prisma.petGrowthEntry.findUniqueOrThrow({ where: { id: entry.id } });
     assert.equal(stored.note, '保留的旧记录');
     assert.equal(stored.deletedAt, null);
+  });
+
+  test('retries of the same draft can only create one row and cannot replace its contents', async () => {
+    const context = { prisma, oss: {}, ownerUserId: users.owner, petId: pet.id };
+    const input = { saveKey: 'same-draft-01', recordedAt: '2026-01-02T12:00:00.000Z', note: '一次保存' };
+    const entries = await Promise.all(Array.from({ length: 3 }, () => createPetGrowthEntry({ ...context, input })));
+    assert.equal(new Set(entries.map(entry => entry.id)).size, 1);
+    const [{ id: entryId }] = entries;
+    await assert.rejects(() => createPetGrowthEntry({ ...context, input: { ...input, note: '不同草稿' } }), GrowthEntrySaveConflictError);
+    await deletePetGrowthEntry({ ...context, entryId });
+    await assert.rejects(() => createPetGrowthEntry({ ...context, input }), NotFoundError);
   });
 }

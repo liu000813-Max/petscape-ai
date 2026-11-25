@@ -48,6 +48,43 @@ function page(name, overrides = {}) {
 function files(directory) { return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? files(path.join(directory, entry.name)) : [path.join(directory, entry.name)]); }
 test.beforeEach(resetWx);
 
+test('growth editor keeps confirmed photo uploads when a later photo fails', async () => {
+  const uploads = [];
+  let payload;
+  const pet = { id: 'growth-pet', name: '团子' };
+  const form = page('pet-growth-edit', {
+    getPet: async () => pet,
+    uploadPetGrowthPhoto: async (id, photo) => {
+      assert.equal(id, pet.id);
+      uploads.push(photo.path);
+      if (photo.path === '/second.png' && uploads.length === 2) throw { statusCode: 503 };
+      return { assetId: photo.path === '/first.png' ? 'asset-one' : 'asset-two' };
+    },
+    createPetGrowthEntry: async (id, input) => {
+      payload = input;
+      return { id: 'growth-entry', petId: id };
+    },
+  });
+  wx.chooseMedia = ({ count, success }) => {
+    assert.equal(count, 6);
+    success({ tempFiles: [{ tempFilePath: '/first.png', size: 8 }, { tempFilePath: '/second.png', size: 8 }] });
+  };
+  wx.getFileSystemManager = () => ({
+    readFile: ({ success }) => success({ data: Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]).buffer }),
+  });
+  await form.onLoad({ petId: pet.id });
+  await form.choosePhotos();
+  await form.save();
+  assert.equal(form.data.saved, false);
+  assert.equal(form.data.photos.length, 2);
+  assert.equal(payload, undefined);
+  await form.save();
+  assert.equal(form.data.saved, true);
+  assert.deepEqual(uploads, ['/first.png', '/second.png', '/second.png']);
+  assert.deepEqual(payload.photoAssetIds, ['asset-one', 'asset-two']);
+  assert.equal(payload.note, null);
+});
+
 test('owner profile reads independently of pet failures and refreshes on return', async () => {
   const me = page('me', { listPets: async () => { throw { statusCode: 503 }; }, getProfile: async () => ({ nickname: '麦麦', avatarUrl: 'https://private.example/avatar' }) });
   await me.onShow();
