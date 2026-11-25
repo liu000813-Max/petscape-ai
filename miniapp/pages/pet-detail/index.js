@@ -64,7 +64,10 @@ Page({
 
   onLoad(options) { this.petId = routePetId(options?.id); },
   onShow() { return this.loadDetail(); },
-  onUnload() { this.loadSequence = (this.loadSequence || 0) + 1; },
+  onUnload() {
+    this.closed = true;
+    this.loadSequence = (this.loadSequence || 0) + 1;
+  },
 
   async loadDetail() {
     const petId = this.petId;
@@ -182,11 +185,11 @@ Page({
   async openGrowthEditor() {
     const petId = this.data.pet?.id;
     if (!petId || this.data.choosingGrowthPhotos) return;
-    const sequence = this.loadSequence;
     this.setData({ choosingGrowthPhotos: true });
     try {
       const files = await chooseImageFiles(6);
-      if (sequence !== this.loadSequence || this.data.pet?.id !== petId || !files.length) return;
+      // Returning from the native picker can trigger onShow and refresh this same pet.
+      if (this.closed || this.petId !== petId || !files.length) return;
       await new Promise((resolve, reject) => {
         wx.navigateTo({
           url: '/pages/pet-growth-edit/index?petId=' + encodeURIComponent(petId),
@@ -199,9 +202,9 @@ Page({
         });
       });
     } catch (error) {
-      if (sequence === this.loadSequence) wx.showToast({ title: error.message, icon: 'none' });
+      if (!this.closed) wx.showToast({ title: error.message, icon: 'none' });
     } finally {
-      if (sequence === this.loadSequence) this.setData({ choosingGrowthPhotos: false });
+      if (!this.closed) this.setData({ choosingGrowthPhotos: false });
     }
   },
 

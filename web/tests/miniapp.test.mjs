@@ -166,7 +166,7 @@ test('growth album plus opens the matching pet editor and passes selected photos
   let chosenCount = 0;
   wx.chooseMedia = ({ count, success }) => { chosenCount = count; success({ tempFiles: photos }); };
   const detail = page('pet-detail');
-  detail.loadSequence = 4;
+  detail.onLoad({ id: 'pet%2Fphoto' });
   detail.setData({ pet: { id: 'pet/photo', name: '团子' } });
   wx.navigateTo = options => {
     destination = options.url;
@@ -195,7 +195,9 @@ test('growth editor keeps confirmed photo uploads when a later photo fails', asy
     uploadPetGrowthPhoto: async (id, photo) => {
       assert.equal(id, pet.id);
       uploads.push(photo.path);
-      if (photo.path === '/second.png' && uploads.length === 2) throw { statusCode: 503 };
+      if (photo.path === '/second.png' && uploads.length === 2) {
+        throw { statusCode: 503, requestId: '12345678-1234-1234-1234-123456789abc', data: { detail: 'private' } };
+      }
       return { assetId: photo.path === '/first.png' ? 'asset-one' : 'asset-two' };
     },
     createPetGrowthEntry: async (id, input) => {
@@ -216,11 +218,41 @@ test('growth editor keeps confirmed photo uploads when a later photo fails', asy
   assert.equal(form.data.saved, false);
   assert.equal(form.data.photos.length, 2);
   assert.equal(payload, undefined);
+  assert.match(form.data.notice, /第 2 张照片上传失败.*HTTP 503.*12345678-1234-1234-1234-123456789abc/);
+  assert.doesNotMatch(form.data.notice, /private/);
   await form.save();
   assert.equal(form.data.saved, true);
   assert.deepEqual(uploads, ['/first.png', '/second.png', '/second.png']);
   assert.deepEqual(payload.photoAssetIds, ['asset-one', 'asset-two']);
   assert.equal(payload.note, null);
+});
+
+test('returning from the album during a detail reload still opens the editor and releases the photo button', async () => {
+  const pet = { id: 'growth-pet', name: '团子' };
+  let finishLoad;
+  let finishAlbum;
+  let destination;
+  const detail = page('pet-detail', {
+    getPet: () => new Promise(resolve => { finishLoad = resolve; }),
+    listCareLogs: async () => ({ logs: [] }),
+    listPetGrowthEntries: async () => ({ entries: [], hasMore: false }),
+  });
+  detail.onLoad({ id: pet.id });
+  detail.setData({ pet });
+  wx.chooseMedia = ({ success }) => { finishAlbum = success; };
+  wx.navigateTo = options => {
+    destination = options.url;
+    options.success({ eventChannel: { emit() {} } });
+  };
+  const choosing = detail.openGrowthEditor();
+  assert.equal(detail.data.choosingGrowthPhotos, true);
+  const refresh = detail.onShow();
+  finishAlbum({ tempFiles: [{ tempFilePath: '/album.png', size: 120 }] });
+  await choosing;
+  finishLoad(pet);
+  await refresh;
+  assert.equal(detail.data.choosingGrowthPhotos, false);
+  assert.equal(destination, '/pages/pet-growth-edit/index?petId=growth-pet');
 });
 
 test('owner profile reads independently of pet failures and refreshes on return', async () => {

@@ -2,9 +2,16 @@ const { getPet, createPetGrowthEntry, uploadPetGrowthPhoto } = require('../../ut
 const { chooseImageFiles, readPhoto } = require('../../utils/pet-photo');
 const { formatDateTime } = require('../../utils/format');
 const { routePetId } = require('../../utils/pet-route');
-const { describeError } = require('../../utils/errors');
+const { describeError, safeRequestId } = require('../../utils/errors');
 
 const PHOTO_LIMIT = 6;
+
+function writeNotice(message, error) {
+  const status = error?.statusCode;
+  const requestId = safeRequestId(error?.requestId);
+  return [message, Number.isInteger(status) && status >= 400 && status < 600 ? `HTTP ${status}` : '',
+    requestId ? `请求编号 ${requestId}` : ''].filter(Boolean).join(' · ');
+}
 
 Page({
   data: {
@@ -129,10 +136,11 @@ Page({
     } catch (error) {
       if (this.closed) return;
       const uncertain = error.code !== 'GROWTH_REQUIRES_CONNECTION' && (!error.statusCode || error.statusCode >= 500);
-      this.setData({ uncertain, notice: uncertain ? '暂未确认保存结果，请重试保存。'
+      const message = uncertain ? '暂未确认成长记录是否保存，请重试。'
         : error.code === 'GROWTH_REQUIRES_CONNECTION' ? '请使用联网版本保存。'
           : error.statusCode === 404 ? '成长记录服务暂不可用，或宠物档案已归档。'
-          : error.statusCode === 409 ? '记录或照片已被保存，请返回详情核对。' : '保存失败，请检查记录后重试。' });
+          : error.statusCode === 409 ? '记录或照片已被保存，请返回详情核对。' : '成长记录保存失败，请重试。';
+      this.setData({ uncertain, notice: writeNotice(message, error) });
     }
   },
 
@@ -151,12 +159,15 @@ Page({
       return;
     }
     this.setData({ saving: true, note, notice: '' });
+    let uploadNumber = 0;
     try {
       for (const [index, draft] of this.draftPhotos.entries()) {
         if (draft.assetId) continue;
+        uploadNumber = 0;
         const photo = await readPhoto(draft.path);
         if (this.closed) return;
-        this.setData({ notice: `正在上传第 ${index + 1} 张照片` });
+        uploadNumber = index + 1;
+        this.setData({ notice: `正在上传第 ${uploadNumber} 张照片` });
         const uploaded = await uploadPetGrowthPhoto(this.petId, photo);
         if (this.closed) return;
         if (!uploaded?.assetId) throw new Error('照片上传未确认，请重试。');
@@ -167,7 +178,14 @@ Page({
         photoAssetIds: this.draftPhotos.map(photo => photo.assetId) });
     } catch (error) {
       if (this.closed) return;
-      this.setData({ notice: error instanceof Error ? error.message : '照片上传失败，请重试。已上传的照片会保留。' });
+      let message = '无法读取照片，请重新选择。';
+      if (uploadNumber) {
+        const advice = error?.statusCode === 413 ? '请换一张较小的照片。'
+          : error?.data?.error === 'invalid_growth_photo' ? '请重新选择 JPG、PNG 或 WebP 图片。'
+            : '请重试。已上传的照片会保留。';
+        message = `第 ${uploadNumber} 张照片上传失败。${advice}`;
+      } else if (error instanceof Error) message = error.message;
+      this.setData({ notice: writeNotice(message, error) });
     } finally {
       if (!this.closed) this.setData({ saving: false });
     }
