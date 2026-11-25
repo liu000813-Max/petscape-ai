@@ -49,6 +49,10 @@ Page({
     petCount: 0,
     selectedPetId: '',
     petIndex: 0,
+    petPreviewMargin: 220,
+    petSlideDuration: 280,
+    petSlideTransform: '',
+    petSliding: false,
     loading: true,
     loadError: '',
     loadErrorTitle: '',
@@ -102,11 +106,16 @@ Page({
     return this.loadSummary();
   },
 
+  onUnload() { clearTimeout(this.petSlideTimer); },
+
   async loadSummary() {
     if (this.isWriting() || this.data.activeModal) return;
     const sequence = (this.summarySequence || 0) + 1; this.summarySequence = sequence;
     this.weightSequence = (this.weightSequence || 0) + 1;
-    this.setData({ pet: null, pets: [], petCount: 0, loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '',
+    clearTimeout(this.petSlideTimer);
+    this.pendingPetTap = null;
+    this.setData({ pet: null, pets: [], petCount: 0, petSlideTransform: '', petSliding: false,
+      loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '',
       weightChart: EMPTY_CHART, feedingChart: EMPTY_CHART, latestFeeding: null, careLatest: null,
       weightError: '', weightDiagnostic: '', weightLoading: false });
     try {
@@ -139,14 +148,18 @@ Page({
       weightInput: this.data.weightInput, weightUnit: this.data.weightUnit,
       weightNotice: this.data.weightNotice, weightUnconfirmed: this.data.weightUnconfirmed,
     });
-    this.setData({ pet, selectedPetId: pet.id, recordNotice: '', petIndex: this.data.pets.findIndex((item) => item.id === pet.id), ...(this.weightDrafts.get(pet.id) || {
+    this.setData({ pet, selectedPetId: pet.id, recordNotice: '', petSlideTransform: '', petSliding: false,
+      petIndex: this.data.pets.findIndex((item) => item.id === pet.id), ...(this.weightDrafts.get(pet.id) || {
       weightInput: '', weightUnit: 'g', weightNotice: '', weightUnconfirmed: false,
     }) });
     return this.loadWeights();
   },
 
   onPetSwipe(event) {
-    const index = event.detail.current;
+    const { current: index, source } = event.detail;
+    // Tapping a side avatar already selects it. Ignore the swiper's programmatic echo.
+    if (source !== undefined && source !== 'touch') return;
+    if (this.data.petSliding) return;
     if (!Number.isInteger(index) || !this.data.pets[index]) return;
     if (this.isWriting() || this.data.loading || this.data.activeModal) {
       // Saving replaces the swiper with a static selected portrait. Ignore any
@@ -157,10 +170,41 @@ Page({
     return this.selectPet({ currentTarget: { dataset: { id: this.data.pets[index].id } } });
   },
 
-  openPetProfile(event) {
-    if (this.data.loading || this.isWriting() || this.data.activeModal) return;
-    const pet = this.data.pets.find((item) => item.id === event.currentTarget.dataset.id);
-    if (pet) wx.navigateTo({ url: `/pages/pet-detail/index?id=${encodeURIComponent(pet.id)}` });
+  onPetAvatarTap(event) {
+    const { loading, activeModal, petSliding, petIndex, pets, petPreviewMargin, petSlideDuration } = this.data;
+    if (loading || this.isWriting() || activeModal || petSliding) return;
+    const index = pets.findIndex((pet) => pet.id === event.currentTarget.dataset.id);
+    if (index < 0) return;
+    if (index === petIndex) return this.openPet();
+    let distance = index - petIndex;
+    if (pets.length > 2 && Math.abs(distance) > pets.length / 2) {
+      distance -= Math.sign(distance) * pets.length;
+    }
+    this.pendingPetTap = pets[index].id;
+    this.setData({ petSliding: true });
+    const startedAt = Date.now();
+    const animate = () => {
+      const progress = Math.min(1, (Date.now() - startedAt) / petSlideDuration);
+      if (progress === 1) return this.finishPetSlide();
+      const eased = progress * progress * (3 - 2 * progress);
+      const span = `${(100 * eased).toFixed(2)}%`;
+      const margins = `${(2 * petPreviewMargin * eased).toFixed(2)}rpx`;
+      // The next avatar is one viewport width minus both preview margins away.
+      const shift = distance > 0 ? `${margins} - ${span}` : `${span} - ${margins}`;
+      this.setData({ petSlideTransform: `transform:translateX(calc(${shift}))` });
+      this.petSlideTimer = setTimeout(animate, 16);
+    };
+    this.petSlideTimer = setTimeout(animate, 16);
+  },
+
+  finishPetSlide() {
+    const id = this.pendingPetTap;
+    if (!id) return;
+    clearTimeout(this.petSlideTimer);
+    this.pendingPetTap = null;
+    const selection = this.selectPet({ currentTarget: { dataset: { id } } });
+    if (this.data.petSliding) this.setData({ petSlideTransform: '', petSliding: false });
+    return selection;
   },
 
   async loadWeights() {
@@ -188,7 +232,7 @@ Page({
   },
 
   openWeightModal() {
-    if (this.data.loading || this.isWriting() || this.data.activeModal || !this.data.pet) return;
+    if (this.data.loading || this.data.petSliding || this.isWriting() || this.data.activeModal || !this.data.pet) return;
     this.setData({ activeModal: 'weight', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name,
       quantitySelection: quantityIndexes(this.data.weightInput, this.data.weightUnit),
       ...(!this.data.weightUnconfirmed && !this.data.weightError ? { weightNotice: '' } : {}) });
@@ -291,7 +335,7 @@ Page({
   },
 
   openCareModal(event) {
-    if (this.data.loading || this.isWriting() || this.data.activeModal || !this.data.pet) return;
+    if (this.data.loading || this.data.petSliding || this.isWriting() || this.data.activeModal || !this.data.pet) return;
     const kind = event.currentTarget.dataset.kind;
     if (!CARE_KINDS.some(item => item.kind === kind)) return;
     const draft = this.careDrafts && this.careDrafts.get(`${this.data.selectedPetId}:${kind}`);
@@ -343,7 +387,7 @@ Page({
   },
 
   openDeviceModal() {
-    if (this.data.loading || this.isWriting() || this.data.activeModal || !this.data.pet) return;
+    if (this.data.loading || this.data.petSliding || this.isWriting() || this.data.activeModal || !this.data.pet) return;
     this.setData({ activeModal: 'device', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name });
     syncTabBar(this, true);
   },
@@ -364,12 +408,12 @@ Page({
 
   openPet() {
     if (this.isWriting() || this.data.activeModal) return;
-    if (this.data.pet) return this.openPetProfile({ currentTarget: { dataset: { id: this.data.pet.id } } });
-    wx.switchTab({ url: '/pages/pet/index' });
+    if (this.data.pet) wx.navigateTo({ url: `/pages/pet-detail/index?id=${encodeURIComponent(this.data.pet.id)}` });
+    else wx.switchTab({ url: '/pages/pet/index' });
   },
 
   openCare() {
-    if (this.isWriting() || this.data.activeModal) return;
+    if (this.isWriting() || this.data.activeModal || this.data.petSliding) return;
     const petId = this.data.selectedPetId;
     wx.navigateTo({ url: '/pages/care-log/index' + (petId ? '?petId=' + encodeURIComponent(petId) : '') });
   },

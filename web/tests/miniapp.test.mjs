@@ -1182,24 +1182,39 @@ test('home carousel ignores late weights and cannot swipe or open a profile duri
   const write = home.saveWeight();
   await home.onPetSwipe({ detail: { current: 0, source: 'touch' } });
   let opens = 0; wx.navigateTo = () => { opens++; };
-  home.openPetProfile({ currentTarget: { dataset: { id: 'pet-a' } } });
+  home.onPetAvatarTap({ currentTarget: { dataset: { id: 'pet-a' } } });
   await home.saveWeight();
   assert.equal(home.data.petIndex, 1); assert.equal(home.data.pet.id, 'pet-b'); assert.equal(opens, 0);
   saving.resolve(); await write;
   assert.equal(writes, 1); assert.equal(home.data.petIndex, 1);
 });
 
-test('every carousel avatar opens its own detail and the home pet action opens the selected pet', async () => {
+test('side avatar selects its pet before the centered avatar opens the detail', async () => {
   const special = { id: 'pet b?/名', name: '团子' };
-  const home = page('home', { ...careApi, listPets: async () => ({ pets: [carePets[0], special] }) });
+  const reads = [];
+  const home = page('home', { ...careApi, listPets: async () => ({ pets: [carePets[0], special] }),
+    listCareLogs: async ({ petId }) => { reads.push(petId); return { logs: [] }; } });
   await home.loadSummary();
-  home.openPetProfile({ currentTarget: { dataset: { id: special.id } } });
-  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=' + encodeURIComponent(special.id)]);
-  assert.equal(home.data.selectedPetId, 'pet-a');
   home.openPet(); assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=pet-a']);
-  let opens = 0; wx.navigateTo = () => { opens++; };
-  home.openPetProfile({ currentTarget: { dataset: { id: 'not-own' } } });
-  assert.equal(opens, 0);
+  const tap = id => home.onPetAvatarTap({ currentTarget: { dataset: { id } } });
+  tap(special.id);
+  assert.equal(home.data.selectedPetId, 'pet-a');
+  assert.equal(home.data.petSliding, true);
+  tap(special.id);
+  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=pet-a']);
+  await home.finishPetSlide();
+  assert.equal(home.data.selectedPetId, special.id);
+  assert.equal(home.data.petIndex, 1);
+  assert.deepEqual(reads, ['pet-a', special.id]);
+  await home.onPetSwipe({ detail: { current: 0, source: '' } });
+  tap('not-own');
+  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=pet-a']);
+  tap(special.id);
+  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=' + encodeURIComponent(special.id)]);
+  tap('pet-a');
+  assert.equal(home.data.petSliding, true);
+  await home.finishPetSlide();
+  assert.equal(home.data.petIndex, 0);
 });
 
 test('care opened from detail follows the requested pet across reorder and never falls back when it disappears', async () => {

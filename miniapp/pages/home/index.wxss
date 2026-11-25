@@ -92,7 +92,7 @@
 .is-current .carousel-name { max-width: 222rpx; padding: 4rpx 20rpx; border-radius: 999rpx; background: #151313; color: #fff; font-size: 31rpx; }
 .carousel-species { display: block; max-width: 240rpx; margin-top: 4rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #716665; font-size: 22rpx; }
 .carousel-caption { display: flex; align-items: center; justify-content: space-between; margin: 0 24rpx; color: #665d5c; font-size: 22rpx; line-height: 1.6; }
-.carousel-counter { margin-left: 12rpx; color: #8d485d; white-space: nowrap; }
+.carousel-counter { margin-left: auto; padding-left: 12rpx; color: #8d485d; white-space: nowrap; }
 @media (max-height: 680px) {
   .home-page .brand-logo { width: 245rpx; margin-bottom: 12rpx; }
   .family-portrait { padding-top: 14rpx; padding-bottom: 14rpx; }
@@ -195,6 +195,7 @@
 .device-modal-note { display: block; margin-top: 18rpx; color: #78685e; font-size: 24rpx; line-height: 1.7; }
 
 @media (prefers-reduced-motion: reduce) {
+  .pet-carousel-track { transform: none !important; }
   .home-page .carousel-pet, .carousel-avatar, .care-icon, .daily-card .daily-add { transition: none; }
   .portrait-pressed .carousel-avatar, .care-tile-pressed .care-icon, .daily-add-pressed { transform: none; }
   .record-check { animation: none; }
