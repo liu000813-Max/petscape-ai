@@ -4,7 +4,7 @@ const { lifeStageLabel } = require('../../utils/life-stages');
 const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
 const { routePetId } = require('../../utils/pet-route');
-const { recentWeights, weightChange } = require('../../utils/weight-records');
+const { recentWeights, weightChange, weightLabel, careAmountLabel } = require('../../utils/weight-records');
 const { chooseImageFiles } = require('../../utils/pet-photo');
 
 const PLOT_WIDTH = 608;
@@ -18,10 +18,10 @@ function plotFor(records, barMode) {
   const max = Math.max(...weights);
   const span = barMode ? max : Math.max(max - min, max * 0.025, 0.002);
   const magnitude = 10 ** Math.floor(Math.log10(span / 2));
-  const step = Math.max(0.001, Math.ceil(span / 2 / magnitude) * magnitude);
+  const step = Math.max(0.1, Math.ceil(span / 2 / magnitude) * magnitude);
   const lower = barMode ? 0 : Math.max(0, (Math.floor(min / step) - 1) * step);
   const upper = Math.max(lower + 2 * step, Math.ceil(max / step) * step);
-  const ticks = [upper, (upper + lower) / 2, lower].map(value => Number(value.toFixed(4)).toString());
+  const ticks = [upper, (upper + lower) / 2, lower].map(weightLabel);
   const points = records.map((record, index) => ({
     id: record.id,
     x: records.length === 1 ? PLOT_WIDTH / 2 : 24 + index * (PLOT_WIDTH - 48) / (records.length - 1),
@@ -115,7 +115,7 @@ Page({
       const recentCare = logs.filter(log => log.petId === petId && log.kind !== '体重' && log.recordedAt && Number.isFinite(Date.parse(log.recordedAt)))
         .sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt) || String(a.id).localeCompare(String(b.id)))
         .slice(0, 3).map(log => ({
-          id: log.id, kind: log.kind, summary: [log.value, log.note].filter(Boolean).join(' · '),
+          id: log.id, kind: log.kind, summary: [careAmountLabel(log), log.note].filter(Boolean).join(' · '),
           time: formatDateTime(log.recordedAt).slice(5),
         }));
       this.setData({ recordsLoading: false, weights, latestWeight: weights[weights.length - 1] || null,

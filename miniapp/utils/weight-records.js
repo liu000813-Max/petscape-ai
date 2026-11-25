@@ -7,14 +7,29 @@ function weightInGrams(value, unit) {
   return Number.isFinite(grams) && grams > 0 && grams <= 1000000 ? grams : null;
 }
 
+function recordedGrams(value) {
+  const match = /^\s*((?:\d+(?:\.\d{1,3})?|\.\d{1,3}))\s*(kg|g|千克|公斤|克)\s*$/i.exec(value);
+  return match ? weightInGrams(match[1], /^(kg|千克|公斤)$/i.test(match[2]) ? 'kg' : 'g') : null;
+}
+
+function weightLabel(grams) {
+  const rounded = Math.round(grams * 10) / 10;
+  return rounded === 0 && grams > 0 ? '＜0.1' : String(rounded);
+}
+
+function careAmountLabel({ kind, value }) {
+  if ((kind !== '体重' && kind !== '喂食') || typeof value !== 'string') return value;
+  const grams = recordedGrams(value);
+  return grams === null ? value : weightLabel(grams) + ' g';
+}
+
 function recentWeights(logs, petId, kind = '体重') {
   return logs.flatMap((log) => {
     if (log.petId !== petId || log.kind !== kind || typeof log.value !== 'string') return [];
-    const match = /^\s*((?:\d+(?:\.\d{1,3})?|\.\d{1,3}))\s*(kg|g|千克|公斤|克)\s*$/i.exec(log.value);
     const timestamp = log.recordedAt ? Date.parse(log.recordedAt) : NaN;
-    if (!match || !Number.isFinite(timestamp)) return [];
-    const grams = weightInGrams(match[1], /^(kg|千克|公斤)$/i.test(match[2]) ? 'kg' : 'g');
-    return grams === null ? [] : [{ id: log.id, grams, displayValue: String(grams), recordedAt: log.recordedAt,
+    if (!Number.isFinite(timestamp)) return [];
+    const grams = recordedGrams(log.value);
+    return grams === null ? [] : [{ id: log.id, grams, displayValue: weightLabel(grams), recordedAt: log.recordedAt,
       date: formatDateTime(log.recordedAt).slice(5, 10), time: formatDateTime(log.recordedAt) }];
   }).sort((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt) || String(a.id).localeCompare(String(b.id))).slice(-7);
 }
@@ -22,7 +37,8 @@ function recentWeights(logs, petId, kind = '体重') {
 function weightChange(records) {
   if (records.length < 2) return '';
   const change = Math.round((records[records.length - 1].grams - records[records.length - 2].grams) * 1000) / 1000;
-  return (change > 0 ? '+' : '') + change + ' g';
+  const rounded = Math.round(Math.abs(change) * 10) / 10;
+  return (rounded ? (change > 0 ? '+' : '−') : '') + rounded + ' g';
 }
 
-module.exports = { weightInGrams, recentWeights, weightChange };
+module.exports = { weightInGrams, recentWeights, weightChange, weightLabel, careAmountLabel };

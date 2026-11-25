@@ -33,7 +33,7 @@
   <view wx:else class="empty card section"><view>先建立一份宠物档案，再开始记录养护。</view><button class="primary-button section" bindtap="openPets">建立宠物档案</button></view>
   <view wx:if="{{!loading && !error && logs.length}}" class="section">
     <view class="section-head"><text class="section-title">最近记录</text></view>
-    <view wx:for="{{logs}}" wx:key="id" class="log-card card"><view><text class="badge">{{item.kind}}</text><text class="log-value">{{item.value}}</text></view><text class="muted">{{item.note || '没有备注'}}</text><text class="muted log-time">{{item.displayTime}}</text></view>
+    <view wx:for="{{logs}}" wx:key="id" class="log-card card"><view><text class="badge">{{item.kind}}</text><text class="log-value">{{item.displayValue}}</text></view><text class="muted">{{item.note || '没有备注'}}</text><text class="muted log-time">{{item.displayTime}}</text></view>
   </view>
   <view wx:if="{{!loading && pets.length && !error}}" class="section">
     <view class="section-head"><text class="section-title">养护提醒</text></view><view class="muted">进入此页查看到期事项。</view>

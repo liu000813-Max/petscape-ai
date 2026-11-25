@@ -4,6 +4,7 @@ const { track } = require('../../utils/analytics');
 const { routePetId } = require('../../utils/pet-route');
 const { ranges, quantityIndexes, wheelQuantity, convertQuantity } = require('../../utils/quantity-picker');
 const { careFields } = require('../../utils/care-records');
+const { careAmountLabel } = require('../../utils/weight-records');
 
 const draftFields = ['note', 'value', 'amount', 'unit', 'selection', 'kindIndex', 'reminderTitle', 'reminderDate', 'reminderTime'];
 function emptyDraft() {
@@ -61,7 +62,9 @@ Page({
       this.selectPet(pets, petIndex);
       const [logsResult, remindersResult] = pets.length ? await Promise.all([listCareLogs({ petId: pets[petIndex].id }), listCareReminders({ petId: pets[petIndex].id })]) : [{ logs: [] }, { reminders: [] }];
       if (sequence !== this.loadSequence) return;
-      this.setData({ pets, petIndex, logs: (logsResult.logs || []).map((item) => ({ ...item, displayTime: formatDateTime(item.recordedAt) })), reminders: (remindersResult.reminders || []).map((item) => ({ ...item, displayTime: formatDateTime(item.dueAt), overdue: !item.completedAt && new Date(item.dueAt).getTime() <= Date.now() })), loading: false });
+      const logs = (logsResult.logs || []).map(item => ({ ...item, displayValue: careAmountLabel(item), displayTime: formatDateTime(item.recordedAt) }));
+      const reminders = (remindersResult.reminders || []).map(item => ({ ...item, displayTime: formatDateTime(item.dueAt), overdue: !item.completedAt && new Date(item.dueAt).getTime() <= Date.now() }));
+      this.setData({ pets, petIndex, logs, reminders, loading: false });
     } catch (error) { if (sequence === this.loadSequence) this.setData({ loading: false, error: '养护记录读取失败，请重试' }); }
   },
 
@@ -94,7 +97,7 @@ Page({
     if (this.isBusy() || this.data.kinds[this.data.kindIndex] !== '体重' || !['g', 'kg'].includes(unit) || unit === this.data.unit) return;
     const amount = convertQuantity(this.data.amount, this.data.unit, unit);
     if (amount === null) {
-      wx.showToast({ title: '请保留当前单位和精度', icon: 'none' });
+      wx.showToast({ title: '切换会改变重量，请保留当前单位', icon: 'none' });
       return;
     }
     this.setData({ unit, amount, selection: quantityIndexes(amount, unit) });

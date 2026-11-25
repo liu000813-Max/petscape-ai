@@ -409,8 +409,9 @@ test('home weight editor persists normalized weights only for its selected pet t
     await home.selectPet({ currentTarget: { dataset: { id: first.id } } });
     home.openWeightModal();
     assert.equal(home.data.activeModal, 'weight'); assert.equal(home.data.modalPetId, first.id);
-    home.onWeightInput({ detail: { value: '0.325' } });
+    home.onWeightInput({ detail: { value: '325' } });
     home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+    assert.equal(home.data.weightUnit, 'g');
     await home.saveWeight();
     assert.equal(home.data.weightChart.latest.grams, 325);
     assert.equal(home.data.weightNotice, '体重已保存');

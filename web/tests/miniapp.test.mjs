@@ -51,15 +51,15 @@ test.beforeEach(resetWx);
 
 test('quantity wheels round-trip grams and kilograms within the supported weight range', () => {
   for (const unit of ['g', 'kg']) {
-    for (const value of unit === 'g' ? ['0', '5', '5.625', '999.999', '1000', '1000.001', '999999.999', '1000000']
-      : ['0', '0.325', '1.25', '999.999', '1000']) {
+    for (const value of unit === 'g' ? ['0', '5', '5.6', '999.9', '1000', '1000.1', '999999.9', '1000000']
+      : ['0', '0.3', '1.2', '999.9', '1000']) {
       assert.equal(wheelQuantity(quantityIndexes(value, unit), unit), String(Number(value)));
     }
   }
-  assert.equal(wheelQuantity(quantityIndexes('1000000.001', 'g'), 'g'), null);
-  assert.equal(wheelQuantity(quantityIndexes('1000.001', 'kg'), 'kg'), null);
-  assert.equal(quantityRanges.g.length, 5);
-  assert.equal(quantityRanges.kg.length, 4);
+  assert.equal(wheelQuantity([1000, 0, 1], 'g'), null);
+  assert.equal(wheelQuantity([1000, 1], 'kg'), null);
+  assert.equal(quantityRanges.g.length, 3);
+  assert.equal(quantityRanges.kg.length, 2);
   assert.equal(quantityRanges.g[0].length, 1001);
   assert.equal(quantityRanges.kg[0].length, 1001);
   assert.equal(quantityRanges.g[0][1000], '1,000,');
@@ -72,16 +72,16 @@ test('quantity wheel selections update body weight and optional feeding grams', 
   await home.loadSummary();
   home.openWeightModal();
   home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
-  home.onQuantityChange({ detail: { value: quantityIndexes('0.325', 'kg') } });
-  assert.equal(home.data.weightInput, '0.325');
+  home.onQuantityChange({ detail: { value: quantityIndexes('0.3', 'kg') } });
+  assert.equal(home.data.weightInput, '0.3');
   await home.saveWeight();
-  assert.equal(writes[0].value, '325g');
+  assert.equal(writes[0].value, '300g');
 
   home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
-  home.onQuantityChange({ detail: { value: quantityIndexes('5.625', 'g') } });
+  home.onQuantityChange({ detail: { value: quantityIndexes('5.6', 'g') } });
   home.onCareValue({ detail: { value: '主粮' } });
   await home.saveCareRecord();
-  assert.equal(writes[1].value, '5.625g');
+  assert.equal(writes[1].value, '5.6g');
   assert.equal(home.data.feedingChart.history.length, 0, 'the isolated fixture intentionally reads no records');
 
   home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
@@ -103,11 +103,11 @@ test('feeding without grams keeps its text record and only explicit grams enter 
   assert.deepEqual(home.data.feedingChart.history, []);
 
   home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
-  home.onQuantityChange({ detail: { value: quantityIndexes('5.625', 'g') } });
+  home.onQuantityChange({ detail: { value: quantityIndexes('5.6', 'g') } });
   home.onCareValue({ detail: { value: '主粮' } });
   await home.saveCareRecord();
-  assert.equal(writes[1].value, '5.625g');
-  assert.equal(home.data.feedingChart.latest.grams, 5.625);
+  assert.equal(writes[1].value, '5.6g');
+  assert.equal(home.data.feedingChart.latest.grams, 5.6);
   home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
   home.onCareValue({ detail: { value: '湿粮半份' } });
   await home.saveCareRecord();
@@ -123,9 +123,14 @@ test('care log wheel preserves the actual weight across units and saves feeding 
   care.onKindChange({ detail: { value: '3' } });
   care.onQuantityChange({ detail: { value: quantityIndexes('320') } });
   care.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
-  assert.equal(care.data.amount, '0.32');
+  assert.equal(care.data.amount, '320');
+  assert.equal(care.data.unit, 'g');
+  care.onQuantityChange({ detail: { value: quantityIndexes('300') } });
+  care.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+  assert.equal(care.data.amount, '0.3');
+  assert.equal(care.data.unit, 'kg');
   await care.submit();
-  assert.equal(writes[0].value, '320g');
+  assert.equal(writes[0].value, '300g');
   care.onKindChange({ detail: { value: '0' } });
   care.onQuantityChange({ detail: { value: quantityIndexes('5.5') } });
   care.onValueInput({ detail: { value: '主粮' } });
@@ -996,12 +1001,12 @@ test('home switches pets by ID, restores their own drafts and keeps selection af
   assert.equal(home.data.weightInput, '');
   home.openWeightModal();
   home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
-  home.onWeightInput({ detail: { value: '0.72' } });
+  home.onWeightInput({ detail: { value: '0.7' } });
   home.closeModal();
   pets = [carePets[1], carePets[0]];
   await home.loadSummary();
   assert.equal(home.data.pet.id, 'pet-b');
-  assert.equal(home.data.weightInput, '0.72');
+  assert.equal(home.data.weightInput, '0.7');
   assert.equal(home.data.weightUnit, 'kg');
   await home.selectPet({ currentTarget: { dataset: { id: 'pet-a' } } });
   assert.equal(home.data.weightInput, '320');
@@ -1040,7 +1045,8 @@ test('home weight save normalizes units, blocks double taps and holds selection 
   });
   await home.loadSummary(); home.openWeightModal(); home.onWeightInput({ detail: { value: '325' } });
   home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
-  assert.equal(home.data.weightInput, '0.325');
+  assert.equal(home.data.weightInput, '325');
+  assert.equal(home.data.weightUnit, 'g');
   const first = home.saveWeight();
   await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
   home.onWeightInput({ detail: { value: '999' } }); await home.saveWeight();
@@ -1072,7 +1078,7 @@ test('home invalid weight never writes and an unconfirmed save requires a read b
   const home = page('home', { ...careApi, createCareLog: async () => { writes++; throw { statusCode: 502 }; } });
   await home.loadSummary();
   home.openWeightModal();
-  for (const value of ['', '0', '-1', '1e3', 'NaN', '1.1234']) {
+  for (const value of ['', '0', '-1', '1e3', 'NaN', '1.12']) {
     home.onWeightInput({ detail: { value } }); await home.saveWeight();
   }
   assert.equal(writes, 0);
@@ -1416,7 +1422,7 @@ test('home feeding card reads only the selected pets latest feeding without inve
 
 test('home feeding grams use the existing care payload and chart without mixing with body weight or other pets', async () => {
   const logs = [
-    { id: 'old', petId: 'pet-a', kind: '喂食', value: '5 克', recordedAt: '2026-11-14T00:00:00Z' },
+    { id: 'old', petId: 'pet-a', kind: '喂食', value: '5.025 克', recordedAt: '2026-11-14T00:00:00Z' },
     { id: 'weight', petId: 'pet-a', kind: '体重', value: '300g', recordedAt: '2026-11-15T00:00:00Z' },
     { id: 'other', petId: 'pet-b', kind: '喂食', value: '99g', recordedAt: '2026-11-15T00:00:00Z' },
   ];
@@ -1425,23 +1431,25 @@ test('home feeding grams use the existing care payload and chart without mixing 
     createCareLog: async (payload) => { writes.push(payload); logs.push({ id: 'new', ...payload }); } });
   await home.loadSummary();
   assert.equal(home.data.feedingChart.points.length, 1);
+  assert.equal(home.data.feedingChart.latest.grams, 5.025);
+  assert.equal(home.data.feedingChart.latest.displayValue, '5');
   assert.deepEqual(home.data.feedingChart.segments, []);
   home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
-  home.onFeedingGrams({ detail: { value: '0.0001' } });
+  home.onFeedingGrams({ detail: { value: '0.12' } });
   await home.saveCareRecord();
   assert.equal(writes.length, 0);
   assert.equal(home.data.activeModal, 'care');
-  home.onFeedingGrams({ detail: { value: '5.625' } });
+  home.onFeedingGrams({ detail: { value: '5.6' } });
   home.onCareValue({ detail: { value: '主粮' } });
   home.onCareNote({ detail: { value: '正常进食' } });
   await home.saveCareRecord();
   assert.equal(writes.length, 1);
   assert.equal(writes[0].petId, 'pet-a');
   assert.equal(writes[0].kind, '喂食');
-  assert.equal(writes[0].value, '5.625g');
+  assert.equal(writes[0].value, '5.6g');
   assert.equal(writes[0].note, '食物：主粮\n正常进食');
-  assert.deepEqual(home.data.feedingChart.history.map(item => item.grams), [5, 5.625]);
-  assert.equal(home.data.feedingChart.change, '+0.625 g');
+  assert.deepEqual(home.data.feedingChart.history.map(item => item.grams), [5.025, 5.6]);
+  assert.equal(home.data.feedingChart.change, '+0.6 g');
   assert.equal(home.data.feedingChart.segments.length, 1);
   home.setChartMode({ currentTarget: { dataset: { kind: '喂食', mode: 'line' } } });
   assert.equal(home.data.feedingChartMode, 'line');

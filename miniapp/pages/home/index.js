@@ -4,8 +4,8 @@ const { track } = require('../../utils/analytics');
 const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
 const { syncTabBar, openOfficialPosts } = require('../../utils/navigation');
-const { weightInGrams, recentWeights, weightChange } = require('../../utils/weight-records');
-const { ranges, quantityIndexes, wheelQuantity, convertQuantity } = require('../../utils/quantity-picker');
+const { recentWeights, weightChange, careAmountLabel } = require('../../utils/weight-records');
+const { ranges, quantityIndexes, wheelQuantity, convertQuantity, quantityInGrams } = require('../../utils/quantity-picker');
 const { careFields } = require('../../utils/care-records');
 
 function chartSummary(records) {
@@ -33,7 +33,7 @@ const CARE_KINDS = [
 function latestCareRecord(logs, petId, kind) {
   const [log] = logs.filter((item) => item.petId === petId && item.kind === kind && Number.isFinite(Date.parse(item.recordedAt)))
     .sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt) || String(b.id).localeCompare(String(a.id)));
-  return log ? { ...log, time: formatDateTime(log.recordedAt), displayValue: log.value || `已记录${kind}` } : null;
+  return log ? { ...log, time: formatDateTime(log.recordedAt), displayValue: careAmountLabel(log) || `已记录${kind}` } : null;
 }
 
 function presentPet(pet) {
@@ -201,12 +201,11 @@ Page({
     const unit = isWeight ? this.data.weightUnit : 'g';
     const selection = event.detail.value;
     const value = wheelQuantity(selection, unit);
-    const grams = weightInGrams(value, unit);
     if (value === '0') {
       this.setData({ [isWeight ? 'weightInput' : 'feedingGrams']: '', quantitySelection: selection });
       return;
     }
-    if (grams === null) {
+    if (value === null) {
       wx.showToast({ title: '请选择有效重量', icon: 'none' });
       this.setData({ quantitySelection: quantityIndexes(isWeight ? this.data.weightInput : this.data.feedingGrams, unit) });
       return;
@@ -231,7 +230,7 @@ Page({
     if (this.data.activeModal !== 'weight' || this.isWriting() || unit === this.data.weightUnit || (unit !== 'g' && unit !== 'kg')) return;
     const input = convertQuantity(this.data.weightInput, this.data.weightUnit, unit);
     if (input === null) {
-      wx.showToast({ title: '请保留当前单位和精度', icon: 'none' });
+      wx.showToast({ title: '切换会改变重量，请保留当前单位', icon: 'none' });
       return;
     }
     this.setData({ weightUnit: unit, weightInput: input, quantitySelection: quantityIndexes(input, unit) });
@@ -241,7 +240,7 @@ Page({
     if (this.data.activeModal !== 'weight' || this.data.weightLoading || this.isWriting() || this.data.weightUnconfirmed || this.data.weightError) return;
     const petId = this.data.modalPetId;
     if (!petId || petId !== this.data.selectedPetId) return;
-    const grams = weightInGrams(this.data.weightInput, this.data.weightUnit);
+    const grams = quantityInGrams(this.data.weightInput, this.data.weightUnit);
     if (grams === null) { wx.showToast({ title: '请选择本次体重', icon: 'none' }); return; }
     this.setData({ weightSaving: true, weightNotice: '' });
     try {
