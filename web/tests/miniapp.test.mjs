@@ -1166,6 +1166,58 @@ test('home carousel follows pet identity after swipes, list reorder and pet dele
   assert.equal(home.data.selectedPetId, '');
 });
 
+test('home keeps the same pet and chart visible while returning from detail refreshes', async () => {
+  const petRefresh = deferred();
+  const recordRefresh = deferred();
+  let petReads = 0;
+  let recordReads = 0;
+  const weight = (petId, grams) => ({ id: petId, petId, kind: '体重', value: `${grams}g`, recordedAt: '2026-11-16T00:00:00Z' });
+  const home = page('home', { ...careApi,
+    listPets: async () => ++petReads === 1 ? { pets: carePets } : petRefresh.promise,
+    listCareLogs: async ({ petId }) => ++recordReads === 3 ? recordRefresh.promise : { logs: [weight(petId, 320)] },
+  });
+  await home.onShow();
+  await home.onPetSwipe({ detail: { current: 1, source: 'touch' } });
+  const returning = home.onShow();
+  assert.equal(home.data.pet.id, 'pet-b');
+  assert.equal(home.data.petIndex, 1);
+  assert.equal(home.data.weightChart.latest.grams, 320);
+  home.openWeightModal();
+  assert.equal(home.data.activeModal, '');
+  petRefresh.resolve({ pets: carePets });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(home.data.weightLoading, true);
+  assert.equal(home.data.weightChart.latest.grams, 320);
+  recordRefresh.resolve({ logs: [weight('pet-b', 335)] });
+  await returning;
+  assert.equal(home.data.weightChart.latest.grams, 335);
+});
+
+test('home cancels a slide on hide and debounces detail and history until navigation settles', async () => {
+  const home = page('home', careApi);
+  const routes = [];
+  wx.navigateTo = options => routes.push(options);
+  await home.onShow();
+  const tap = id => home.onPetAvatarTap({ currentTarget: { dataset: { id } } });
+  tap('pet-b');
+  home.onHide();
+  await home.finishPetSlide();
+  assert.equal(home.data.petSliding, false);
+  assert.equal(home.data.selectedPetId, 'pet-a');
+  tap('pet-a');
+  tap('pet-a');
+  home.openCare();
+  assert.deepEqual(routes.map(route => route.url), ['/pages/pet-detail/index?id=pet-a']);
+  routes[0].fail();
+  home.openCare();
+  home.openCare();
+  assert.equal(routes[1].url, '/pages/care-log/index?petId=pet-a');
+  assert.equal(routes.length, 2);
+  await home.onShow();
+  tap('pet-a');
+  assert.equal(routes[2].url, '/pages/pet-detail/index?id=pet-a');
+});
+
 test('home carousel ignores late weights and cannot swipe or open a profile during a pending save', async () => {
   const old = deferred(); let reads = 0;
   const saving = deferred(); let writes = 0;
@@ -1194,23 +1246,25 @@ test('side avatar selects its pet before the centered avatar opens the detail', 
   const reads = [];
   const home = page('home', { ...careApi, listPets: async () => ({ pets: [carePets[0], special] }),
     listCareLogs: async ({ petId }) => { reads.push(petId); return { logs: [] }; } });
+  const routes = [];
+  wx.navigateTo = ({ url }) => routes.push(url);
   await home.loadSummary();
-  home.openPet(); assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=pet-a']);
   const tap = id => home.onPetAvatarTap({ currentTarget: { dataset: { id } } });
   tap(special.id);
   assert.equal(home.data.selectedPetId, 'pet-a');
   assert.equal(home.data.petSliding, true);
   tap(special.id);
-  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=pet-a']);
+  assert.deepEqual(routes, []);
   await home.finishPetSlide();
   assert.equal(home.data.selectedPetId, special.id);
   assert.equal(home.data.petIndex, 1);
   assert.deepEqual(reads, ['pet-a', special.id]);
   await home.onPetSwipe({ detail: { current: 0, source: '' } });
   tap('not-own');
-  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=pet-a']);
+  assert.deepEqual(routes, []);
   tap(special.id);
-  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=' + encodeURIComponent(special.id)]);
+  assert.deepEqual(routes, ['/pages/pet-detail/index?id=' + encodeURIComponent(special.id)]);
+  await home.onShow();
   tap('pet-a');
   assert.equal(home.data.petSliding, true);
   await home.finishPetSlide();

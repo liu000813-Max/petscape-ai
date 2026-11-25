@@ -22,6 +22,7 @@ function chartSummary(records) {
 }
 
 const EMPTY_CHART = chartSummary([]);
+const EMPTY_DAILY_RECORDS = { weightChart: EMPTY_CHART, feedingChart: EMPTY_CHART, latestFeeding: null, careLatest: null };
 
 const CARE_KINDS = [
   { kind: '喂食', icon: 'feeding', hint: '记录进食与食量' },
@@ -98,6 +99,7 @@ Page({
   },
 
   onShow() {
+    this.openingPetPage = false;
     syncTabBar(this, Boolean(this.data.activeModal));
     this.setData({ mockMode: getApp().globalData.mockMode });
     if (getApp().openOnboarding && getApp().openOnboarding(() => this.loadSummary())) return;
@@ -106,18 +108,15 @@ Page({
     return this.loadSummary();
   },
 
+  onHide() { this.cancelPetSlide(); },
   onUnload() { clearTimeout(this.petSlideTimer); },
 
   async loadSummary() {
     if (this.isWriting() || this.data.activeModal) return;
     const sequence = (this.summarySequence || 0) + 1; this.summarySequence = sequence;
     this.weightSequence = (this.weightSequence || 0) + 1;
-    clearTimeout(this.petSlideTimer);
-    this.pendingPetTap = null;
-    this.setData({ pet: null, pets: [], petCount: 0, petSlideTransform: '', petSliding: false,
-      loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '',
-      weightChart: EMPTY_CHART, feedingChart: EMPTY_CHART, latestFeeding: null, careLatest: null,
-      weightError: '', weightDiagnostic: '', weightLoading: false });
+    this.cancelPetSlide();
+    this.setData({ loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '' });
     try {
       const result = await listPets();
       if (sequence !== this.summarySequence) return;
@@ -125,15 +124,18 @@ Page({
       const pet = pets.find((item) => item.id === this.data.selectedPetId) || pets[0] || null;
       if (this.weightDrafts) for (const id of this.weightDrafts.keys()) if (!pets.some((item) => item.id === id)) this.weightDrafts.delete(id);
       const switched = (pet ? pet.id : '') !== this.data.selectedPetId;
+      const sameVisiblePet = Boolean(pet && pet.id === this.data.pet?.id);
       this.setData({
         pet, pets, petCount: pets.length, selectedPetId: pet ? pet.id : '', petIndex: pet ? pets.findIndex((item) => item.id === pet.id) : 0, loading: false,
+        ...(!sameVisiblePet ? { ...EMPTY_DAILY_RECORDS, weightLoading: false, weightError: '', weightDiagnostic: '' } : {}),
         ...(switched ? { weightInput: '', weightUnit: 'g', weightNotice: '', weightUnconfirmed: false, recordNotice: '' } : {}),
       });
-      if (pet) await this.loadWeights();
+      if (pet) await this.loadWeights({ keepVisible: sameVisiblePet });
     } catch (error) {
       if (sequence !== this.summarySequence) return;
       this.setData({
-        loading: false,
+        pet: null, pets: [], petCount: 0, petIndex: 0, loading: false,
+        ...EMPTY_DAILY_RECORDS, weightLoading: false, weightError: '', weightDiagnostic: '',
         ...describeError(error),
       });
     }
@@ -172,7 +174,7 @@ Page({
 
   onPetAvatarTap(event) {
     const { loading, activeModal, petSliding, petIndex, pets, petPreviewMargin, petSlideDuration } = this.data;
-    if (loading || this.isWriting() || activeModal || petSliding) return;
+    if (loading || this.isWriting() || activeModal || petSliding || this.openingPetPage) return;
     const index = pets.findIndex((pet) => pet.id === event.currentTarget.dataset.id);
     if (index < 0) return;
     if (index === petIndex) return this.openPet();
@@ -207,12 +209,17 @@ Page({
     return selection;
   },
 
-  async loadWeights() {
+  cancelPetSlide() {
+    clearTimeout(this.petSlideTimer);
+    this.pendingPetTap = null;
+    if (this.data.petSliding) this.setData({ petSlideTransform: '', petSliding: false });
+  },
+
+  async loadWeights({ keepVisible = false } = {}) {
     const petId = this.data.selectedPetId;
-    if (!petId) return false;
+    if (!petId || this.data.loading) return false;
     const sequence = (this.weightSequence || 0) + 1; this.weightSequence = sequence;
-    this.setData({ weightLoading: true, weightError: '', weightDiagnostic: '', weightChart: EMPTY_CHART,
-      feedingChart: EMPTY_CHART, latestFeeding: null, careLatest: null });
+    this.setData({ weightLoading: true, weightError: '', weightDiagnostic: '', ...(keepVisible ? {} : EMPTY_DAILY_RECORDS) });
     try {
       const result = await listCareLogs({ petId, limit: 100 });
       if (sequence !== this.weightSequence || petId !== this.data.selectedPetId) return false;
@@ -226,7 +233,7 @@ Page({
     } catch (error) {
       if (sequence !== this.weightSequence || petId !== this.data.selectedPetId) return false;
       const diagnostic = describeError(error);
-      this.setData({ weightLoading: false, weightError: diagnostic.loadErrorTitle, weightDiagnostic: diagnostic.loadErrorDetail });
+      this.setData({ ...EMPTY_DAILY_RECORDS, weightLoading: false, weightError: diagnostic.loadErrorTitle, weightDiagnostic: diagnostic.loadErrorDetail });
       return false;
     }
   },
@@ -407,14 +414,23 @@ Page({
   },
 
   openPet() {
-    if (this.isWriting() || this.data.activeModal) return;
-    if (this.data.pet) wx.navigateTo({ url: `/pages/pet-detail/index?id=${encodeURIComponent(this.data.pet.id)}` });
+    if (this.data.loading || this.data.petSliding || this.isWriting() || this.data.activeModal) return;
+    if (this.data.pet) this.openPetPage(`/pages/pet-detail/index?id=${encodeURIComponent(this.data.pet.id)}`);
     else wx.switchTab({ url: '/pages/pet/index' });
   },
 
   openCare() {
-    if (this.isWriting() || this.data.activeModal || this.data.petSliding) return;
-    const petId = this.data.selectedPetId;
-    wx.navigateTo({ url: '/pages/care-log/index' + (petId ? '?petId=' + encodeURIComponent(petId) : '') });
+    if (this.data.loading || this.isWriting() || this.data.activeModal || this.data.petSliding) return;
+    const petId = this.data.pet?.id;
+    if (petId) this.openPetPage(`/pages/care-log/index?petId=${encodeURIComponent(petId)}`);
+  },
+
+  openPetPage(url) {
+    if (this.openingPetPage) return;
+    this.openingPetPage = true;
+    wx.navigateTo({ url, fail: () => {
+      this.openingPetPage = false;
+      wx.showToast({ title: '页面未打开，请重试', icon: 'none' });
+    } });
   },
 });
