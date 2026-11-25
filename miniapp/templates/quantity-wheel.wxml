@@ -1,0 +1,8 @@
+<template name="quantity-wheel">
+  <picker class="quantity-picker" mode="multiSelector" range="{{range}}" value="{{selection}}" bindchange="onQuantityChange" disabled="{{disabled}}" aria-label="{{label}}">
+    <view class="quantity-trigger">
+      <text class="{{amount ? 'quantity-value' : 'quantity-placeholder'}}">{{amount || placeholder}}</text>
+      <text class="quantity-suffix">{{unit}} <text class="quantity-chevron" aria-hidden="true">⌄</text></text>
+    </view>
+  </picker>
+</template>

@@ -3,6 +3,7 @@
 }
 
 .photo-field { display: flex; align-items: center; gap: 26rpx; padding-bottom: 24rpx; }
+.form-card .details-toggle { display: flex; justify-content: space-between; width: 100%; margin: 0 0 24rpx; padding: 16rpx 0; border-top: 1rpx solid #eee6e8; color: #55494e; background: transparent; font-size: 25rpx; line-height: 1.6; }
 .photo-preview { width: 140rpx; height: 140rpx; border-radius: 50%; background: #f5f5f5; flex-shrink: 0; }
 .photo-placeholder { width: 140rpx; height: 140rpx; border-radius: 50%; background: #f5f5f5; flex-shrink: 0; display: flex; justify-content: center; align-items: center; font-size: 48rpx; color: #777; }
 .photo-actions { flex: 1; min-width: 0; }

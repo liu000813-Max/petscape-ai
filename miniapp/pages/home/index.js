@@ -5,7 +5,8 @@ const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
 const { syncTabBar, openOfficialPosts } = require('../../utils/navigation');
 const { weightInGrams, recentWeights, weightChange } = require('../../utils/weight-records');
-const { ranges, quantityIndexes, wheelQuantity } = require('../../utils/quantity-picker');
+const { ranges, quantityIndexes, wheelQuantity, convertQuantity } = require('../../utils/quantity-picker');
+const { careFields } = require('../../utils/care-records');
 
 function chartSummary(records) {
   const latest = records[records.length - 1] || null;
@@ -228,7 +229,12 @@ Page({
   onWeightUnit(event) {
     const unit = event.currentTarget.dataset.unit;
     if (this.data.activeModal !== 'weight' || this.isWriting() || unit === this.data.weightUnit || (unit !== 'g' && unit !== 'kg')) return;
-    this.setData({ weightUnit: unit, quantitySelection: quantityIndexes(this.data.weightInput, unit) });
+    const input = convertQuantity(this.data.weightInput, this.data.weightUnit, unit);
+    if (input === null) {
+      wx.showToast({ title: '请保留当前单位和精度', icon: 'none' });
+      return;
+    }
+    this.setData({ weightUnit: unit, weightInput: input, quantitySelection: quantityIndexes(input, unit) });
   },
 
   async saveWeight() {
@@ -320,18 +326,11 @@ Page({
     if (this.data.activeModal !== 'care' || this.isWriting() || this.data.weightLoading || this.data.weightError || this.data.careUnconfirmed) return;
     const { modalPetId: petId, careKind: kind, careValue, careNote, feedingGrams } = this.data;
     if (!petId || petId !== this.data.selectedPetId || !CARE_KINDS.some(item => item.kind === kind)) return;
-    let value = careValue.trim();
-    let note = careNote.trim();
-    if (kind === '生病' && !note) { wx.showToast({ title: '请描述观察到的症状', icon: 'none' }); return; }
-    if (kind === '喂食' && feedingGrams.trim()) {
-      const grams = weightInGrams(feedingGrams, 'g');
-      if (grams === null) { wx.showToast({ title: '请输入有效克数，最多三位小数', icon: 'none' }); return; }
-      if (value) note = note ? `食物：${value}\n${note}` : `食物：${value}`;
-      value = `${grams}g`;
-    }
+    const { value, note, error: validationError } = careFields(kind, careValue, careNote, feedingGrams);
+    if (validationError) { wx.showToast({ title: validationError, icon: 'none' }); return; }
     this.setData({ careSaving: true, careNotice: '', recordNotice: '' });
     try {
-      await createCareLog({ petId, kind, value: value || null, note: note || null, recordedAt: new Date().toISOString() });
+      await createCareLog({ petId, kind, value, note, recordedAt: new Date().toISOString() });
       track('care.save');
       this.setData({ careValue: '', careNote: '', feedingGrams: '', recordNotice: `${kind}已保存` });
       if (this.careDrafts) this.careDrafts.delete(`${petId}:${kind}`);

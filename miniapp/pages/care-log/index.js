@@ -2,14 +2,19 @@ const { listPets, listCareLogs, createCareLog, listCareReminders, createCareRemi
 const { formatDateTime } = require('../../utils/format');
 const { track } = require('../../utils/analytics');
 const { routePetId } = require('../../utils/pet-route');
+const { ranges, quantityIndexes, wheelQuantity, convertQuantity } = require('../../utils/quantity-picker');
+const { careFields } = require('../../utils/care-records');
 
-const draftFields = ['note', 'value', 'kindIndex', 'reminderTitle', 'reminderDate', 'reminderTime'];
+const draftFields = ['note', 'value', 'amount', 'unit', 'selection', 'kindIndex', 'reminderTitle', 'reminderDate', 'reminderTime'];
 function emptyDraft() {
-  return { note: '', value: '', kindIndex: 0, reminderTitle: '', reminderDate: formatDateTime(Date.now() + 86400000).slice(0, 10), reminderTime: '09:00' };
+  return { note: '', value: '', amount: '', unit: 'g', selection: quantityIndexes(''), kindIndex: 0,
+    reminderTitle: '', reminderDate: formatDateTime(Date.now() + 86400000).slice(0, 10), reminderTime: '09:00' };
 }
 
 Page({
-  data: { pets: [], petIndex: 0, selectedPetId: '', kinds: ['喂食', '饮水', '清洁', '体重', '观察'], kindIndex: 0, logs: [], note: '', value: '', loading: true, submitting: false, reminders: [], reminderTitle: '', reminderDate: '', reminderTime: '09:00', reminding: false, completingId: '', error: '' },
+  data: { pets: [], petIndex: 0, selectedPetId: '', kinds: ['喂食', '换水', '清洁', '体重', '生病', '观察'], kindIndex: 0,
+    logs: [], note: '', value: '', amount: '', unit: 'g', ranges, selection: quantityIndexes(''),
+    loading: true, submitting: false, reminders: [], reminderTitle: '', reminderDate: '', reminderTime: '09:00', reminding: false, completingId: '', error: '' },
 
   onLoad(options) {
     if (typeof options?.petId !== 'string' || !options.petId) return;
@@ -69,20 +74,49 @@ Page({
   },
   onKindChange(event) {
     const kindIndex = Number(event.detail.value);
-    if (!this.isBusy() && this.data.kinds[kindIndex]) this.setData({ kindIndex });
+    if (!this.isBusy() && this.data.kinds[kindIndex] && kindIndex !== this.data.kindIndex) {
+      this.setData({ kindIndex, amount: '', unit: 'g', selection: quantityIndexes('') });
+    }
+  },
+  onQuantityChange(event) {
+    if (this.isBusy()) return;
+    const selection = event.detail.value;
+    const amount = wheelQuantity(selection, this.data.unit);
+    if (amount === null) {
+      this.setData({ selection: quantityIndexes(this.data.amount, this.data.unit) });
+      wx.showToast({ title: '请选择有效重量', icon: 'none' });
+      return;
+    }
+    this.setData({ amount: amount === '0' ? '' : amount, selection });
+  },
+  onWeightUnit(event) {
+    const unit = event.currentTarget.dataset.unit;
+    if (this.isBusy() || this.data.kinds[this.data.kindIndex] !== '体重' || !['g', 'kg'].includes(unit) || unit === this.data.unit) return;
+    const amount = convertQuantity(this.data.amount, this.data.unit, unit);
+    if (amount === null) {
+      wx.showToast({ title: '请保留当前单位和精度', icon: 'none' });
+      return;
+    }
+    this.setData({ unit, amount, selection: quantityIndexes(amount, unit) });
+  },
+  clearQuantity() {
+    if (!this.isBusy()) this.setData({ amount: '', selection: quantityIndexes('', this.data.unit) });
   },
   onNoteInput(event) { if (!this.isBusy()) this.setData({ note: event.detail.value }); },
   onValueInput(event) { if (!this.isBusy()) this.setData({ value: event.detail.value }); },
 
   async submit() {
     if (this.isBusy() || this.data.error) return;
-    const { pets, petIndex, kinds, kindIndex, note, value } = this.data;
+    const { pets, petIndex, kinds, kindIndex } = this.data;
     if (!pets[petIndex]) { wx.showToast({ title: '请先建立宠物档案', icon: 'none' }); return; }
+    const kind = kinds[kindIndex];
+    const { value, note, error } = careFields(kind, kind === '体重' ? '' : this.data.value, this.data.note, this.data.amount, this.data.unit);
+    if (error) { wx.showToast({ title: error, icon: 'none' }); return; }
     this.setData({ submitting: true });
     try {
-      await createCareLog({ petId: pets[petIndex].id, kind: kinds[kindIndex], note: note.trim() || null, value: value.trim() || null, recordedAt: new Date().toISOString() });
+      await createCareLog({ petId: pets[petIndex].id, kind, note, value, recordedAt: new Date().toISOString() });
       track('care.save');
-      this.setData({ note: '', value: '' });
+      this.setData({ note: '', value: '', amount: '', selection: quantityIndexes('', this.data.unit) });
       await this.loadData();
       wx.showToast({ title: '记录已保存', icon: 'success' });
     } catch (error) { wx.showToast({ title: '保存失败，可重试', icon: 'none' }); }

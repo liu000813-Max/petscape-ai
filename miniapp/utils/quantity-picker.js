@@ -1,3 +1,5 @@
+const { weightInGrams } = require('./weight-records');
+
 const digits = Array.from({ length: 10 }, (_, i) => String(i));
 const decimalDigits = digits.map(digit => '.' + digit);
 const units = Array.from({ length: 1000 }, (_, i) => String(i).padStart(3, '0'));
@@ -11,7 +13,8 @@ const ranges = {
 };
 
 function quantityIndexes(value, unit = 'g') {
-  const [whole, fraction = ''] = (value || '0').split('.');
+  const amount = typeof value === 'string' && /^(?:\d+(?:\.\d{1,3})?|\.\d{1,3})$/.test(value) ? value : '0';
+  const [whole, fraction = ''] = amount.split('.');
   const decimal = fraction.padEnd(3, '0').split('').map(Number);
   return unit === 'kg' ? [Number(whole), ...decimal]
     : [Math.floor(Number(whole) / 1000), Number(whole) % 1000, ...decimal];
@@ -32,4 +35,12 @@ function wheelQuantity(indexes, unit) {
   return String(thousands * 1000 + Number(units) + fraction);
 }
 
-module.exports = { ranges, quantityIndexes, wheelQuantity };
+function convertQuantity(value, from, to) {
+  if (!value) return '';
+  const grams = weightInGrams(value, from);
+  if (grams === null) return null;
+  const converted = String(to === 'kg' ? grams / 1000 : grams);
+  return weightInGrams(converted, to) === grams ? converted : null;
+}
+
+module.exports = { ranges, quantityIndexes, wheelQuantity, convertQuantity };

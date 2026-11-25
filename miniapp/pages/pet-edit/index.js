@@ -1,8 +1,9 @@
 const { getPet, createPet, updatePet, uploadPetPhoto } = require('../../utils/request');
 const { choosePetPhoto, cropPetPhoto } = require('../../utils/pet-photo');
-const { SPECIES_OPTIONS: speciesOptions, getSpeciesMeta } = require('../../utils/species');
+const { SPECIES_OPTIONS, getSpeciesMeta } = require('../../utils/species');
 
 const { LIFE_STAGE_OPTIONS: lifeStageOptions, getLifeStageOptions, getLifeStageReference } = require('../../utils/life-stages');
+const speciesOptions = [...SPECIES_OPTIONS, { value: '', label: '请选择物种' }];
 
 Page({
   data: {
@@ -13,12 +14,13 @@ Page({
     choosingPhoto: false,
     loadFailed: false,
     photoPreview: '',
-    speciesImage: getSpeciesMeta('rat').image,
+    speciesImage: '',
+    showDetails: false,
     photoNotice: '',
     photoSelected: false,
     form: {
       name: '',
-      speciesCode: 'rat',
+      speciesCode: '',
       customSpeciesName: '',
       breed: '',
       lifeStage: 'unknown',
@@ -26,29 +28,29 @@ Page({
       specialNeeds: '',
     },
     speciesOptions,
-    lifeStageOptions: getLifeStageOptions(getLifeStageReference('rat')),
-    speciesIndex: 0,
+    lifeStageOptions: getLifeStageOptions(getLifeStageReference('')),
+    speciesIndex: SPECIES_OPTIONS.length,
     lifeStageIndex: 4,
-    lifeStageReference: getLifeStageReference('rat'),
+    lifeStageReference: getLifeStageReference(''),
     lifeStageWarning: '',
   },
 
   onLoad(query) {
     if (!query.id) return;
-    this.setData({ id: query.id, isEdit: true, loading: true });
+    this.setData({ id: query.id, isEdit: true, showDetails: true, loading: true });
     wx.setNavigationBarTitle({ title: '编辑档案' });
     return getPet(query.id)
       .then((pet) => {
         const speciesCode = pet.speciesCode || 'other';
         const recognized = !pet.lifeStage || lifeStageOptions.some((option) => option.value === pet.lifeStage);
         const lifeStage = recognized ? pet.lifeStage || 'unknown' : 'unknown';
-        const speciesIndex = Math.max(0, speciesOptions.findIndex((item) => item.value === speciesCode));
+        const speciesIndex = speciesOptions.findIndex((item) => item.value === speciesCode);
         const lifeStageIndex = Math.max(0, lifeStageOptions.findIndex((item) => item.value === lifeStage));
         this.setData({
           loading: false,
           photoPreview: pet.coverUrl || '',
           speciesImage: getSpeciesMeta(speciesCode).image,
-          speciesIndex,
+          speciesIndex: speciesIndex < 0 ? SPECIES_OPTIONS.length : speciesIndex,
           lifeStageIndex,
           lifeStageReference: getLifeStageReference(speciesCode, pet.breed, pet.customSpeciesName),
           lifeStageOptions: getLifeStageOptions(getLifeStageReference(speciesCode, pet.breed, pet.customSpeciesName)),
@@ -85,6 +87,10 @@ Page({
       ...(speciesOptions[index].value !== 'other' ? { 'form.customSpeciesName': '' } : {}),
     });
     this.refreshLifeStageReference();
+  },
+
+  toggleDetails() {
+    if (!this.data.saving && !this.data.choosingPhoto) this.setData({ showDetails: !this.data.showDetails });
   },
 
   refreshLifeStageReference() {
@@ -150,6 +156,10 @@ Page({
     const form = this.data.form;
     if (!form.name.trim()) {
       wx.showToast({ title: '先填写宠物名字', icon: 'none' });
+      return;
+    }
+    if (!SPECIES_OPTIONS.some(option => option.value === form.speciesCode)) {
+      wx.showToast({ title: '请选择宠物物种', icon: 'none' });
       return;
     }
     if (form.speciesCode === 'other' && !form.customSpeciesName.trim()) {

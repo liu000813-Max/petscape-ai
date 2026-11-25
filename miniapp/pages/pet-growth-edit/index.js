@@ -9,7 +9,7 @@ const PHOTO_LIMIT = 6;
 Page({
   data: {
     pet: null, loading: true, loadError: '', today: '', day: '', note: '', photos: [],
-    choosing: false, saving: false, uncertain: false, saved: false, notice: '',
+    choosing: false, saving: false, uncertain: false, saved: false, notice: '', showNote: false,
   },
 
   onLoad(options) {
@@ -46,6 +46,10 @@ Page({
 
   onNote(event) {
     if (!this.blocked()) this.setData({ note: event.detail.value, notice: '' });
+  },
+
+  toggleNote() {
+    if (!this.blocked()) this.setData({ showNote: !this.data.showNote });
   },
 
   onDay(event) {

@@ -26,12 +26,14 @@
       </picker>
     </view>
     <view class="growth-field">
-      <text class="growth-label">备注 · 选填</text>
+      <button class="note-toggle" bindtap="toggleNote" aria-expanded="{{showNote}}" disabled="{{saving || choosing || uncertain || saved}}">{{showNote ? '收起备注' : (note ? '编辑备注' : '＋ 添加备注')}}</button>
+      <block wx:if="{{showNote}}">
       <textarea class="note-field" name="note" value="{{note}}" maxlength="2000" placeholder="给照片留一句话" bindinput="onNote"
         disabled="{{saving || choosing || uncertain || saved}}" aria-label="照片备注" />
+      </block>
     </view>
     <text wx:if="{{notice}}" class="growth-notice" aria-live="polite">{{notice}}</text>
     <button wx:if="{{uncertain}}" class="growth-button save-button" bindtap="retrySave" loading="{{saving}}" disabled="{{saving}}">重试保存</button>
-    <button wx:else class="growth-button save-button" form-type="submit" loading="{{saving}}" disabled="{{saving || choosing || saved}}">{{saved ? '已保存' : '保存照片'}}</button>
+    <button wx:else class="growth-button save-button" form-type="submit" loading="{{saving}}" disabled="{{saving || choosing || saved || !photos.length}}">{{saved ? '已保存' : '保存照片'}}</button>
   </form>
 </view>

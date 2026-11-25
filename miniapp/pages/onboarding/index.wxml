@@ -1,5 +1,5 @@
 <view class="onboarding-page">
-  <view class="guide-top"><text class="step-counter">0{{current + 1}} / 03</text><button class="skip" bindtap="finish" disabled="{{leaving}}">跳过</button></view>
+  <view class="guide-top"><text class="step-counter">0{{current + 1}} / 03</text><button class="skip" bindtap="skip" disabled="{{leaving}}">跳过</button></view>
   <swiper class="guide-swiper" current="{{current}}" bindchange="onChange" duration="240" circular="{{false}}">
     <swiper-item>
       <scroll-view class="slide-scroll" scroll-y>
@@ -52,6 +52,6 @@
   </swiper>
   <view class="guide-footer">
     <view class="pagination" aria-label="第{{current + 1}}页，共3页"><view class="page-dot {{current === 0 ? 'active' : ''}}"></view><view class="page-dot {{current === 1 ? 'active' : ''}}"></view><view class="page-dot {{current === 2 ? 'active' : ''}}"></view></view>
-    <button class="guide-next" bindtap="next" disabled="{{leaving}}">{{current === 2 ? '开始我的宠境' : '下一步'}}</button>
+    <button class="guide-next" bindtap="next" disabled="{{leaving}}">{{current === 2 ? (canCreateFirstPet ? '添加第一只宠物' : '开始我的宠境') : '下一步'}}</button>
   </view>
 </view>

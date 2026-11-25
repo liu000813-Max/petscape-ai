@@ -1,10 +1,24 @@
 <view class="page">
   <view class="eyebrow">PET PROFILE</view>
   <view class="title">{{isEdit ? '编辑档案' : '建立档案'}}</view>
-  <view class="subtitle">记录它的生活线索，后续的知识、设计和养护建议都会更准确。</view>
-
   <view wx:if="{{loading}}" class="loading">正在读取档案</view>
   <view wx:else class="form-card card section">
+    <view class="field">
+      <text class="field-label">名字 · 必填</text>
+      <input class="field-input" maxlength="80" value="{{form.name}}" data-field="name" bindinput="onInput" placeholder="例如：米粒" />
+    </view>
+    <view class="field">
+      <text class="field-label">物种 · 必填</text>
+      <picker mode="selector" range="{{speciesOptions}}" range-key="label" value="{{speciesIndex}}" bindchange="onSpeciesChange">
+        <view class="picker-value">{{speciesOptions[speciesIndex].label}} <text class="picker-arrow">⌄</text></view>
+      </picker>
+    </view>
+    <view wx:if="{{form.speciesCode === 'other'}}" class="field">
+      <text class="field-label">具体物种 · 必填</text>
+      <input class="field-input" maxlength="120" value="{{form.customSpeciesName}}" data-field="customSpeciesName" bindinput="onInput" placeholder="例如：刺猬、蜜袋鼯" />
+    </view>
+    <button wx:if="{{!isEdit}}" class="details-toggle" bindtap="toggleDetails" aria-expanded="{{showDetails}}" disabled="{{saving || choosingPhoto}}"><text>头像与更多资料 · 选填</text><text>{{showDetails ? '−' : '＋'}}</text></button>
+    <block wx:if="{{showDetails || isEdit}}">
     <view class="photo-field">
       <image wx:if="{{photoPreview || speciesImage}}" class="photo-preview" src="{{photoPreview || speciesImage}}" mode="aspectFill" binderror="onPhotoError" />
       <view wx:else class="photo-placeholder">＋</view>
@@ -20,23 +34,6 @@
       </view>
     </view>
     <view wx:if="{{photoNotice}}" class="photo-notice">{{photoNotice}}</view>
-    <view class="field">
-      <text class="field-label">名字 · 必填</text>
-      <input class="field-input" maxlength="80" value="{{form.name}}" data-field="name" bindinput="onInput" placeholder="例如：米粒" />
-    </view>
-
-    <view class="field">
-      <text class="field-label">物种</text>
-      <picker mode="selector" range="{{speciesOptions}}" range-key="label" value="{{speciesIndex}}" bindchange="onSpeciesChange">
-        <view class="picker-value">{{speciesOptions[speciesIndex].label}} <text class="picker-arrow">⌄</text></view>
-      </picker>
-    </view>
-
-    <view wx:if="{{form.speciesCode === 'other'}}" class="field">
-      <text class="field-label">具体物种 · 必填</text>
-      <input class="field-input" maxlength="120" value="{{form.customSpeciesName}}" data-field="customSpeciesName" bindinput="onInput" placeholder="例如：刺猬、蜜袋鼯" />
-    </view>
-
     <view class="field">
       <text class="field-label">品种或补充说明</text>
       <input class="field-input" maxlength="40" value="{{form.breed}}" data-field="breed" bindinput="onInput" placeholder="例如：金丝雀或豹纹守宫" />
@@ -62,6 +59,7 @@
       <textarea class="field-textarea" maxlength="300" value="{{form.specialNeeds}}" data-field="specialNeeds" bindinput="onInput" placeholder="需要特别留意的健康或照料事项" />
     </view>
 
+    </block>
     <button class="primary-button submit-button" loading="{{saving}}" disabled="{{saving || choosingPhoto || loadFailed}}" bindtap="submit">保存档案</button>
   </view>
 </view>

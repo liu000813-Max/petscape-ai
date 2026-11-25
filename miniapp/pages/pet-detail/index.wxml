@@ -21,6 +21,11 @@
       <button class="detail-button edit-link" bindtap="openEdit">编辑档案</button>
     </view>
 
+    <view class="growth-shortcut">
+      <button class="growth-upload-tile" bindtap="openGrowthEditor" disabled="{{choosingGrowthPhotos}}" aria-label="添加成长照片">＋</button>
+      <button class="detail-button growth-link" bindtap="openGrowthTimeline">成长照片 ›</button>
+    </view>
+
     <view class="detail-section">
       <view class="detail-heading">
         <view>
@@ -73,7 +78,7 @@
       <view wx:else class="records-status">近期暂无养护记录</view>
     </view>
 
-    <view class="detail-section growth-section">
+    <view id="growth-timeline" class="detail-section growth-section">
       <view class="detail-heading">
         <text class="detail-title">成长记录</text>
         <button class="growth-upload-tile" bindtap="openGrowthEditor" disabled="{{choosingGrowthPhotos}}" aria-label="从相册添加成长照片">＋</button>

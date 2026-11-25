@@ -1,4 +1,5 @@
 <page-meta page-style="{{activeModal ? 'overflow: hidden;' : ''}}" />
+<import src="../../templates/quantity-wheel.wxml" />
 <template name="daily-amount">
   <view class="compact-weight"><text class="compact-number">{{chart.latest.displayValue}}</text><text class="compact-unit">g</text></view>
   <view class="compact-change">{{chart.change ? '比上次 ' + chart.change : (kind === '体重' ? '最近一次体重' : '最近一次有克数的喂食')}}</view>
@@ -18,15 +19,6 @@
   </view>
   <text class="daily-time">{{chart.latest.time}}</text>
 </template>
-<template name="quantity-wheel">
-  <picker class="quantity-picker" mode="multiSelector" range="{{range}}" value="{{selection}}" bindchange="onQuantityChange" disabled="{{disabled}}" aria-label="{{label}}">
-    <view class="quantity-trigger">
-      <text class="{{amount ? 'quantity-value' : 'quantity-placeholder'}}">{{amount || placeholder}}</text>
-      <text class="quantity-suffix">{{unit}} <text class="quantity-chevron" aria-hidden="true">⌄</text></text>
-    </view>
-  </picker>
-</template>
-
 <view class="page tab-page home-page" aria-hidden="{{!!activeModal}}">
   <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
   <view wx:if="{{mockMode}}" class="badge">演示模式 · 示例内容与服务</view>
@@ -35,17 +27,6 @@
     <view class="title"><view>给每一只宠物，</view><view>一处合适的宠境。</view></view>
     <view class="subtitle">记录宠物档案，查找养护知识，把每天的照料留在这里。</view>
   </block>
-
-  <view wx:if="{{!pet && !loading && !loadError}}" class="hero-card" bindtap="openCare">
-    <view class="hero-orbit orbit-one"></view>
-    <view class="hero-orbit orbit-two"></view>
-    <view class="hero-copy">
-      <text class="hero-label">PETSCAPE DAILY CARE</text>
-      <text class="hero-title">记录宠物的每一天</text>
-      <text class="hero-note">喂食 · 饮水 · 清洁 · 体重 · 观察</text>
-    </view>
-    <view class="hero-arrow">→</view>
-  </view>
 
   <view wx:if="{{loading}}" class="loading">正在读取你的宠物空间</view>
   <view wx:elif="{{loadError}}" class="empty card error-state">
@@ -80,14 +61,11 @@
       <view class="carousel-caption"><text>{{weightSaving || careSaving ? '正在保存记录 · 暂停切换' : (petCount > 1 ? '左右滑动切换 · 点头像查看详情' : '点头像查看宠物详情')}}</text><text class="carousel-counter">{{petIndex + 1}} / {{petCount}}</text></view>
     </view>
     <button class="device-card card device-empty" bindtap="openDeviceModal" disabled="{{weightSaving || careSaving}}" aria-label="为{{pet.name}}添加温湿度设备，尚未连接">
-      <view><text class="device-title">宠境环境</text><text class="device-subtitle">尚未连接温湿度设备</text></view>
+      <view class="device-summary"><text class="device-title">宠境环境</text><text class="device-subtitle">设备未连接</text></view>
       <view class="device-add"><view class="device-plus">＋</view><text>添加设备</text></view>
     </button>
   </view>
-  <view wx:else class="empty card" bindtap="openPet">
-    <view class="empty-title">先建立一份宠物档案</view>
-    <view class="muted">从物种、体型和习性开始，照顾好它的每一天</view>
-  </view>
+  <button wx:else class="primary-button first-pet-button" data-path="/pages/pet-edit/index" bindtap="openAction">＋ 添加第一只宠物</button>
 
   <view wx:if="{{pet}}" class="section weight-section">
     <view class="section-head">
@@ -96,26 +74,26 @@
     <view class="daily-grid">
       <view class="daily-card weight-card card">
         <view class="daily-card-heading"><text>体重记录</text></view>
+        <button class="daily-add" disabled="{{weightSaving || careSaving}}" bindtap="openWeightModal" hover-class="daily-add-pressed" hover-start-time="20" hover-stay-time="80">＋ 记体重</button>
         <view wx:if="{{weightLoading}}" class="daily-empty">正在读取</view>
         <view wx:elif="{{weightError}}" class="daily-empty">暂未加载</view>
         <template wx:elif="{{weightChart.latest}}" is="daily-amount" data="{{chart: weightChart, mode: weightChartMode, kind: '体重'}}" />
         <view wx:else class="daily-empty"><view class="weight-empty-mark">g</view><text>近期暂无可显示的体重</text></view>
-        <button class="daily-add" disabled="{{weightSaving || careSaving}}" bindtap="openWeightModal" hover-class="daily-add-pressed" hover-start-time="20" hover-stay-time="80">＋ 记体重</button>
       </view>
       <view class="daily-card feeding-card card">
         <view class="daily-card-heading"><text>喂食记录</text></view>
+        <button class="daily-add" data-kind="喂食" disabled="{{weightSaving || careSaving}}" bindtap="openCareModal" hover-class="daily-add-pressed" hover-start-time="20" hover-stay-time="80">＋ 记喂食</button>
         <view wx:if="{{weightLoading}}" class="daily-empty">正在读取</view>
         <view wx:elif="{{weightError}}" class="daily-empty">暂未加载</view>
-        <template wx:elif="{{feedingChart.latest}}" is="daily-amount" data="{{chart: feedingChart, mode: feedingChartMode, kind: '喂食'}}" />
-        <view wx:else class="daily-empty">
-          <view class="weight-empty-mark"><image class="care-icon" src="/assets/care-feeding.png" mode="aspectFit" aria-hidden="true" /></view>
-          <text>{{latestFeeding ? '上次喂食未填克数，暂不显示图表' : '近期暂无喂食记录'}}</text>
-          <block wx:if="{{latestFeeding}}">
+        <block wx:else>
+          <view wx:if="{{latestFeeding && latestFeeding.id !== feedingChart.latest.id}}" class="latest-feeding">
+            <text class="latest-feeding-label">最近一次喂食</text>
             <text class="feeding-legacy-summary">{{latestFeeding.value || latestFeeding.note || latestFeeding.displayValue}}</text>
-            <text class="daily-time">{{latestFeeding.time}}</text>
-          </block>
-        </view>
-        <button class="daily-add" data-kind="喂食" disabled="{{weightSaving || careSaving}}" bindtap="openCareModal" hover-class="daily-add-pressed" hover-start-time="20" hover-stay-time="80">＋ 记喂食</button>
+            <text class="daily-time">{{latestFeeding.time}} · 未单独记录克数</text>
+          </view>
+          <template wx:if="{{feedingChart.latest}}" is="daily-amount" data="{{chart: feedingChart, mode: feedingChartMode, kind: '喂食'}}" />
+          <view wx:elif="{{!latestFeeding}}" class="daily-empty">近期暂无喂食记录</view>
+        </block>
       </view>
     </view>
     <view wx:if="{{weightError}}" class="records-error"><text>{{weightError}}</text><text class="error-detail">{{weightDiagnostic}}</text><button class="secondary-button" disabled="{{weightSaving || careSaving}}" bindtap="loadWeights">重试读取记录</button></view>

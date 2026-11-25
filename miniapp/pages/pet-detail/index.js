@@ -174,6 +174,10 @@ Page({
   retryGrowth() { return this.loadGrowth(!this.data.growthEntries.length); },
   loadMoreGrowth() { if (this.data.growthHasMore) return this.loadGrowth(false); },
 
+  openGrowthTimeline() {
+    wx.pageScrollTo({ selector: '#growth-timeline', duration: 200 });
+  },
+
   async openGrowthEditor() {
     const petId = this.data.pet?.id;
     if (!petId || this.data.choosingGrowthPhotos) return;

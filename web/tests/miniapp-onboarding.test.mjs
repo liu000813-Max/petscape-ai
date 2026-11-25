@@ -32,7 +32,7 @@ function guide() {
 
 test('first home visit opens once, and returning after completion never opens it again', () => {
   const app = application(); let navigations = 0;
-  wx.navigateTo = ({ url }) => { assert.equal(url, '/pages/onboarding/index'); navigations++; };
+  wx.navigateTo = ({ url }) => { assert.equal(url, '/pages/onboarding/index?entry=first'); navigations++; };
   app.onLaunch({ path: 'pages/home/index', query: {} });
   assert.equal(app.openOnboarding(), true); assert.equal(app.openOnboarding(), false);
   onboarding.complete(); app.onLaunch({ path: 'pages/home/index', query: {} });

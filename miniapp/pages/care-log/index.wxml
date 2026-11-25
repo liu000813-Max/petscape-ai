@@ -1,3 +1,4 @@
+<import src="../../templates/quantity-wheel.wxml" />
 <view class="page">
   <view class="eyebrow">PETSCAPE CARE LOG</view>
   <view class="title">养护记录</view>
@@ -10,9 +11,22 @@
     <text class="muted">草稿按宠物分别暂存，尚未保存到档案。</text>
     <text class="field-label">记录类型</text>
     <picker disabled="{{submitting || reminding || completingId}}" mode="selector" range="{{kinds}}" value="{{kindIndex}}" bindchange="onKindChange"><view class="picker-value">{{kinds[kindIndex]}}　⌄</view></picker>
-    <text class="field-label">数值（可选）</text>
-    <input disabled="{{submitting || reminding || completingId}}" class="input" maxlength="200" placeholder="例如 320g、26°C" value="{{value}}" bindinput="onValueInput" />
-    <text class="field-label">备注</text>
+    <block wx:if="{{kinds[kindIndex] === '体重' || kinds[kindIndex] === '喂食'}}">
+      <text class="field-label">{{kinds[kindIndex] === '体重' ? '本次体重' : '本次喂食克数 · 选填'}}</text>
+      <view class="care-quantity-row">
+        <template is="quantity-wheel" data="{{range: ranges[unit], selection: selection, amount: amount, unit: unit, placeholder: '选择重量', label: '选择重量', disabled: submitting || reminding || completingId}}" />
+        <view wx:if="{{kinds[kindIndex] === '体重'}}" class="weight-units">
+          <button class="unit-button {{unit === 'g' ? 'is-active' : ''}}" data-unit="g" bindtap="onWeightUnit" disabled="{{submitting || reminding || completingId}}">g</button>
+          <button class="unit-button {{unit === 'kg' ? 'is-active' : ''}}" data-unit="kg" bindtap="onWeightUnit" disabled="{{submitting || reminding || completingId}}">kg</button>
+        </view>
+        <button wx:elif="{{amount}}" class="care-quantity-clear" bindtap="clearQuantity" disabled="{{submitting || reminding || completingId}}">清除</button>
+      </view>
+    </block>
+    <block wx:if="{{kinds[kindIndex] !== '体重'}}">
+      <text class="field-label">{{kinds[kindIndex] === '喂食' ? '食物与份数 · 选填' : '简记 · 选填'}}</text>
+      <input disabled="{{submitting || reminding || completingId}}" class="input" maxlength="200" placeholder="{{kinds[kindIndex] === '喂食' ? '例如 主粮、蟋蟀 2 只' : '例如 更换饮水'}}" value="{{value}}" bindinput="onValueInput" />
+    </block>
+    <text class="field-label">{{kinds[kindIndex] === '生病' ? '症状与观察 · 必填' : '备注 · 选填'}}</text>
     <textarea disabled="{{submitting || reminding || completingId}}" class="textarea" maxlength="2000" placeholder="记录今天观察到的变化" value="{{note}}" bindinput="onNoteInput" />
     <button class="primary-button section" loading="{{submitting}}" disabled="{{submitting || reminding || completingId}}" bindtap="submit">保存记录</button>
   </view>

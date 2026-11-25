@@ -108,6 +108,50 @@ test('feeding without grams keeps its text record and only explicit grams enter 
   await home.saveCareRecord();
   assert.equal(writes[1].value, '5.625g');
   assert.equal(home.data.feedingChart.latest.grams, 5.625);
+  home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } });
+  home.onCareValue({ detail: { value: '湿粮半份' } });
+  await home.saveCareRecord();
+  assert.equal(home.data.latestFeeding.value, '湿粮半份');
+  assert.equal(home.data.latestFeeding.id, 'feeding-3');
+  assert.equal(home.data.feedingChart.latest.id, 'feeding-2');
+});
+
+test('care log wheel preserves the actual weight across units and saves feeding on the same format as home', async () => {
+  const writes = [];
+  const care = page('care-log', { ...careApi, createCareLog: async payload => { writes.push(payload); } });
+  await care.onShow();
+  care.onKindChange({ detail: { value: '3' } });
+  care.onQuantityChange({ detail: { value: quantityIndexes('320') } });
+  care.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+  assert.equal(care.data.amount, '0.32');
+  await care.submit();
+  assert.equal(writes[0].value, '320g');
+  care.onKindChange({ detail: { value: '0' } });
+  care.onQuantityChange({ detail: { value: quantityIndexes('5.5') } });
+  care.onValueInput({ detail: { value: '主粮' } });
+  await care.submit();
+  assert.equal(writes[1].value, '5.5g');
+  assert.equal(writes[1].note, '食物：主粮');
+});
+
+test('first guide leads a confirmed empty account to build a profile while review and skip return home', async () => {
+  let route;
+  wx.redirectTo = options => { route = options.url; options.success(); };
+  wx.switchTab = options => { route = options.url; options.success(); };
+  const first = page('onboarding', { listPets: async () => ({ pets: [] }) });
+  await first.onLoad({ entry: 'first' });
+  first.setData({ current: 2 });
+  first.next();
+  assert.equal(route, '/pages/pet-edit/index');
+  const replay = page('onboarding', { listPets: async () => assert.fail('review does not need pet lookup') });
+  await replay.onLoad({});
+  replay.setData({ current: 2 });
+  replay.next();
+  assert.equal(route, '/pages/home/index');
+  const skipped = page('onboarding', { listPets: async () => ({ pets: [] }) });
+  await skipped.onLoad({ entry: 'first' });
+  skipped.skip();
+  assert.equal(route, '/pages/home/index');
 });
 
 test('growth album plus opens the matching pet editor and passes selected photos', async () => {
@@ -434,7 +478,7 @@ test('pet photo partial failure preserves the new pet ID and retries without dup
     uploadPetPhoto: async () => { uploads++; if (uploads === 1) throw new Error('offline'); return { assetId: 'photo-a' }; },
     updatePet: async (id, data) => { changes.push({ id, data }); return { id, ...data }; },
   });
-  form.setData({ 'form.name': '团子' });
+  form.setData({ 'form.name': '团子', 'form.speciesCode': 'rat' });
   form.photoDraft = { path: '/temporary.jpg', bytes: new ArrayBuffer(4), mime: 'image/jpeg' };
   await form.submit();
   assert.equal(form.data.id, 'new-pet'); assert.equal(form.data.isEdit, true);
@@ -451,7 +495,7 @@ test('uncertain cover patch is reconciled before retry and successful upload is 
     updatePet: async (id, data) => { if (data.coverAssetId) { patch++; serverCover = data.coverAssetId; throw { statusCode: 502 }; } return { id }; },
     getPet: async () => ({ id: 'pet-a', coverAssetId: serverCover }),
   });
-  form.setData({ id: 'pet-a', isEdit: true, 'form.name': '团子' });
+  form.setData({ id: 'pet-a', isEdit: true, 'form.name': '团子', 'form.speciesCode': 'rat' });
   form.photoDraft = { path: '/temporary.jpg', bytes: new ArrayBuffer(4), mime: 'image/jpeg' };
   await form.submit();
   assert.equal(uploads, 1); assert.equal(patch, 1);
@@ -696,6 +740,9 @@ test('native form ignores repeated save taps while a request is pending', async 
   const pending = new Promise((resolve) => { finish = resolve; });
   const form = page('pet-edit', { createPet: async () => { requests += 1; return pending; } });
   form.onInput({ currentTarget: { dataset: { field: 'name' } }, detail: { value: '团子' } });
+  await form.submit();
+  assert.equal(requests, 0, 'a new profile needs an explicit species');
+  form.onSpeciesChange({ detail: { value: '0' } });
   const first = form.submit(); const second = form.submit();
   finish({ id: 'saved' });
   await Promise.all([first, second]);
@@ -948,8 +995,8 @@ test('home switches pets by ID, restores their own drafts and keeps selection af
   await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
   assert.equal(home.data.weightInput, '');
   home.openWeightModal();
-  home.onWeightInput({ detail: { value: '0.72' } });
   home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+  home.onWeightInput({ detail: { value: '0.72' } });
   home.closeModal();
   pets = [carePets[1], carePets[0]];
   await home.loadSummary();
@@ -991,8 +1038,9 @@ test('home weight save normalizes units, blocks double taps and holds selection 
     createCareLog: async (payload) => { writes.push(payload); await save.promise; },
     listCareLogs: async () => ++reads === 1 ? { logs: [] } : refresh.promise,
   });
-  await home.loadSummary(); home.openWeightModal(); home.onWeightInput({ detail: { value: '0.325' } });
+  await home.loadSummary(); home.openWeightModal(); home.onWeightInput({ detail: { value: '325' } });
   home.onWeightUnit({ currentTarget: { dataset: { unit: 'kg' } } });
+  assert.equal(home.data.weightInput, '0.325');
   const first = home.saveWeight();
   await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
   home.onWeightInput({ detail: { value: '999' } }); await home.saveWeight();
@@ -1283,9 +1331,11 @@ test('AAV geriatric ages match only six exact parrot species and leave earlier s
   }
 });
 
-test('rat senior reference is visible before input and does not spread to other rodents', async () => {
+test('rat senior reference appears on species selection and does not spread to other rodents', async () => {
   const { getLifeStageReference, getLifeStageOptions } = require(path.join(root, 'utils/life-stages.js'));
   const form = page('pet-edit');
+  assert.equal(form.data.lifeStageOptions[3].label, '老年（年月待核实）');
+  form.onSpeciesChange({ detail: { value: '0' } });
   assert.equal(form.data.lifeStageOptions[3].label, '老年（超过 1 年 6 个月）');
   assert.equal(form.data.form.lifeStage, 'unknown');
   assert.ok(form.data.lifeStageOptions.slice(0, 3).every(option => option.label.includes('年月待核实')));

@@ -22,7 +22,7 @@ App({
   openOnboarding(onFailure) {
     if (!this.onboardingPending) return false;
     this.onboardingPending = false;
-    wx.navigateTo({ url: '/pages/onboarding/index', fail: () => {
+    wx.navigateTo({ url: '/pages/onboarding/index?entry=first', fail: () => {
       if (typeof onFailure === 'function') onFailure();
     } });
     return true;
