@@ -385,10 +385,46 @@ test('my pet card opens only a loaded pet and image fallback stops after species
   assert.equal(navigation, undefined);
   me.openPetDetail({ currentTarget: { dataset: { id: 'my/pet' } } });
   assert.deepEqual(navigation, ['navigateTo', '/pages/pet-detail/index?id=my%2Fpet']);
-  me.onAvatarError({ currentTarget: { dataset: { id: 'my/pet' } } });
+  me.onAvatarError({ currentTarget: { dataset: { id: 'my/pet', src: 'https://private.example/pet' } } });
   assert.equal(me.data.pets[0].avatarUrl, '/assets/species-rat.png');
-  me.onAvatarError({ currentTarget: { dataset: { id: 'my/pet' } } });
+  me.onAvatarError({ currentTarget: { dataset: { id: 'my/pet', src: 'https://private.example/pet' } } });
+  assert.equal(me.data.pets[0].avatarUrl, '/assets/species-rat.png');
+  me.onAvatarError({ currentTarget: { dataset: { id: 'my/pet', src: '/assets/species-rat.png' } } });
   assert.equal(me.data.pets[0].avatarUrl, '');
+});
+
+test('my pet stack centers the tapped card, keeps its identity after reorder, and opens it once', async () => {
+  let pets = [{ id: 'first', name: '米粒' }, { id: 'second', name: '团子' }, { id: 'third', name: '豆豆' }];
+  const routes = [];
+  const me = page('me', { listPets: async () => ({ pets }) });
+  wx.navigateTo = ({ url }) => routes.push(url);
+  await me.onShow();
+  const tap = (id) => me.openPetDetail({ currentTarget: { dataset: { id } } });
+  assert.equal(me.data.previousPetIndex, 2);
+  tap('second');
+  tap('second');
+  assert.equal(me.data.petSliding, true);
+  assert.deepEqual(routes, []);
+  me.finishPetSlide();
+  assert.equal(me.data.selectedPetId, 'second');
+  me.onPetSwipe({ detail: { current: 2, source: '' } });
+  assert.equal(me.data.selectedPetId, 'second');
+  me.onPetSwipe({ detail: { current: 2, source: 'touch' } });
+  assert.equal(me.data.selectedPetId, 'third');
+  pets = [pets[2], pets[1], pets[0]];
+  await me.onShow();
+  assert.equal(me.data.petIndex, 0);
+  tap('first');
+  me.onHide();
+  assert.equal(me.data.petSliding, false);
+  assert.equal(me.data.selectedPetId, 'third');
+  tap('third');
+  tap('third');
+  assert.deepEqual(routes, ['/pages/pet-detail/index?id=third']);
+  pets = [pets[1]];
+  await me.onShow();
+  assert.equal(me.data.selectedPetId, 'second');
+  assert.equal(me.data.previousPetIndex, -1);
 });
 
 test('custom navigation keeps actual route after failure and ignores duplicate or unknown taps', () => {

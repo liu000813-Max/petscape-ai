@@ -13,16 +13,31 @@
 .count-label { display: block; margin-top: 6rpx; font-size: 20rpx; color: #737373; }
 .me-page .text-button { width: auto; margin: 0; padding: 10rpx 0 10rpx 16rpx; background: transparent; color: #555; font-size: 23rpx; line-height: 1.4; }
 .text-button text { margin-left: 6rpx; color: #050505; }
-.pet-strip { width: calc(100% + 32rpx); }
-.pet-track { display: flex; align-items: stretch; gap: 18rpx; padding: 4rpx 32rpx 8rpx 0; }
-.me-page .companion-card { flex-shrink: 0; width: 272rpx; margin: 0; padding: 20rpx; border: 1rpx solid #eaeaea; border-radius: 24rpx; background: #fafafa; color: #050505; text-align: left; line-height: 1.4; }
-.companion-portrait { display: flex; align-items: center; justify-content: center; height: 160rpx; overflow: hidden; border-radius: 15rpx; background: #f0efed; }
+.pet-section-actions { display: flex; align-items: center; gap: 8rpx; }
+.me-page .add-companion { color: #803c54; }
+.pet-stack-shell { overflow: hidden; }
+.pet-stack { height: 326rpx; }
+.stack-slide { display: flex; align-items: center; justify-content: center; overflow: visible; }
+.stack-current { z-index: 1; }
+.me-page .companion-card { width: 100%; max-width: 410rpx; margin: 0; padding: 12rpx; box-sizing: border-box; border: 1rpx solid #e0d9dc; border-radius: 24rpx; background: #f6f4f5; color: #171619; text-align: left; line-height: 1.4; transition: transform 280ms ease; }
+.stack-previous .companion-card { transform: translateX(16rpx) rotate(-7deg) scale(.89); }
+.stack-next .companion-card { transform: translateX(-16rpx) rotate(7deg) scale(.89); }
+.stack-current .companion-card { background: #171619; color: #fff; border-color: #171619; }
+.stack-current .companion-pressed { transform: scale(.98); }
+.companion-portrait { display: flex; align-items: center; justify-content: center; height: 192rpx; overflow: hidden; border-radius: 15rpx; background: #fff; }
 .companion-image { width: 100%; height: 100%; }
 .companion-fallback { width: 64rpx; height: 64rpx; opacity: .4; }
-.companion-name { display: block; margin-top: 17rpx; font-size: 29rpx; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.companion-species { display: block; margin-top: 7rpx; font-size: 21rpx; color: #737373; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.me-page .add-companion { display: flex; flex-shrink: 0; flex-direction: column; align-items: center; justify-content: center; gap: 17rpx; width: 146rpx; margin: 0; padding: 12rpx; border: 1rpx dashed #d6d6d6; border-radius: 24rpx; background: #fff; color: #666; font-size: 23rpx; white-space: nowrap; }
-.add-circle { display: flex; align-items: center; justify-content: center; width: 65rpx; height: 65rpx; border: 1rpx solid #ddd; border-radius: 50%; font-size: 36rpx; font-weight: 300; }
+.companion-caption { display: flex; align-items: center; gap: 12rpx; padding: 10rpx 12rpx 6rpx; }
+.companion-copy { flex: 1; min-width: 0; }
+.companion-name { display: block; font-size: 30rpx; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.companion-species { display: block; margin-top: 3rpx; font-size: 21rpx; color: #62595e; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.stack-current .companion-species { color: #dfd0d6; }
+.companion-arrow { flex: 0 0 36rpx; text-align: center; color: #f2bdd2; font-size: 33rpx; visibility: hidden; }
+.stack-current .companion-arrow { visibility: visible; }
+@media (prefers-reduced-motion: reduce) {
+  .pet-stack-track { transform: none !important; }
+  .me-page .companion-card { transition: none; }
+}
 .pet-placeholder { min-height: 280rpx; display: flex; align-items: center; justify-content: center; }
 .me-page .retry-button { width: 300rpx; margin-top: 20rpx; }
 .empty-family { padding: 28rpx 20rpx; border: 1rpx dashed #ddd; border-radius: 24rpx; text-align: center; line-height: 1.7; }

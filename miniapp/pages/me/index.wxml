@@ -11,21 +11,42 @@
   </view>
 
   <view class="section pet-section">
-    <view class="section-head"><text class="section-title">我的宠物</text><button class="text-button" bindtap="openPets">全部档案 <text>↗</text></button></view>
-    <view wx:if="{{loading}}" class="pet-placeholder loading">正在读取宠物伙伴…</view>
+    <view class="section-head">
+      <text class="section-title">我的宠物</text>
+      <view class="pet-section-actions">
+        <button wx:if="{{pets.length}}" class="text-button add-companion" bindtap="addPet" aria-label="添加宠物档案">＋ 添加</button>
+        <button class="text-button" bindtap="openPets">全部档案 <text>↗</text></button>
+      </view>
+    </view>
+    <view wx:if="{{loading && !pets.length}}" class="pet-placeholder loading">正在读取宠物伙伴…</view>
     <view wx:elif="{{loadError}}" class="card empty error-state">
       <view>{{loadErrorTitle}}</view><view class="muted">{{loadError}}</view><view class="muted error-detail">{{loadErrorDetail}}</view>
       <button class="secondary-button retry-button" bindtap="loadPets">重试读取</button>
     </view>
-    <scroll-view wx:elif="{{pets.length}}" class="pet-strip" scroll-x enhanced show-scrollbar="{{false}}" aria-label="横向滑动查看宠物">
-      <view class="pet-track">
-        <button wx:for="{{pets}}" wx:key="id" class="companion-card" data-id="{{item.id}}" bindtap="openPetDetail" aria-label="查看{{item.name}}的详情">
-          <view class="companion-portrait"><image wx:if="{{item.avatarUrl}}" class="companion-image" src="{{item.avatarUrl}}" mode="aspectFill" data-id="{{item.id}}" binderror="onAvatarError" /><image wx:else class="companion-fallback" src="/assets/nav-paw-black.png" mode="aspectFit" /></view>
-          <text class="companion-name">{{item.name}}</text><text class="companion-species">{{item.speciesLabel}} · {{item.lifeStageLabel}}</text>
-        </button>
-        <button class="add-companion" bindtap="addPet"><text class="add-circle">＋</text><text>添加伙伴</text></button>
+    <view wx:elif="{{pets.length}}" class="pet-stack-shell">
+      <view class="pet-stack-track" style="{{petSlideTransform}}">
+        <swiper class="pet-stack" current="{{petIndex}}" circular="{{pets.length > 2}}"
+          previous-margin="{{(pets.length > 1 ? petPreviewMargin : 0) + 'rpx'}}"
+          next-margin="{{(pets.length > 1 ? petPreviewMargin : 0) + 'rpx'}}"
+          duration="{{petSliding ? 0 : petSlideDuration}}" disable-touch="{{loading || petSliding}}" bindchange="onPetSwipe"
+          aria-label="左右滑动切换宠物档案">
+          <swiper-item wx:for="{{pets}}" wx:key="id" class="stack-slide {{index === petIndex ? 'stack-current' : (index === previousPetIndex ? 'stack-previous' : 'stack-next')}}">
+            <button class="companion-card" data-id="{{item.id}}" bindtap="openPetDetail" hover-class="companion-pressed"
+              aria-label="{{index === petIndex ? '查看' + item.name + '的详情' : '切换到' + item.name}}">
+              <view class="companion-portrait">
+                <image wx:if="{{item.avatarUrl}}" class="companion-image" src="{{item.avatarUrl}}"
+                  mode="{{item.avatarUrl === item.fallbackImage ? 'aspectFit' : 'aspectFill'}}" data-id="{{item.id}}" data-src="{{item.avatarUrl}}" binderror="onAvatarError" />
+                <image wx:else class="companion-fallback" src="/assets/nav-paw-black.png" mode="aspectFit" />
+              </view>
+              <view class="companion-caption">
+                <view class="companion-copy"><text class="companion-name">{{item.name}}</text><text class="companion-species">{{item.speciesLabel}} · {{item.lifeStageLabel}}</text></view>
+                <text class="companion-arrow" aria-hidden="true">↗</text>
+              </view>
+            </button>
+          </swiper-item>
+        </swiper>
       </view>
-    </scroll-view>
+    </view>
     <view wx:else class="empty-family"><image src="/assets/nav-paw-black.png" mode="aspectFit" /><view>第一位伙伴，从这里开始</view><view class="muted">创建档案，留下你们的日常。</view><button class="primary-button" bindtap="addPet">添加宠物档案</button></view>
   </view>
 

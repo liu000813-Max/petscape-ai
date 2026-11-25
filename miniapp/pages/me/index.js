@@ -3,11 +3,24 @@ const { getSpeciesMeta } = require('../../utils/species');
 const { lifeStageLabel } = require('../../utils/life-stages');
 const { describeError } = require('../../utils/errors');
 const { syncTabBar, openOfficialPosts } = require('../../utils/navigation');
+const { slideDistance, animatePetTrack } = require('../../utils/pet-slide');
+
+function petSelection(pets, index) {
+  const previous = index > 0 ? index - 1 : pets.length > 2 ? pets.length - 1 : -1;
+  return { petIndex: index, previousPetIndex: previous, selectedPetId: pets[index]?.id || '' };
+}
 
 Page({
-  data: { pets: [], loading: true, loaded: false, loadError: '', loadErrorTitle: '', loadErrorDetail: '', ownerName: '养宠人', ownerAvatar: '', ownerNotice: '' },
-  onShow() { syncTabBar(this); return Promise.all([this.loadPets(), this.loadOwner()]); },
-  onUnload() { this.readSequence = (this.readSequence || 0) + 1; this.ownerSequence = (this.ownerSequence || 0) + 1; },
+  data: { pets: [], ...petSelection([], 0), petPreviewMargin: 150, petSlideDuration: 280,
+    petSliding: false, petSlideTransform: '', loading: true, loaded: false,
+    loadError: '', loadErrorTitle: '', loadErrorDetail: '', ownerName: '养宠人', ownerAvatar: '', ownerNotice: '' },
+  onShow() { this.openingPet = false; syncTabBar(this); return Promise.all([this.loadPets(), this.loadOwner()]); },
+  onHide() { this.finishPetSlide(false); },
+  onUnload() {
+    clearTimeout(this.petSlideTimer);
+    this.readSequence = (this.readSequence || 0) + 1;
+    this.ownerSequence = (this.ownerSequence || 0) + 1;
+  },
 
   async loadOwner() {
     const sequence = (this.ownerSequence || 0) + 1; this.ownerSequence = sequence;
@@ -25,7 +38,8 @@ Page({
 
   async loadPets() {
     const sequence = (this.readSequence || 0) + 1; this.readSequence = sequence;
-    this.setData({ pets: [], loading: true, loaded: false, loadError: '', loadErrorTitle: '', loadErrorDetail: '' });
+    this.finishPetSlide(false);
+    this.setData({ loading: true, loadError: '', loadErrorTitle: '', loadErrorDetail: '' });
     try {
       const result = await listPets();
       if (sequence !== this.readSequence) return;
@@ -35,23 +49,47 @@ Page({
           speciesLabel: pet.speciesCode === 'other' && pet.customSpeciesName ? pet.customSpeciesName : species.label,
           lifeStageLabel: lifeStageLabel(pet.lifeStage) };
       });
-      this.setData({ pets, loading: false, loaded: true });
+      const index = Math.max(0, pets.findIndex(pet => pet.id === this.data.selectedPetId));
+      this.setData({ pets, ...petSelection(pets, index), loading: false, loaded: true });
     } catch (error) {
       if (sequence !== this.readSequence) return;
-      this.setData({ loading: false, ...describeError(error) });
+      this.setData({ pets: [], loading: false, loaded: false, ...describeError(error) });
     }
   },
 
   onAvatarError(event) {
-    const index = this.data.pets.findIndex((pet) => pet.id === event.currentTarget.dataset.id);
+    const { id, src } = event.currentTarget.dataset;
+    const index = this.data.pets.findIndex(pet => pet.id === id && pet.avatarUrl === src);
     if (index < 0) return;
     const pet = this.data.pets[index];
     this.setData({ [`pets[${index}].avatarUrl`]: pet.avatarUrl === pet.fallbackImage ? '' : pet.fallbackImage });
   },
+  onPetSwipe({ detail: { current, source } }) {
+    if (source !== 'touch' || this.data.loading || this.data.petSliding || !this.data.pets[current]) return;
+    this.setData(petSelection(this.data.pets, current));
+  },
   openPetDetail(event) {
+    const { loading, petSliding, pets, petIndex } = this.data;
+    if (loading || petSliding || this.openingPet) return;
     const id = event.currentTarget.dataset.id;
-    if (!this.data.pets.some((pet) => pet.id === id)) return;
-    wx.navigateTo({ url: `/pages/pet-detail/index?id=${encodeURIComponent(id)}` });
+    const index = pets.findIndex(pet => pet.id === id);
+    if (index < 0) return;
+    if (index !== petIndex) {
+      this.pendingPetId = id;
+      return animatePetTrack(this, slideDistance(petIndex, index, pets.length));
+    }
+    this.openingPet = true;
+    wx.navigateTo({ url: `/pages/pet-detail/index?id=${encodeURIComponent(id)}`, fail: () => {
+      this.openingPet = false;
+      wx.showToast({ title: '档案未打开，请重试', icon: 'none' });
+    } });
+  },
+  finishPetSlide(select = true) {
+    if (!this.data.petSliding) return;
+    clearTimeout(this.petSlideTimer);
+    const index = select ? this.data.pets.findIndex(pet => pet.id === this.pendingPetId) : -1;
+    this.pendingPetId = null;
+    this.setData({ petSliding: false, petSlideTransform: '', ...(index < 0 ? {} : petSelection(this.data.pets, index)) });
   },
   addPet() { wx.navigateTo({ url: '/pages/pet-edit/index' }); },
   openPets() { wx.switchTab({ url: '/pages/pet/index' }); },

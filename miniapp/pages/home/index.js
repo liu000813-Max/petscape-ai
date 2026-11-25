@@ -7,6 +7,7 @@ const { syncTabBar, openOfficialPosts } = require('../../utils/navigation');
 const { recentWeights, weightChange, careAmountLabel } = require('../../utils/weight-records');
 const { ranges, quantityIndexes, wheelQuantity, convertQuantity, quantityInGrams } = require('../../utils/quantity-picker');
 const { careFields } = require('../../utils/care-records');
+const { slideDistance, animatePetTrack } = require('../../utils/pet-slide');
 
 function chartSummary(records) {
   const latest = records[records.length - 1] || null;
@@ -173,30 +174,13 @@ Page({
   },
 
   onPetAvatarTap(event) {
-    const { loading, activeModal, petSliding, petIndex, pets, petPreviewMargin, petSlideDuration } = this.data;
+    const { loading, activeModal, petSliding, petIndex, pets } = this.data;
     if (loading || this.isWriting() || activeModal || petSliding || this.openingPetPage) return;
     const index = pets.findIndex((pet) => pet.id === event.currentTarget.dataset.id);
     if (index < 0) return;
     if (index === petIndex) return this.openPet();
-    let distance = index - petIndex;
-    if (pets.length > 2 && Math.abs(distance) > pets.length / 2) {
-      distance -= Math.sign(distance) * pets.length;
-    }
     this.pendingPetTap = pets[index].id;
-    this.setData({ petSliding: true });
-    const startedAt = Date.now();
-    const animate = () => {
-      const progress = Math.min(1, (Date.now() - startedAt) / petSlideDuration);
-      if (progress === 1) return this.finishPetSlide();
-      const eased = progress * progress * (3 - 2 * progress);
-      const span = `${(100 * eased).toFixed(2)}%`;
-      const margins = `${(2 * petPreviewMargin * eased).toFixed(2)}rpx`;
-      // The next avatar is one viewport width minus both preview margins away.
-      const shift = distance > 0 ? `${margins} - ${span}` : `${span} - ${margins}`;
-      this.setData({ petSlideTransform: `transform:translateX(calc(${shift}))` });
-      this.petSlideTimer = setTimeout(animate, 16);
-    };
-    this.petSlideTimer = setTimeout(animate, 16);
+    animatePetTrack(this, slideDistance(petIndex, index, pets.length));
   },
 
   finishPetSlide() {
