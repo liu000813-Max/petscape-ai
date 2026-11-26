@@ -105,6 +105,7 @@
           <template wx:if="{{feedingChart.latest}}" is="daily-amount" data="{{chart: feedingChart, mode: feedingChartMode, kind: '喂食'}}" />
           <view wx:elif="{{!latestFeeding}}" class="daily-empty">近期暂无喂食记录</view>
         </block>
+        <button class="feeding-plan-link" bindtap="openFeedingPlan" disabled="{{loading || petSliding || weightSaving || careSaving}}">喂食计划 →</button>
       </view>
     </view>
     <view wx:if="{{weightError}}" class="records-error"><text>{{weightError}}</text><text class="error-detail">{{weightDiagnostic}}</text><button class="secondary-button" disabled="{{loading || petSliding || weightSaving || careSaving}}" bindtap="loadWeights">重试读取记录</button></view>

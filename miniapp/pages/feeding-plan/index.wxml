@@ -1,0 +1,102 @@
+<view class="page plan-page">
+  <view wx:if="{{loading}}" class="plan-status">正在读取喂食计划…</view>
+  <view wx:elif="{{petError}}" class="plan-status">
+    <text>{{petError}}</text>
+    <button class="secondary-button" bindtap="load">重试读取</button>
+  </view>
+  <block wx:elif="{{editing}}">
+    <view class="plan-heading">
+      <view class="plan-heading-copy"><text class="plan-title">计划设置</text><text class="plan-pet">{{pet.name}}</text></view>
+      <button class="secondary-button plan-short" bindtap="closeSettings">取消</button>
+    </view>
+
+    <view class="plan-field">
+      <text class="plan-field-label">开始日期</text>
+      <picker mode="date" value="{{form.start}}" start="{{firstDate}}" end="{{lastDate}}" bindchange="onStart" aria-label="开始日期">
+        <view class="plan-control">{{form.start}} <text aria-hidden="true">⌄</text></view>
+      </picker>
+    </view>
+    <view class="plan-field">
+      <text class="plan-field-label">喂食间隔</text>
+      <view class="plan-control">
+        <text>每</text><input type="number" maxlength="3" value="{{form.interval}}" bindinput="onInterval" placeholder="输入天数" aria-label="喂食间隔天数" /><text>天</text>
+      </view>
+    </view>
+    <view class="plan-field">
+      <text class="plan-field-label">计划食量</text>
+      <view class="plan-modes">
+        <button class="{{form.mode === 'none' ? 'mode-active' : ''}}" aria-pressed="{{form.mode === 'none'}}" data-mode="none" bindtap="onPortionMode">不设置</button>
+        <button class="{{form.mode === 'grams' ? 'mode-active' : ''}}" aria-pressed="{{form.mode === 'grams'}}" data-mode="grams" bindtap="onPortionMode">固定克数</button>
+        <button class="{{form.mode === 'ratio' ? 'mode-active' : ''}}" aria-pressed="{{form.mode === 'ratio'}}" data-mode="ratio" bindtap="onPortionMode">按体重比例</button>
+      </view>
+    </view>
+    <view wx:if="{{form.mode !== 'none'}}" class="plan-field">
+      <text class="plan-field-label">{{form.mode === 'grams' ? '每次食量' : '占体重比例'}}</text>
+      <view class="plan-control">
+        <input type="digit" maxlength="9" value="{{form.amount}}" bindinput="onAmount" placeholder="{{form.mode === 'grams' ? '输入克数' : '输入你的比例'}}" aria-label="{{form.mode === 'grams' ? '每次食量克数' : '食量占体重百分比'}}" />
+        <text>{{form.mode === 'grams' ? 'g' : '%'}}</text>
+      </view>
+    </view>
+    <view wx:if="{{draftBasis}}" class="plan-estimate">
+      <view wx:if="{{draftPortion}}" class="plan-estimate-value"><text>计划单次食量</text><text>{{draftPortion}}</text></view>
+      <text class="plan-estimate-basis">{{draftBasis}}</text>
+    </view>
+    <view wx:if="{{formError || planError}}" class="plan-error" role="alert">{{formError || planError}}</view>
+    <text class="plan-footnote">计划保存在此设备。</text>
+    <button class="primary-button plan-save" bindtap="saveSettings" disabled="{{!!planError}}">保存计划</button>
+    <button wx:if="{{plan}}" class="plan-stop" bindtap="stopPlan" disabled="{{!!planError}}">停止计划</button>
+  </block>
+  <block wx:else>
+    <view class="plan-heading">
+      <view class="plan-heading-copy"><text class="plan-title">{{pet.name}}</text>
+        <text class="plan-pet">{{planError ? '计划读取失败' : plan ? '每 ' + plan.interval + ' 天一次 · ' + plan.start + ' 起' : '尚未设置喂食计划'}}</text>
+      </view>
+      <button wx:if="{{planError}}" class="secondary-button plan-short" bindtap="load">重试</button>
+      <button wx:else class="secondary-button plan-short" bindtap="openSettings">{{plan ? '设置' : '设置计划'}}</button>
+    </view>
+
+    <view class="plan-calendar">
+      <view class="plan-month">
+        <button class="plan-month-arrow" aria-label="上个月" data-delta="-1" bindtap="moveMonth" disabled="{{!canMoveBack}}">‹</button>
+        <text class="plan-month-label">{{monthLabel}}</text>
+        <button class="plan-month-arrow" aria-label="下个月" data-delta="1" bindtap="moveMonth" disabled="{{!canMoveForward}}">›</button>
+        <button class="plan-today" bindtap="goToday">今天</button>
+      </view>
+      <view class="plan-calendar-grid">
+        <text wx:for="{{weekdays}}" wx:key="*this" class="plan-weekday">{{item}}</text>
+        <block wx:for="{{days}}" wx:key="date">
+          <view wx:if="{{item.blank}}"></view>
+          <button wx:else class="plan-day {{item.selected ? 'day-selected' : ''}} {{item.today ? 'day-today' : ''}}" data-date="{{item.date}}" bindtap="selectDay" aria-label="{{item.label}}" aria-pressed="{{item.selected}}">
+            <text>{{item.day}}</text>
+            <view class="plan-day-marks" aria-hidden="true">
+              <view wx:if="{{item.scheduled}}" class="plan-scheduled-mark"></view>
+              <view wx:if="{{item.recorded}}" class="plan-recorded-mark"></view>
+            </view>
+          </button>
+        </block>
+      </view>
+      <view class="plan-legend">
+        <view><view class="plan-scheduled-mark" aria-hidden="true"></view><text>计划喂食</text></view>
+        <view><view class="plan-recorded-mark" aria-hidden="true"></view><text>实际记录</text></view>
+      </view>
+    </view>
+
+    <view class="plan-day-detail">
+      <view class="plan-day-heading"><text>{{selected}}</text><button wx:if="{{selected <= today}}" class="primary-button plan-short" bindtap="openFeedingRecord">{{selected === today ? '记喂食' : '补记喂食'}}</button></view>
+      <view wx:if="{{dayScheduled}}" class="plan-estimate">
+        <view class="plan-estimate-value"><text>计划喂食</text><text>{{portion || (plan.mode === 'ratio' ? '待换算' : '食量未设')}}</text></view>
+        <text wx:if="{{basis}}" class="plan-estimate-basis">{{basis}}</text>
+      </view>
+      <view wx:if="{{historyError}}" class="plan-error" role="alert">{{historyError}}<button class="secondary-button plan-short" bindtap="load">重试</button></view>
+      <view wx:if="{{dayLogs.length}}" class="plan-logs">
+        <text class="plan-field-label">实际记录</text>
+        <view wx:for="{{dayLogs}}" wx:key="id" class="plan-log">
+          <text class="plan-log-time">{{item.time}}</text>
+          <view class="plan-log-copy"><text>{{item.amount || '喂食'}}</text><text wx:if="{{item.note}}" class="plan-log-note">{{item.note}}</text></view>
+        </view>
+      </view>
+      <view wx:if="{{!dayScheduled && !historyError && !dayLogs.length}}" class="plan-empty">{{selected > today ? '这天暂无喂食安排' : '近期历史中，这天暂无喂食记录'}}</view>
+    </view>
+    <text class="plan-footnote">计划仅保存在此设备，从今天起显示，无通知。实际记录取自这只宠物最近 100 条养护记录。</text>
+  </block>
+</view>

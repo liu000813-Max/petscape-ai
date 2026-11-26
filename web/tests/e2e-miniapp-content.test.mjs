@@ -445,6 +445,23 @@ test('native care history backdates and corrects a measurement for the selected 
     await home.loadSummary();
     assert.equal(home.data.weightChart.latest, null);
     assert.equal(home.data.selectedPetId, pet.id);
+    const feeding = await client.loadPage('care-log');
+    const date = '2026-10-21';
+    feeding.onLoad({ petId: pet.id, kind: 'feeding', date });
+    await feeding.onShow();
+    assert.equal(feeding.data.composerOpen, true);
+    assert.equal(feeding.data.selectedPetId, pet.id);
+    assert.equal(feeding.data.recordDate, date);
+    assert.equal(feeding.data.recordTime, '');
+    await feeding.submit();
+    assert.equal((await client.api.listCareLogs({ petId: pet.id })).logs.length, 0);
+    feeding.onRecordTime({ detail: { value: '07:35' } });
+    feeding.onValueInput({ detail: { value: '主粮一份' } });
+    await feeding.submit();
+    const [fed] = (await client.api.listCareLogs({ petId: pet.id })).logs;
+    assert.equal(fed.kind, '喂食');
+    assert.equal(fed.value, '主粮一份');
+    assert.equal(fed.recordedAt, new Date(date + 'T07:35:00').toISOString());
     await http('/api/v1/pets/' + pet.id, { method: 'DELETE', headers: nativeHeaders('owner') });
   } finally { await client.drain(); }
 });

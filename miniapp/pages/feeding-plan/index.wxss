@@ -1,0 +1,53 @@
+.plan-page { padding-bottom: calc(52rpx + env(safe-area-inset-bottom)); }
+.plan-page button { margin: 0; }
+.plan-heading, .plan-day-heading { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.plan-heading { padding: 12rpx 0 28rpx; }
+.plan-heading-copy { min-width: 0; }
+.plan-title { display: block; font-size: 46rpx; font-weight: 700; line-height: 1.2; word-break: break-all; }
+.plan-pet { display: block; margin-top: 8rpx; color: #615b5e; font-size: 24rpx; line-height: 1.5; word-break: break-all; }
+.plan-page .plan-short { flex-shrink: 0; min-height: 74rpx; padding: 0 22rpx; border-radius: 18rpx; white-space: nowrap; font-size: 25rpx; line-height: 1.3; }
+.plan-calendar { padding: 14rpx 12rpx 18rpx; border: 1rpx solid #e8e0e3; border-radius: 20rpx; }
+.plan-month { display: grid; grid-template-columns: 86rpx minmax(0, 1fr) 86rpx auto; align-items: center; gap: 4rpx; padding: 0 4rpx; }
+.plan-month-label { text-align: center; font-size: 31rpx; font-weight: 700; }
+.plan-month-arrow, .plan-today { min-height: 86rpx; padding: 0; border-radius: 14rpx; background: #fff; color: #171515; line-height: 86rpx; }
+.plan-month-arrow { font-size: 48rpx; }
+.plan-month-arrow[disabled] { color: #8e8589; background: #f8f5f6; }
+.plan-today { padding: 0 20rpx; background: #f7e5ec; font-size: 24rpx; font-weight: 600; }
+.plan-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4rpx; margin-top: 10rpx; }
+.plan-weekday { display: block; padding: 9rpx 0; color: #615b5e; text-align: center; font-size: 23rpx; }
+.plan-day { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; width: 100%; min-width: 0; height: 82rpx; padding: 0; border: 2rpx solid transparent; border-radius: 14rpx; background: #fff; color: #171515; font-size: 26rpx; line-height: 1; }
+.day-today { border-color: #8c5166; font-weight: 700; }
+.day-selected { background: #171515; color: #fff; }
+.plan-day-marks { display: flex; justify-content: center; gap: 7rpx; min-height: 11rpx; }
+.plan-scheduled-mark, .plan-recorded-mark { width: 11rpx; height: 11rpx; }
+.plan-scheduled-mark { border-radius: 50%; background: #a15473; }
+.plan-recorded-mark { border-radius: 2rpx; background: #257358; }
+.day-selected .plan-scheduled-mark { background: #f4c1d3; }
+.day-selected .plan-recorded-mark { background: #94d7be; }
+.plan-legend, .plan-legend > view { display: flex; align-items: center; gap: 10rpx; }
+.plan-legend { flex-wrap: wrap; gap: 24rpx; padding: 14rpx 8rpx 0; color: #615b5e; font-size: 23rpx; }
+.plan-day-detail { margin-top: 32rpx; }
+.plan-day-heading { margin-bottom: 16rpx; font-size: 31rpx; font-weight: 700; }
+.plan-estimate { padding: 20rpx; border-radius: 16rpx; background: #f7e5ec; color: #39232c; }
+.plan-estimate-value { display: flex; justify-content: space-between; align-items: start; gap: 16rpx; font-size: 27rpx; font-weight: 600; }
+.plan-estimate-basis { display: block; margin-top: 4rpx; font-size: 23rpx; line-height: 1.5; }
+.plan-logs, .plan-error, .plan-empty { margin-top: 20rpx; }
+.plan-log { display: flex; gap: 16rpx; padding: 16rpx 0; border-bottom: 1rpx solid #ece7e9; }
+.plan-log-time { flex: none; color: #615b5e; font-size: 24rpx; }
+.plan-log-copy { min-width: 0; word-break: break-all; }
+.plan-log-note, .plan-footnote { display: block; color: #615b5e; font-size: 23rpx; line-height: 1.5; }
+.plan-log-note { margin-top: 4rpx; white-space: pre-wrap; }
+.plan-footnote { margin-top: 22rpx; }
+.plan-empty, .plan-status { color: #615b5e; }
+.plan-status > button { margin-top: 16rpx; }
+.plan-error { color: #8c244b; line-height: 1.5; }
+.plan-error > button { margin-top: 12rpx; }
+.plan-field { margin-bottom: 23rpx; }
+.plan-field-label { display: block; margin-bottom: 8rpx; font-weight: 600; }
+.plan-control { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; min-height: 86rpx; padding: 0 18rpx; border: 1rpx solid #e8e0e3; border-radius: 14rpx; background: #faf7f8; }
+.plan-control input { flex: 1; min-width: 0; min-height: 82rpx; }
+.plan-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4rpx; padding: 4rpx; border-radius: 15rpx; background: #f3eff1; }
+.plan-modes button { width: 100%; min-height: 76rpx; padding: 10rpx 4rpx; border-radius: 12rpx; background: transparent; color: #30282c; font-size: 24rpx; line-height: 1.3; }
+.plan-modes .mode-active { background: #171515; color: #fff; font-weight: 700; }
+.plan-page .plan-save { margin-top: 20rpx; border-radius: 18rpx; }
+.plan-page .plan-stop { width: 100%; min-height: 78rpx; margin-top: 12rpx; padding: 0; background: transparent; color: #8c244b; font-size: 26rpx; line-height: 78rpx; }

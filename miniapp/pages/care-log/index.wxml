@@ -34,7 +34,7 @@
       <view class="record-date-heading"><text class="field-label">记录时间</text><button wx:if="{{recordDate}}" class="care-action" bindtap="useCurrentTime" disabled="{{submitting}}">用当前时间</button></view>
       <view class="grid-2">
         <picker mode="date" value="{{recordDate || today}}" end="{{today}}" bindchange="onRecordDate" disabled="{{submitting}}" aria-label="记录日期"><view class="picker-value">{{recordDate || '今天'}}　⌄</view></picker>
-        <picker mode="time" value="{{recordTime || nowTime}}" bindchange="onRecordTime" disabled="{{submitting}}" aria-label="记录时间"><view class="picker-value">{{recordTime || '现在'}}　⌄</view></picker>
+        <picker mode="time" value="{{recordTime || nowTime}}" bindchange="onRecordTime" disabled="{{submitting}}" aria-label="记录时间"><view class="picker-value">{{recordTime || (recordDate ? '选择时间' : '现在')}}　⌄</view></picker>
       </view>
       <button class="primary-button section" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{editingId ? '保存修改' : '保存记录'}}</button>
     </view>

@@ -431,6 +431,12 @@ Page({
     if (petId) this.openPetPage(`/pages/care-log/index?petId=${encodeURIComponent(petId)}`);
   },
 
+  openFeedingPlan() {
+    if (this.data.loading || this.isWriting() || this.data.activeModal || this.data.petSliding) return;
+    const petId = this.data.pet?.id;
+    if (petId) this.openPetPage(`/pages/feeding-plan/index?petId=${encodeURIComponent(petId)}`);
+  },
+
   openPetPage(url) {
     if (this.openingPetPage) return;
     this.openingPetPage = true;

@@ -931,6 +931,94 @@ const careApi = {
   listCareReminders: async () => ({ reminders: [] }),
 };
 
+test('feeding plan calendar separates scheduled days and timed feeding records across months', () => {
+  const { calendarMonth, changeMonth, dayNumber, validatePlan, feedingHistory, planPortion } = require(path.join(root, 'utils/feeding-plan.js'));
+  const today = '2024-02-29';
+  const { plan } = validatePlan({ start: today, interval: '2', mode: 'ratio', amount: '18' });
+  assert.match(validatePlan({ ...plan, interval: '' }).error, /周期/);
+  assert.match(validatePlan({ ...plan, amount: '18.25' }).error, /一位/);
+  assert.ok(Number.isNaN(dayNumber('2026-02-29')));
+  const recordedAt = new Date('2024-02-29T10:15:00').toISOString();
+  const history = feedingHistory([
+    { id: 'own', petId: 'pet-a', kind: '喂食', value: '4.5g', recordedAt },
+    { id: 'another', petId: 'pet-b', kind: '喂食', value: '30g', recordedAt },
+    { id: 'weight', petId: 'pet-a', kind: '体重', value: '25g', recordedAt },
+  ], 'pet-a');
+  assert.deepEqual(history.get(today).map(log => [log.id, log.time, log.amount]), [['own', '10:15', '4.5 g']]);
+  const february = calendarMonth('2024-02', today, today, plan, history);
+  assert.equal(february.length % 7, 0);
+  const leapDay = february.find(day => day.date === today);
+  assert.ok(leapDay.today && leapDay.selected && leapDay.scheduled && leapDay.recorded);
+  assert.equal(changeMonth('2024-12', 1), '2025-01');
+  const march = calendarMonth(changeMonth('2024-02', 1), today, '2024-03-01', plan, history);
+  assert.ok(march.find(day => day.date === '2024-03-02').scheduled);
+  assert.equal(march.find(day => day.date === '2024-03-01').scheduled, false);
+  assert.equal(planPortion(plan, { grams: 25, displayValue: '25', time: today }).portion, '4.5 g');
+  assert.equal(planPortion(plan, { grams: 26.2, displayValue: '26.2', time: today }).portion, '4.7 g');
+  assert.equal(planPortion(plan, null).portion, '');
+});
+
+test('feeding plan is scoped to the selected pet and returns to the original day after a real-entry save', async () => {
+  const { savePlan, readPlan } = require(path.join(root, 'utils/feeding-plan.js'));
+  const home = page('home');
+  home.setData({ pet: carePets[1], loading: false });
+  home.openFeedingPlan();
+  assert.deepEqual(navigation, ['navigateTo', '/pages/feeding-plan/index?petId=pet-b']);
+
+  const date = '2024-02-29';
+  const homeLogs = [{ id: 'weight-b', petId: 'pet-b', kind: '体重', value: '26.2g', recordedAt: '2024-02-28T12:00:00Z' }];
+  const listCareLogs = async ({ petId }) => ({ logs: homeLogs.filter(log => log.petId === petId) });
+  const overview = page('feeding-plan', { getPet: async id => carePets.find(pet => pet.id === id), listCareLogs });
+  overview.onLoad({ petId: 'pet-b' });
+  await overview.onShow();
+  overview.openSettings();
+  assert.equal(overview.data.form.interval, '');
+  overview.onInterval({ detail: { value: '6' } });
+  overview.onPortionMode({ currentTarget: { dataset: { mode: 'ratio' } } });
+  overview.onAmount({ detail: { value: '18' } });
+  assert.equal(overview.data.draftPortion, '4.7 g');
+  overview.saveSettings();
+  assert.equal(readPlan('pet-b').interval, '6');
+  assert.equal(readPlan('pet-a'), null);
+  app.globalData.mockMode = false;
+  assert.equal(readPlan('pet-b'), null);
+  savePlan('pet-b', { ...overview.data.plan, interval: '12' });
+  app.globalData.mockMode = true;
+  assert.equal(readPlan('pet-b').interval, '6');
+
+  overview.setData({ selected: date, month: '2024-02' });
+  overview.renderCalendar();
+  overview.openFeedingRecord();
+  assert.deepEqual(navigation, ['navigateTo', '/pages/care-log/index?petId=pet-b&kind=feeding&date=2024-02-29']);
+  const care = page('care-log', { ...careApi, listCareLogs, createCareLog: async log => homeLogs.push({ id: 'saved', ...log }) });
+  care.onLoad({ petId: 'pet-b', kind: 'feeding', date });
+  await care.onShow();
+  assert.equal(care.data.selectedPetId, 'pet-b');
+  assert.equal(care.data.recordDate, date);
+  assert.equal(care.data.recordTime, '');
+  assert.equal(care.data.amount, '');
+  care.setData({ note: '实际份数' });
+  await care.submit();
+  assert.equal(homeLogs.length, 1);
+  care.onRecordTime({ detail: { value: '17:30' } });
+  let wentBack = false;
+  wx.navigateBack = () => { wentBack = true; };
+  await care.submit();
+  assert.ok(wentBack);
+  assert.equal(homeLogs[1].value, null);
+  assert.equal(homeLogs[1].recordedAt, new Date(date + 'T17:30:00').toISOString());
+  await overview.onShow();
+  assert.equal(overview.data.selected, date);
+  assert.equal(overview.data.dayLogs[0].note, '实际份数');
+  assert.ok(overview.data.days.find(day => day.date === date).recorded);
+
+  const missing = page('care-log', careApi);
+  missing.onLoad({ petId: 'missing-pet', kind: 'feeding', date });
+  await missing.onShow();
+  assert.match(missing.data.error, /不可用/);
+  assert.equal(missing.data.composerOpen, false);
+});
+
 test('care selection follows the same pet after list reorder and clears drafts if that pet disappears', async () => {
   let pets = carePets;
   const care = page('care-log', { ...careApi, listPets: async () => ({ pets }) });

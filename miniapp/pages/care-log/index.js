@@ -5,6 +5,7 @@ const { routePetId } = require('../../utils/pet-route');
 const { ranges, quantityIndexes, wheelQuantity, convertQuantity, quantityInGrams } = require('../../utils/quantity-picker');
 const { careFields } = require('../../utils/care-records');
 const { careAmountLabel, recordedGrams } = require('../../utils/weight-records');
+const { dayNumber } = require('../../utils/feeding-plan');
 
 const recordDraftFields = ['note', 'value', 'amount', 'unit', 'selection', 'kindIndex', 'recordDate', 'recordTime'];
 const draftFields = [...recordDraftFields, 'reminderTitle', 'reminderDate', 'reminderTime'];
@@ -24,7 +25,13 @@ Page({
   onLoad(options) {
     if (typeof options?.petId !== 'string' || !options.petId) return;
     this.scopedEntry = true;
-    this.setData({ selectedPetId: routePetId(options.petId) });
+    const petId = routePetId(options.petId);
+    this.setData({ selectedPetId: petId });
+    const today = formatDateTime(Date.now()).slice(0, 10);
+    if (petId && options.kind === 'feeding' && Number.isFinite(dayNumber(options.date)) && options.date <= today) {
+      this.plannedRecordDate = options.date;
+      this.feedingPlanEntry = { petId, date: options.date };
+    }
   },
 
   onShow() {
@@ -69,6 +76,15 @@ Page({
       const logs = (logsResult.logs || []).map(item => ({ ...item, displayValue: careAmountLabel(item), displayTime: formatDateTime(item.recordedAt) }));
       const reminders = (remindersResult.reminders || []).map(item => ({ ...item, displayTime: formatDateTime(item.dueAt), overdue: !item.completedAt && new Date(item.dueAt).getTime() <= Date.now() }));
       this.setData({ pets, petIndex, logs, reminders, loading: false });
+      if (this.plannedRecordDate) {
+        const today = formatDateTime(Date.now()).slice(0, 10);
+        const recordDate = this.plannedRecordDate;
+        this.plannedRecordDate = '';
+        if (recordDate <= today) {
+          const fields = recordDate < today ? { recordDate, recordTime: '' } : {};
+          this.showComposer({ ...recordDraft(), ...fields, kindIndex: this.data.kinds.indexOf('喂食') });
+        }
+      }
     } catch (error) { if (sequence === this.loadSequence) this.setData({ loading: false, error: '养护记录读取失败，请重试' }); }
   },
 
@@ -145,7 +161,8 @@ Page({
     if (!this.isBusy()) this.resetComposer(this.newRecordDraft);
   },
   onRecordDate(event) {
-    if (!this.isBusy()) this.setData({ recordDate: event.detail.value, recordTime: this.data.recordTime || this.data.nowTime });
+    if (!this.isBusy()) this.setData({ recordDate: event.detail.value,
+      recordTime: this.data.recordTime || (this.data.recordDate ? '' : this.data.nowTime) });
   },
   onRecordTime(event) {
     if (!this.isBusy()) this.setData({ recordDate: this.data.recordDate || this.data.today, recordTime: event.detail.value });
@@ -167,6 +184,10 @@ Page({
     const { pets, petIndex, editingId, preservedValue } = this.data;
     if (!pets[petIndex]) { wx.showToast({ title: '请先建立宠物档案', icon: 'none' }); return; }
     const kind = this.recordKind();
+    if (this.data.recordDate && !this.data.recordTime) {
+      wx.showToast({ title: '请选择记录时间', icon: 'none' });
+      return;
+    }
     const recordedAt = this.recordTimestamp();
     if (!recordedAt) { wx.showToast({ title: '请选择有效的过去时间', icon: 'none' }); return; }
     const { value, note, error } = careFields(preservedValue ? '观察' : kind, kind === '体重' ? '' : this.data.value, this.data.note, this.data.amount, this.data.unit);
@@ -178,6 +199,13 @@ Page({
       else await createCareLog({ petId: pets[petIndex].id, kind, ...fields });
       track('care.save');
       this.resetComposer(this.newRecordDraft || { ...recordDraft(), kindIndex: this.data.kindIndex, unit: this.data.unit, selection: quantityIndexes('', this.data.unit) });
+      const entry = this.feedingPlanEntry;
+      if (!editingId && kind === '喂食' && entry?.petId === pets[petIndex].id && entry.date === formatDateTime(recordedAt).slice(0, 10)) {
+        this.feedingPlanEntry = null;
+        wx.navigateBack({ fail: () => this.loadData() });
+        wx.showToast({ title: '记录已保存', icon: 'success' });
+        return;
+      }
       await this.loadData();
       wx.showToast({ title: '记录已保存', icon: 'success' });
     } catch (error) { wx.showToast({ title: '保存失败，可重试', icon: 'none' }); }
