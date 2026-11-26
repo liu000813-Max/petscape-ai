@@ -185,6 +185,7 @@ export {
   getContentArticle,
   getCommunityPost,
   listCommunityPosts,
+  listMyCommunityPosts,
   createCommunityPost,
   listCommunityComments,
   createCommunityComment,

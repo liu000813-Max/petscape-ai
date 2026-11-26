@@ -351,7 +351,63 @@ test('community displays the renamed topic while filters and publishing retain t
   assert.equal(compose.data.topicLabels[1], '晒宠境');
   await compose.submit();
   assert.equal(submission.topic, '晒栖境');
-  assert.equal(compose.data.submitting, true);
+  assert.equal(compose.data.submitting, false);
+  assert.equal(compose.data.submitted, true);
+});
+
+test('submitting a post returns to private submissions and allows navigation retry without reposting', async () => {
+  const response = deferred();
+  let composerOptions;
+  let postsCreated = 0;
+  let returnAttempts = 0;
+  const community = page('community');
+  wx.navigateTo = options => { composerOptions = options; };
+  community.createPost();
+  const compose = page('community-edit', { createCommunityPost: () => { postsCreated++; return response.promise; } });
+  const emitted = [];
+  compose.getOpenerEventChannel = () => ({ emit(name) {
+    emitted.push(name);
+    composerOptions.events[name]();
+  } });
+  wx.navigateBack = options => {
+    returnAttempts++;
+    if (returnAttempts === 1) options.fail();
+  };
+  compose.setData({ title: '我的帖子', body: '等待审核' });
+  const pending = compose.submit();
+  await compose.submit();
+  response.resolve({ id: 'post-new', status: 'pending' });
+  await pending;
+  await compose.submit();
+  compose.openSubmissions();
+  assert.deepEqual(emitted, ['communityPostSubmitted']);
+  assert.equal(community.data.section, 'mine');
+  assert.equal(postsCreated, 1);
+  assert.equal(returnAttempts, 2);
+});
+
+test('my submissions show review decisions, load more and discard a response after leaving', async () => {
+  const late = deferred();
+  const post = (id, status) => ({ id, status, title: id, body: '正文', topic: '晒栖境', createdAt: '2026-11-26T08:00:00Z' });
+  let reads = 0;
+  const community = page('community', {
+    listMyCommunityPosts: ({ offset }) => {
+      if (offset) return Promise.resolve({ posts: [post('three', 'rejected'), post('four', 'archived')], nextOffset: null });
+      if (++reads > 1) return late.promise;
+      return Promise.resolve({ posts: [post('one', 'pending'), post('two', 'published')], nextOffset: 2 });
+    },
+  });
+  await community.selectSection({ currentTarget: { dataset: { section: 'mine' } } });
+  community.toggleSubmission({ currentTarget: { dataset: { id: 'one' } } });
+  assert.equal(community.data.expandedPostId, 'one');
+  await community.loadMoreMyPosts();
+  assert.deepEqual(community.data.myPosts.map(item => item.statusLabel), ['待审核', '已发布', '未通过', '已下架']);
+  const pending = community.onShow();
+  community.onHide();
+  late.resolve({ posts: [post('five', 'pending')], nextOffset: null });
+  await pending;
+  assert.deepEqual(community.data.myPosts, []);
+  assert.equal(community.data.expandedPostId, '');
 });
 
 function tabBar() {
@@ -685,6 +741,8 @@ test('pending posts and comments never appear as publicly published content in p
   const post = await api.createCommunityPost({ title: '待审', body: '尚未发布', topic: '经验' });
   assert.equal(post.status, 'pending');
   assert.equal((await api.listCommunityPosts()).posts.length, before);
+  assert.equal((await api.listMyCommunityPosts()).posts.find(item => item.id === post.id)?.status, 'pending');
+  await assert.rejects(api.getCommunityPost(post.id), error => error.statusCode === 404);
   const comment = await api.createCommunityComment('mock-post-1', { body: '待审评论' });
   assert.equal(comment.postId, 'mock-post-1');
   assert.equal((await api.listCommunityComments('mock-post-1')).comments.some((item) => item.id === comment.id), false);

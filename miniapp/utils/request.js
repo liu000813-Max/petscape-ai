@@ -2,6 +2,7 @@ const { mockPets, mockProjects, mockOrders, mockArticles, mockPosts, mockCareLog
 const { normalizeError, safeRequestId } = require('./errors');
 
 const SESSION_STORAGE_KEY = 'petscape_session_token';
+const mockMyPosts = [];
 let loginPromise = null;
 let mockOwnerProfile = { nickname: '', avatarAssetId: null, avatarUrl: null };
 
@@ -172,8 +173,15 @@ function mockRequest(path, options) {
     return Promise.resolve({ posts: topic ? mockPosts.filter((item) => item.topic === topic) : mockPosts });
   }
   if (path === '/api/v1/community/posts' && options.method === 'POST') {
-    const post = { id: `mock-post-${Date.now()}`, ...options.data, author: '我', authorName: '我', time: '刚刚', likeCount: 0, likes: 0, commentCount: 0, comments: 0 };
-    return Promise.resolve({ id: post.id, status: 'pending', createdAt: new Date().toISOString() });
+    const createdAt = new Date().toISOString();
+    const submission = { id: `mock-submission-${mockMyPosts.length + 1}`, status: 'pending', createdAt };
+    mockMyPosts.unshift({ ...options.data, ...submission, updatedAt: createdAt });
+    return Promise.resolve(submission);
+  }
+  if (path === '/api/v1/community/posts/mine') {
+    const { offset = 0, limit = 20 } = options.data || {};
+    const end = offset + limit;
+    return Promise.resolve({ posts: mockMyPosts.slice(offset, end), nextOffset: end < mockMyPosts.length ? end : null });
   }
   const postDetailMatch = /^\/api\/v1\/community\/posts\/([^/]+)$/.exec(path);
   if (postDetailMatch) {
@@ -314,6 +322,7 @@ function listOrders() {
 
 function listArticles(query = {}) { return request('/api/v1/content/articles', { data: query, auth: false }); }
 function listCommunityPosts(query = {}) { return request('/api/v1/community/posts', { data: query, auth: false }); }
+function listMyCommunityPosts(query = {}) { return request('/api/v1/community/posts/mine', { data: query }); }
 function createCommunityPost(data) { return request('/api/v1/community/posts', { method: 'POST', data }); }
 function listCommunityComments(id) { return request(`/api/v1/community/posts/${id}/comments`, { auth: false }); }
 function createCommunityComment(id, data) { return request(`/api/v1/community/posts/${id}/comments`, { method: 'POST', data }); }
@@ -353,6 +362,7 @@ module.exports = {
   listOrders,
   listArticles,
   listCommunityPosts,
+  listMyCommunityPosts,
   createCommunityPost,
   listCommunityComments,
   createCommunityComment,

@@ -73,8 +73,8 @@
   font-size: 23rpx;
 }
 
-.community-sections { display: flex; gap: 24rpx; margin-top: 34rpx; border-bottom: 1rpx solid #e9e2e4; }
-.community-sections .community-section { width: auto; min-height: 76rpx; margin: 0; padding: 12rpx 12rpx 14rpx; border-bottom: 5rpx solid transparent; border-radius: 0; background: #fff; color: #675d60; font-size: 27rpx; line-height: 1.6; }
+.community-sections { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 34rpx; border-bottom: 1rpx solid #e9e2e4; }
+.community-sections .community-section { width: 100%; min-height: 76rpx; margin: 0; padding: 12rpx 2rpx 14rpx; border-bottom: 5rpx solid transparent; border-radius: 0; background: #fff; color: #675d60; font-size: 27rpx; line-height: 1.6; }
 .community-sections .community-section.selected { border-color: #d389a2; color: #171313; font-weight: 700; }
 .topic-row .category-button { width: auto; margin: 0; background: #fff; line-height: 1.5; }
 .topic-row .category-button { flex-shrink: 0; }
@@ -92,3 +92,18 @@
   margin-top: 14rpx;
   color: #050505;
 }
+
+.submission-toolbar { display: flex; justify-content: flex-end; margin-top: 12rpx; }
+.submission-toolbar .submission-refresh { width: auto; min-height: 70rpx; margin: 0; padding: 10rpx 4rpx 10rpx 24rpx; background: transparent; color: #78324d; font-size: 24rpx; line-height: 50rpx; }
+.submission-toolbar + .post-list { margin-top: 10rpx; }
+.submission-card { box-shadow: none; }
+.submission-card .submission-toggle { display: block; width: 100%; margin: 0; padding: 0; background: transparent; color: #171313; text-align: left; line-height: 1.5; }
+.submission-meta, .submission-topic { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8rpx 14rpx; }
+.submission-date, .submission-topic { color: #62565a; font-size: 23rpx; }
+.submission-topic { margin-top: 12rpx; }
+.submission-toggle .post-title { display: block; margin-top: 14rpx; overflow-wrap: anywhere; }
+.submission-status { padding: 5rpx 14rpx; border-radius: 8rpx; background: #eee9eb; color: #51484b; font-size: 23rpx; }
+.submission-status.pending { background: #f7e2ea; color: #78324d; }
+.submission-status.published { background: #e8f1e9; color: #28543a; }
+.submission-status.rejected { background: #f6e7e0; color: #793c28; }
+.submission-body { margin-top: 18rpx; padding-top: 16rpx; border-top: 1rpx solid #e9e2e4; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }

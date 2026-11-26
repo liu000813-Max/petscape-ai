@@ -27,6 +27,33 @@
   <view wx:else class="empty card section">还没有公开动态</view>
   <view class="section"><button class="secondary-button" bindtap="openServices">查看同城服务</button></view>
   </block>
+  <block wx:elif="{{section === 'mine'}}">
+    <view class="submission-toolbar">
+      <button class="submission-refresh" bindtap="refreshMyPosts" disabled="{{myPostsLoading}}">刷新状态</button>
+    </view>
+    <view wx:if="{{myPosts.length}}" class="section post-list">
+      <view wx:for="{{myPosts}}" wx:key="id" class="post-card submission-card card">
+        <button class="submission-toggle" data-id="{{item.id}}" bindtap="toggleSubmission"
+          aria-expanded="{{expandedPostId === item.id}}">
+          <view class="submission-meta">
+            <text class="submission-status {{item.status}}">{{item.statusLabel}}</text>
+            <text class="submission-date">{{item.dateLabel}}</text>
+          </view>
+          <text class="post-title">{{item.title}}</text>
+          <view class="submission-topic"><text>{{item.topicLabel}}</text><text aria-hidden="true">{{expandedPostId === item.id ? '收起 ⌃' : '展开 ⌄'}}</text></view>
+        </button>
+        <text wx:if="{{expandedPostId === item.id}}" class="submission-body" user-select>{{item.body}}</text>
+      </view>
+    </view>
+    <view wx:if="{{myPostsLoading && !myPosts.length}}" class="loading">正在读取投稿</view>
+    <view wx:elif="{{myPostsError}}" class="error-state">
+      <text>{{myPostsError}}</text>
+      <button wx:if="{{nextPostOffset !== null}}" class="secondary-button" bindtap="loadMoreMyPosts">重新加载</button>
+      <button wx:else class="secondary-button" bindtap="loadSection">重新读取</button>
+    </view>
+    <view wx:elif="{{!myPosts.length}}" class="empty card section">还没有投稿</view>
+    <button wx:elif="{{nextPostOffset !== null}}" class="secondary-button" bindtap="loadMoreMyPosts" loading="{{myPostsLoading}}" disabled="{{myPostsLoading}}">加载更多投稿</button>
+  </block>
   <block wx:else>
     <scroll-view wx:if="{{section === 'official'}}" class="topic-scroll" scroll-x="true" enhanced="true" show-scrollbar="false">
       <view class="topic-row">

@@ -103,7 +103,8 @@ async function nativeClient(role, { restoreAs, loseGrowthSaveResponse = false } 
       ...sandbox,
       require: (id) => id === '../../utils/request' ? nativeModule.exports : id === '../../utils/analytics' ? analytics.exports : localRequire(id),
       Page: (page) => { definition = page; },
-      setTimeout: (callback) => callback(),
+      setTimeout,
+      clearTimeout,
     }, { filename: source.pathname });
     definition.data = structuredClone(definition.data);
     definition.setData = function (values) {
@@ -312,6 +313,47 @@ test('moderation and concurrent likes work through native transport and Web admi
     await http('/api/v1/community/posts/' + post.id + '/comments', { method: 'POST', headers: nativeHeaders('owner'), data: { body: '不能写入' } }, 404);
     await http('/api/v1/community/posts/' + post.id + '/like', { method: 'POST', headers: nativeHeaders('owner'), data: { liked: true } }, 404);
   } finally { await owner.drain(); }
+});
+
+test('authors can track their own post decisions while private submissions stay out of public feeds', async () => {
+  const path = '/api/v1/community/posts/mine';
+  await http(path, {}, 401);
+  await http(path, { headers: nativeHeaders('expired') }, 401);
+  await http(path + '?ownerUserId=other', { headers: nativeHeaders('owner') }, 400);
+  const owner = await nativeClient('owner');
+  const other = await nativeClient('other');
+  try {
+    const post = await owner.api.createCommunityPost({ title: '我的投稿', body: '审核反馈', topic: run });
+    const secondPost = await owner.api.createCommunityPost({ title: '另一条投稿', body: '测试分页', topic: run });
+    const item = async status => {
+      const { posts } = await owner.api.listMyCommunityPosts();
+      const submission = posts.find(row => row.id === post.id);
+      assert.equal(submission?.status, status);
+      assert.equal(submission.title, '我的投稿');
+      assert.equal(submission.body, '审核反馈');
+      assert.equal(Object.hasOwn(submission, 'ownerUserId'), false);
+    };
+    await item('pending');
+    assert.equal((await http(path, { headers: nativeHeaders('other') })).posts.some(row => row.id === post.id), false);
+    const response = await fetch(new URL(path + '?limit=1', base), { headers: nativeHeaders('owner') });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('cache-control'), /private, no-store/);
+    const page = await response.json();
+    assert.equal(page.posts.length, 1);
+    assert.equal(page.nextOffset, 1);
+    const next = await http(path + '?limit=1&offset=' + page.nextOffset, { headers: nativeHeaders('owner') });
+    assert.equal(next.posts.length, 1);
+    assert.deepEqual(new Set([page.posts[0].id, next.posts[0].id]), new Set([post.id, secondPost.id]));
+    await moderate('post', post.id, 'rejected');
+    await item('rejected');
+    await assert.rejects(other.api.getCommunityPost(post.id), error => error.statusCode === 404);
+    await moderate('post', post.id, 'published');
+    await item('published');
+    assert.equal((await other.api.getCommunityPost(post.id)).id, post.id);
+    await moderate('post', post.id, 'archived');
+    await item('archived');
+    assert.equal((await other.api.listCommunityPosts({ topic: run })).posts.some(row => row.id === post.id), false);
+  } finally { await owner.drain(); await other.drain(); }
 });
 
 test('care ownership, concurrent completion and pet soft deletion survive actual HTTP calls', async () => {

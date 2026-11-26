@@ -4,6 +4,7 @@ import {
   CareLogQuerySchema,
   ContentArticleQuerySchema,
   CommunityPostQuerySchema,
+  MyCommunityPostsQuerySchema,
   CreateCareLogSchema,
   UpdateCareLogSchema,
   CreateCommunityCommentSchema,
@@ -57,6 +58,22 @@ export async function listCommunityPosts({ prisma, query, userId }: { prisma: Pr
     take: input.limit,
   });
   return rows.map((row) => ({ id: row.id, title: row.title, body: row.body, topic: row.topic, speciesCode: row.speciesCode, authorName: row.owner.name, commentCount: row._count.comments, likeCount: row._count.likes, liked: row.likes.length > 0, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() }));
+}
+
+export async function listMyCommunityPosts({ prisma, ownerUserId, query }: { prisma: PrismaClient; ownerUserId: string; query: unknown }) {
+  const { limit, offset } = MyCommunityPostsQuerySchema.parse(query);
+  const rows = await prisma.communityPost.findMany({
+    where: { ownerUserId },
+    select: { id: true, title: true, body: true, topic: true, status: true, createdAt: true, updatedAt: true },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    skip: offset,
+    take: limit + 1,
+  });
+  const nextOffset = offset + limit;
+  return {
+    posts: rows.slice(0, limit).map(row => ({ ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() })),
+    nextOffset: rows.length > limit && MyCommunityPostsQuerySchema.shape.offset.safeParse(nextOffset).success ? nextOffset : null,
+  };
 }
 
 export async function createCommunityPost({ prisma, ownerUserId, input }: { prisma: PrismaClient; ownerUserId: string; input: CreateCommunityPost }) {

@@ -1,11 +1,13 @@
-const { listArticles, getArticle, listCommunityPosts, toggleCommunityPostLike } = require('../../utils/request');
+const { listArticles, getArticle, listCommunityPosts, listMyCommunityPosts, toggleCommunityPostLike } = require('../../utils/request');
 const { track } = require('../../utils/analytics');
 const { syncTabBar } = require('../../utils/navigation');
 const { POST_TOPICS, topicLabel } = require('../../utils/community-topics');
 const { readBookmarks, toggleBookmark } = require('../../utils/official-bookmarks');
+const { formatDateTime } = require('../../utils/format');
 
-const SECTIONS = [{ id: 'community', label: '社区动态' }, { id: 'official', label: '官方帖' }, { id: 'saved', label: '已收藏' }];
+const SECTIONS = [{ id: 'community', label: '社区动态' }, { id: 'official', label: '官方帖' }, { id: 'saved', label: '已收藏' }, { id: 'mine', label: '我的投稿' }];
 const CATEGORIES = ['全部', '花枝鼠', '守宫', '蛇类', '鹦鹉', '蜘蛛', '其他异宠', '空间设计'];
+const SUBMISSION_STATUS = { pending: '待审核', published: '已发布', rejected: '未通过', archived: '已下架' };
 
 async function readSavedArticles(ids) {
   const articles = [];
@@ -34,6 +36,11 @@ Page({
     posts: [],
     loading: true,
     error: '',
+    myPosts: [],
+    myPostsLoading: false,
+    myPostsError: '',
+    nextPostOffset: null,
+    expandedPostId: '',
   },
 
   onShow() {
@@ -46,6 +53,14 @@ Page({
     return this.loadSection();
   },
 
+  onHide() {
+    if (this.data.section !== 'mine') return;
+    this.sequence = (this.sequence || 0) + 1;
+    this.setData({ myPosts: [], myPostsLoading: true, myPostsError: '', nextPostOffset: null, expandedPostId: '' });
+  },
+
+  onUnload() { this.sequence = (this.sequence || 0) + 1; },
+
   selectSection(event) {
     const section = event.currentTarget.dataset.section;
     if (!SECTIONS.some((item) => item.id === section) || section === this.data.section) return;
@@ -56,8 +71,47 @@ Page({
   loadSection() {
     const sequence = (this.sequence || 0) + 1;
     this.sequence = sequence;
+    if (this.data.section === 'mine') return this.loadMyPosts(sequence, 0);
+    if (this.data.myPosts.length) this.setData({ myPosts: [], nextPostOffset: null, expandedPostId: '' });
     if (this.data.section === 'community') return this.loadPosts(sequence);
     return this.loadArticles(sequence);
+  },
+
+  async loadMyPosts(sequence, offset) {
+    this.setData({ myPostsLoading: true, myPostsError: '',
+      ...(offset === 0 ? { myPosts: [], nextPostOffset: null, expandedPostId: '' } : {}) });
+    try {
+      const { posts, nextOffset } = await listMyCommunityPosts(offset ? { offset } : {});
+      if (sequence !== this.sequence) return;
+      const seen = new Set(this.data.myPosts.map(post => post.id));
+      const more = posts.filter(post => !seen.has(post.id)).map(post => ({
+        ...post, statusLabel: SUBMISSION_STATUS[post.status], topicLabel: topicLabel(post.topic), dateLabel: formatDateTime(post.createdAt),
+      }));
+      this.setData({ myPosts: this.data.myPosts.concat(more), nextPostOffset: nextOffset, myPostsLoading: false });
+    } catch (error) {
+      if (sequence !== this.sequence) return;
+      const authFailed = error.statusCode === 401 || error.statusCode === 403 || error.stage === 'wx-login' || error.stage === 'session-exchange';
+      this.setData({ myPostsLoading: false, myPostsError: authFailed ? '登录状态未恢复，请重试。' : '投稿读取失败，请重试。',
+        ...(authFailed ? { myPosts: [], nextPostOffset: null, expandedPostId: '' } : {}) });
+    }
+  },
+
+  refreshMyPosts() {
+    if (this.data.section !== 'mine' || this.data.myPostsLoading) return;
+    return this.loadSection();
+  },
+
+  loadMoreMyPosts() {
+    const { section, nextPostOffset, myPostsLoading } = this.data;
+    if (section !== 'mine' || myPostsLoading || nextPostOffset === null) return;
+    return this.loadMyPosts(this.sequence, nextPostOffset);
+  },
+
+  toggleSubmission(event) {
+    const id = event.currentTarget.dataset.id;
+    if (this.data.myPosts.some(post => post.id === id)) {
+      this.setData({ expandedPostId: id === this.data.expandedPostId ? '' : id });
+    }
   },
 
   selectCategory(event) {
@@ -122,7 +176,9 @@ Page({
   },
 
   createPost() {
-    wx.navigateTo({ url: '/pages/community-edit/index' });
+    wx.navigateTo({ url: '/pages/community-edit/index', events: {
+      communityPostSubmitted: () => this.setData({ section: 'mine' }),
+    } });
   },
 
   openPost(event) {

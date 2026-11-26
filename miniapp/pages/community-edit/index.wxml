@@ -3,11 +3,12 @@
   <view class="title">发布动态</view>
   <view class="form-card card section">
     <text class="field-label">主题</text>
-    <picker mode="selector" range="{{topicLabels}}" value="{{topicIndex}}" bindchange="onTopicChange"><view class="picker-value">{{topicLabels[topicIndex]}}　⌄</view></picker>
+    <picker mode="selector" range="{{topicLabels}}" value="{{topicIndex}}" disabled="{{submitting || submitted}}" bindchange="onTopicChange"><view class="picker-value">{{topicLabels[topicIndex]}}　⌄</view></picker>
     <text class="field-label">标题</text>
-    <input class="input" maxlength="160" placeholder="给这次分享起个标题" value="{{title}}" bindinput="onTitleInput" />
+    <input class="input" maxlength="160" placeholder="给这次分享起个标题" value="{{title}}" disabled="{{submitting || submitted}}" bindinput="onTitleInput" />
     <text class="field-label">内容</text>
-    <textarea class="textarea" maxlength="10000" placeholder="记录你的问题、经验或宠境方案" value="{{body}}" bindinput="onBodyInput" />
+    <textarea class="textarea" maxlength="10000" placeholder="记录你的问题、经验或宠境方案" value="{{body}}" disabled="{{submitting || submitted}}" bindinput="onBodyInput" />
   </view>
-  <button class="primary-button section" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交审核</button>
+  <button wx:if="{{submitted}}" class="primary-button section" bindtap="openSubmissions">已提交 · 查看我的投稿</button>
+  <button wx:else class="primary-button section" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交审核</button>
 </view>

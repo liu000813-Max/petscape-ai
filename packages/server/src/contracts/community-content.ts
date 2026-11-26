@@ -55,6 +55,18 @@ export const CommunityPostResponseSchema = z.strictObject({
 export const CommunityPostListResponseSchema = z.strictObject({ posts: z.array(CommunityPostResponseSchema) });
 export const CommunityPostDetailResponseSchema = CommunityPostResponseSchema.pick({ id: true, title: true, body: true, topic: true, authorName: true, createdAt: true });
 
+export const MyCommunityPostsQuerySchema = z.strictObject({
+  limit: CommunityPostQuerySchema.shape.limit,
+  offset: z.coerce.number().int().min(0).max(10000).default(0),
+});
+export const MyCommunityPostSchema = CommunityPostResponseSchema.pick({
+  id: true, title: true, body: true, topic: true, createdAt: true, updatedAt: true,
+}).extend({ status: z.enum(['pending', 'published', 'rejected', 'archived']) });
+export const MyCommunityPostsResponseSchema = z.strictObject({
+  posts: z.array(MyCommunityPostSchema),
+  nextOffset: MyCommunityPostsQuerySchema.shape.offset.unwrap().nullable(),
+});
+
 export const CreateCommunityCommentSchema = z.strictObject({
   body: z.string().trim().min(1).max(5000),
 });
