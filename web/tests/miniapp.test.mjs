@@ -387,7 +387,7 @@ test('submitting a post returns to private submissions and allows navigation ret
   await pending;
   await compose.submit();
   compose.openSubmissions();
-  assert.deepEqual(emitted, ['communityPostSubmitted']);
+  assert.deepEqual(emitted, ['communityPostSubmitted', 'communityPostSubmitted']);
   assert.equal(community.data.section, 'mine');
   assert.equal(postsCreated, 1);
   assert.equal(returnAttempts, 2);

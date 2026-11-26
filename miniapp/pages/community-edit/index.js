@@ -227,9 +227,6 @@ Page({
       if (!receipt?.id || receipt.status !== 'pending') throw new Error('submission_not_confirmed');
       const cleared = this.clearDraft();
       this.setData({ submitted: true, uncertain: false, notice: cleared ? '已提交审核。' : '已提交审核，本机草稿清理失败。' });
-      track('community.submit');
-      this.getOpenerEventChannel?.()?.emit('communityPostSubmitted');
-      this.openSubmissions();
     } catch (error) {
       if (this.closed) return;
       const uncertain = Boolean(this.pending && (!error.statusCode || error.statusCode >= 500 || error.statusCode === 409));
@@ -243,13 +240,19 @@ Page({
     } finally {
       if (!this.closed) this.setData({ submitting: false });
     }
+    if (this.closed || !this.data.submitted) return;
+    track('community.submit');
+    this.openSubmissions();
   },
 
   openSubmissions() {
     const fail = () => wx.showToast({ title: '已提交审核，请打开我的投稿', icon: 'none' });
+    getApp().communitySubmissionsEntry = true;
     if (this.fromGrowth) {
-      getApp().communitySubmissionsEntry = true;
       wx.switchTab({ url: '/pages/community/index', fail });
-    } else wx.navigateBack({ fail });
+    } else {
+      try { this.getOpenerEventChannel?.()?.emit?.('communityPostSubmitted'); } catch (_) {}
+      wx.navigateBack({ fail });
+    }
   },
 });
