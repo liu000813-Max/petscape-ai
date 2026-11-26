@@ -34,8 +34,11 @@ test('first home visit opens once, and returning after completion never opens it
   const app = application(); let navigations = 0;
   wx.navigateTo = ({ url }) => { assert.equal(url, '/pages/onboarding/index?entry=first'); navigations++; };
   app.onLaunch({ path: 'pages/home/index', query: {} });
+  assert.equal(app.takeBrandLaunch(), true);
+  assert.equal(app.takeBrandLaunch(), false);
   assert.equal(app.openOnboarding(), true); assert.equal(app.openOnboarding(), false);
   onboarding.complete(); app.onLaunch({ path: 'pages/home/index', query: {} });
+  assert.equal(app.takeBrandLaunch(), true);
   assert.equal(app.openOnboarding(), false); assert.equal(navigations, 1);
 });
 
@@ -50,9 +53,10 @@ test('cold and warm share or scan destinations keep their original route and arg
   ]) {
     const before = JSON.stringify(entry); const app = application();
     wx.navigateTo = () => assert.fail('must retain original destination');
-    app.onLaunch(entry); assert.equal(app.openOnboarding(), false);
+    app.onLaunch(entry); assert.equal(app.openOnboarding(), false); assert.equal(app.takeBrandLaunch(), false);
     app.onLaunch({ path: 'pages/home/index', query: {} }); app.onShow(entry);
     assert.equal(app.openOnboarding(), false); assert.equal(JSON.stringify(entry), before);
+    assert.equal(app.takeBrandLaunch(), false);
   }
 });
 

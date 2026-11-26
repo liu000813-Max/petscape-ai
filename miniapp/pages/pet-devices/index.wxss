@@ -1,0 +1,7 @@
+.device-pet { margin-top: 18rpx; color: #655861; font-size: 28rpx; overflow-wrap: anywhere; }
+.device-row { display: flex; justify-content: space-between; align-items: center; gap: 20rpx; margin-top: 42rpx; padding: 26rpx 0; border-top: 1rpx solid #eadde2; border-bottom: 1rpx solid #eadde2; }
+.device-name, .device-type { display: block; }
+.device-name { font-size: 31rpx; font-weight: 600; }
+.device-type { margin-top: 9rpx; color: #655861; font-size: 24rpx; }
+.device-offline { flex: none; color: #655861; }
+.device-note { margin-top: 22rpx; color: #655861; font-size: 24rpx; }

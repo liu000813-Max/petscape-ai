@@ -4,16 +4,18 @@
     <swiper-item>
       <scroll-view class="slide-scroll" scroll-y>
         <view class="slide-content">
-          <image class="guide-logo" src="/assets/petscape-logo.png" mode="aspectFit" />
+          <view class="guide-lead" lang="en">Let’s Start</view>
+          <view class="starter-deck" aria-label="示例宠物：守宫、花枝鼠和鹦鹉">
+            <view class="starter-card starter-left" aria-hidden="true"><image src="/assets/onboarding/gecko.png" mode="aspectFit" /></view>
+            <view class="starter-card starter-right" aria-hidden="true"><image src="/assets/onboarding/parrot.png" mode="aspectFit" /></view>
+            <view class="starter-card starter-center">
+              <image src="/assets/onboarding/rat.png" mode="aspectFit" />
+              <text class="example-name">米粒</text>
+              <text class="example-meta">示例宠物 · 花枝鼠</text>
+            </view>
+          </view>
           <view class="guide-title"><view>每一位家人，</view><view>都有自己的档案。</view></view>
           <view class="guide-description">留下名字、照片和物种，<view>从认识它开始，照顾每一天。</view></view>
-          <view class="family-illustration" aria-label="示例宠物：守宫、花枝鼠和鹦鹉">
-            <image class="animal side-animal" src="/assets/onboarding/gecko.png" mode="aspectFit" />
-            <image class="animal main-animal" src="/assets/onboarding/rat.png" mode="aspectFit" />
-            <image class="animal side-animal" src="/assets/onboarding/parrot.png" mode="aspectFit" />
-          </view>
-          <view class="example-name">米粒</view><view class="example-meta">示例宠物 · 花枝鼠 · 支持上传头像</view>
-          <view class="slide-note">一个宠物家庭，容纳不同的它们</view>
         </view>
       </scroll-view>
     </swiper-item>

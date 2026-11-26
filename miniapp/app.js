@@ -11,12 +11,22 @@ App({
   },
 
   onLaunch(options) {
-    this.onboardingPending = onboarding.isHomeEntry(options) && !onboarding.hasCompleted();
+    this.brandLaunchPending = onboarding.isHomeEntry(options);
+    this.onboardingPending = this.brandLaunchPending && !onboarding.hasCompleted();
     track('app.launch');
   },
 
   onShow(options) {
-    if (!onboarding.isHomeEntry(options)) this.onboardingPending = false;
+    if (!onboarding.isHomeEntry(options)) {
+      this.brandLaunchPending = false;
+      this.onboardingPending = false;
+    }
+  },
+
+  takeBrandLaunch() {
+    const pending = this.brandLaunchPending;
+    this.brandLaunchPending = false;
+    return pending;
   },
 
   openOnboarding(onFailure) {

@@ -228,6 +228,6 @@ Page({
   refreshGrowthPhotos() { return this.loadGrowth(); },
 
   openDevice() {
-    if (this.data.pet) wx.showModal({ title: '温湿度设备', content: '该宠物尚未连接设备，配对功能暂未开放。', showCancel: false });
+    if (this.data.pet) wx.navigateTo({ url: `/pages/pet-devices/index?petId=${encodeURIComponent(this.data.pet.id)}` });
   },
 });

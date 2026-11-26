@@ -7,6 +7,16 @@
   margin-bottom: 22rpx;
 }
 
+.brand-launch { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36rpx; background: #fff; }
+.brand-launch-logo { width: 340rpx; }
+.brand-launch-track { width: 176rpx; height: 8rpx; border-radius: 8rpx; background: #f3e7eb; overflow: hidden; }
+.brand-launch-fill { width: 46%; height: 100%; background: #bd6687; animation: brand-launch-motion 420ms ease both; }
+@keyframes brand-launch-motion { from { transform: translateX(-100%); } to { transform: translateX(220%); } }
+.home-greeting { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; margin-bottom: 22rpx; padding: 12rpx 0 18rpx; border-bottom: 1rpx solid #eadde2; }
+.home-greeting-title { font-size: 44rpx; font-weight: 700; line-height: 1.15; }
+.home-greeting .brand-logo { flex: none; width: 168rpx; margin: 0; }
+@media (prefers-reduced-motion: reduce) { .brand-launch-fill { animation: none; } }
+
 .action-card {
   position: relative;
   min-height: 210rpx;
@@ -189,10 +199,6 @@
 .care-note-input { height: 170rpx; }
 .recent-care { display: flex; flex-direction: column; gap: 8rpx; margin-top: 20rpx; padding: 18rpx; border-radius: 14rpx; background: #f8f4f1; color: #69574e; font-size: 22rpx; line-height: 1.6; overflow-wrap: anywhere; }
 .recent-care-note { white-space: pre-wrap; }
-.device-modal-body { text-align: center; }
-.device-plus.large { width: 94rpx; height: 94rpx; margin: 10rpx auto 24rpx; font-size: 48rpx; }
-.device-modal-title { display: block; font-size: 28rpx; font-weight: 600; }
-.device-modal-note { display: block; margin-top: 18rpx; color: #78685e; font-size: 24rpx; line-height: 1.7; }
 
 @media (prefers-reduced-motion: reduce) {
   .pet-carousel-track { transform: none !important; }

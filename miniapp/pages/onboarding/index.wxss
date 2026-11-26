@@ -6,16 +6,19 @@ page { height: 100%; background: #fff; }
 .guide-swiper { flex: 1; min-height: 0; width: 100%; }
 .slide-scroll { height: 100%; }
 .slide-content { padding: 30rpx 48rpx 26rpx; }
-.guide-logo { display: block; width: 260rpx; height: 92rpx; margin: 0 0 32rpx; }
+.guide-lead { color: #873a5b; font-family: Georgia, serif; font-style: italic; font-size: 84rpx; line-height: 1.1; text-align: center; }
+.starter-deck { position: relative; height: 320rpx; max-width: 620rpx; margin: 14rpx auto 24rpx; }
+.starter-card { position: absolute; top: 18rpx; height: 260rpx; width: 260rpx; background: #fff; border: 2rpx solid #dbd2d6; border-radius: 20rpx; }
+.starter-card image { display: block; width: 100%; height: 100%; background: #fff; border-radius: 18rpx; }
+.starter-left { left: 15%; transform: rotate(-12deg); }
+.starter-right { right: 15%; transform: rotate(12deg); }
+.starter-center { left: 50%; top: 0; width: 274rpx; height: 298rpx; transform: translateX(-50%); border-color: #40323a; box-shadow: 0 8rpx 0 #f0cfdd; display: flex; align-items: center; flex-direction: column; }
+.starter-center image { width: 172rpx; height: 172rpx; margin-top: 14rpx; }
 .guide-title { font-size: 52rpx; font-weight: 700; line-height: 1.5; letter-spacing: 0; }
 .guide-description { margin-top: 24rpx; font-size: 27rpx; color: #716a71; line-height: 1.85; }
 .animal { display: block; background: #fff; border-radius: 0; border: 0; }
-.family-illustration { height: 214rpx; display: flex; align-items: center; justify-content: space-between; margin-top: 42rpx; background: #fff; }
-.main-animal { width: 210rpx; height: 210rpx; }
-.side-animal { width: 134rpx; height: 134rpx; }
-.example-name { margin-top: 10rpx; font-size: 36rpx; font-weight: 700; text-align: center; }
-.example-meta { margin-top: 10rpx; color: #716a71; font-size: 23rpx; text-align: center; }
-.slide-note { border-top: 1rpx solid #eae7e9; padding-top: 30rpx; margin-top: 40rpx; text-align: center; color: #716a71; font-size: 24rpx; line-height: 1.6; }
+.example-name { margin-top: 4rpx; font-size: 34rpx; font-weight: 700; }
+.example-meta { margin-top: 7rpx; color: #655861; font-size: 22rpx; }
 .weight-illustration { margin-top: 48rpx; padding-top: 30rpx; border-top: 1rpx solid #eae7e9; }
 .example-head { display: flex; justify-content: space-between; align-items: center; color: #716a71; font-size: 26rpx; }
 .example-tag { font-size: 21rpx; color: #934563; padding: 8rpx 18rpx; background: #f7e9ef; border-radius: 8rpx; }

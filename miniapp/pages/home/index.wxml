@@ -19,8 +19,16 @@
   </view>
   <text class="daily-time">{{chart.latest.time}}</text>
 </template>
-<view class="page tab-page home-page" aria-hidden="{{!!activeModal}}">
-  <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
+<view wx:if="{{brandLaunching}}" class="brand-launch" role="status" aria-label="正在打开 PETSCAPE 宠境">
+  <image class="brand-launch-logo" src="/assets/petscape-logo.png" mode="widthFix" />
+  <view class="brand-launch-track" aria-hidden="true"><view class="brand-launch-fill"></view></view>
+</view>
+<view wx:else class="page tab-page home-page" aria-hidden="{{!!activeModal}}">
+  <view wx:if="{{pet}}" class="home-greeting">
+    <text class="home-greeting-title">{{greeting}}</text>
+    <image class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
+  </view>
+  <image wx:else class="brand-logo" src="/assets/petscape-logo.png" mode="widthFix" />
   <view wx:if="{{mockMode}}" class="badge">演示模式 · 示例内容与服务</view>
   <block wx:if="{{!pet && !loading && !loadError}}">
     <view class="eyebrow">PETSCAPE HABITAT</view>
@@ -62,7 +70,7 @@
       </view>
       <view class="carousel-caption"><text wx:if="{{weightSaving || careSaving}}">正在保存记录 · 暂停切换</text><text class="carousel-counter">{{petIndex + 1}} / {{petCount}}</text></view>
     </view>
-    <button class="device-card card device-empty" bindtap="openDeviceModal" disabled="{{loading || petSliding || weightSaving || careSaving}}" aria-label="为{{pet.name}}添加温湿度设备，尚未连接">
+    <button class="device-card card device-empty" bindtap="openDevice" disabled="{{loading || petSliding || weightSaving || careSaving}}" aria-label="为{{pet.name}}添加温湿度设备，尚未连接">
       <view class="device-summary"><text class="device-title">宠境环境</text><text class="device-subtitle">设备未连接</text></view>
       <view class="device-add"><view class="device-plus">＋</view><text>添加设备</text></view>
     </button>
@@ -146,7 +154,7 @@
   <view class="modal-backdrop" bindtap="closeModal" catchtouchmove="stopTouch"></view>
   <view class="record-modal" role="dialog" aria-modal="true">
     <view class="modal-handle"></view>
-    <view class="modal-heading"><view><text class="modal-kicker">{{modalPetName}} 的日常</text><text class="modal-title">{{activeModal === 'weight' ? '记录体重' : (activeModal === 'care' ? '记录' + careKind : '添加设备')}}</text></view><button class="modal-close" bindtap="closeModal" disabled="{{weightSaving || careSaving}}" aria-label="关闭弹窗">×</button></view>
+    <view class="modal-heading"><view><text class="modal-kicker">{{modalPetName}} 的日常</text><text class="modal-title">{{activeModal === 'weight' ? '记录体重' : '记录' + careKind}}</text></view><button class="modal-close" bindtap="closeModal" disabled="{{weightSaving || careSaving}}" aria-label="关闭弹窗">×</button></view>
     <scroll-view scroll-y="{{true}}" class="modal-scroll">
       <view wx:if="{{activeModal === 'weight'}}" class="modal-body">
         <view class="weight-input-label">本次体重</view>
@@ -179,12 +187,6 @@
         <view wx:if="{{careUnconfirmed || careLatest}}" class="recent-care"><text>最近一次{{careKind}}</text><block wx:if="{{careLatest}}"><text>{{careLatest.time}} · {{careLatest.displayValue}}</text><text wx:if="{{careLatest.note}}" class="recent-care-note">{{careLatest.note}}</text></block><text wx:else>近期记录中尚未读取到本类记录。</text></view>
         <button wx:if="{{careUnconfirmed || weightError}}" class="secondary-button weight-retry" disabled="{{careSaving || weightLoading}}" bindtap="refreshCareRecords">刷新记录，再核对</button>
         <button class="primary-button modal-save" loading="{{careSaving}}" disabled="{{careSaving || weightLoading || careUnconfirmed || weightError}}" bindtap="saveCareRecord">确认记录{{careKind}}</button>
-      </view>
-      <view wx:else class="modal-body device-modal-body">
-        <view class="device-plus large">＋</view>
-        <text class="device-modal-title">设备配对暂未开放</text>
-        <text class="device-modal-note">目前没有连接温湿度设备。连接设备后，可在首页查看温度、湿度和在线状态。</text>
-        <button class="primary-button modal-save" bindtap="closeModal">知道了</button>
       </view>
     </scroll-view>
   </view>

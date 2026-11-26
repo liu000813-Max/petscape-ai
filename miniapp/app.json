@@ -14,6 +14,7 @@
     "pages/settings/index",
     "pages/profile-edit/index",
     "pages/pet-detail/index",
+    "pages/pet-devices/index",
     "pages/pet-growth-edit/index",
     "pages/pet-edit/index",
     "pages/design/index",

@@ -46,6 +46,8 @@ function presentPet(pet) {
 
 Page({
   data: {
+    brandLaunching: false,
+    greeting: '',
     pet: null,
     pets: [],
     petCount: 0,
@@ -100,17 +102,37 @@ Page({
   },
 
   onShow() {
+    clearTimeout(this.brandLaunchTimer);
     this.openingPetPage = false;
-    syncTabBar(this, Boolean(this.data.activeModal));
-    this.setData({ mockMode: getApp().globalData.mockMode });
-    if (getApp().openOnboarding && getApp().openOnboarding(() => this.loadSummary())) return;
+    const app = getApp();
+    const brandLaunching = Boolean(app.takeBrandLaunch?.());
+    const hour = new Date().getHours();
+    const greeting = hour < 5 || hour >= 18 ? '晚上好' : hour < 12 ? '早上好' : '下午好';
+    this.setData({ brandLaunching, greeting, mockMode: app.globalData.mockMode });
+    syncTabBar(this, brandLaunching || Boolean(this.data.activeModal));
+    if (brandLaunching) {
+      this.brandLaunchTimer = setTimeout(() => {
+        this.setData({ brandLaunching: false });
+        syncTabBar(this, false);
+        this.showHome();
+      }, 420);
+      return;
+    }
+    return this.showHome();
+  },
+
+  showHome() {
+    if (getApp().openOnboarding?.(() => this.loadSummary())) return;
     if (this.isWriting() || this.data.activeModal) return;
     track('home.view');
     return this.loadSummary();
   },
 
-  onHide() { this.cancelPetSlide(); },
-  onUnload() { clearTimeout(this.petSlideTimer); },
+  onHide() {
+    clearTimeout(this.brandLaunchTimer);
+    this.cancelPetSlide();
+  },
+  onUnload() { clearTimeout(this.brandLaunchTimer); clearTimeout(this.petSlideTimer); },
 
   async loadSummary() {
     if (this.isWriting() || this.data.activeModal) return;
@@ -377,10 +399,9 @@ Page({
     } finally { this.setData({ careSaving: false }); }
   },
 
-  openDeviceModal() {
+  openDevice() {
     if (this.data.loading || this.data.petSliding || this.isWriting() || this.data.activeModal || !this.data.pet) return;
-    this.setData({ activeModal: 'device', modalPetId: this.data.selectedPetId, modalPetName: this.data.pet.name });
-    syncTabBar(this, true);
+    this.openPetPage(`/pages/pet-devices/index?petId=${encodeURIComponent(this.data.pet.id)}`);
   },
 
   onAvatarError(event) {

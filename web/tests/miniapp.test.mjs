@@ -561,7 +561,7 @@ test('home modal hides custom navigation through onShow and cannot be closed dur
   const states = [];
   home.getTabBar = () => ({ setData: (state) => states.push(state) });
   home.setData({ loading: false, pet: { id: 'a', name: '团子' }, selectedPetId: 'a' });
-  for (const open of [() => home.openWeightModal(), () => home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } }), () => home.openDeviceModal()]) {
+  for (const open of [() => home.openWeightModal(), () => home.openCareModal({ currentTarget: { dataset: { kind: '喂食' } } })]) {
     open();
     assert.equal(states.at(-1).hidden, true);
     home.onShow();
@@ -1712,13 +1712,31 @@ test('a late care refresh cannot unlock a different or reopened confirmation mod
   }
 });
 
-test('illness observations require a description and device entry never fabricates a connected reading', async () => {
+test('illness observations require a description and the device page only reads the selected pet', async () => {
   let writes = 0;
   const home = page('home', { ...careApi, createCareLog: async () => { writes++; } });
   await home.loadSummary(); home.openCareModal({ currentTarget: { dataset: { kind: '生病' } } });
   await home.saveCareRecord(); assert.equal(writes, 0);
-  home.closeModal(); home.openDeviceModal();
-  assert.equal(home.data.activeModal, 'device'); assert.equal(home.data.modalPetId, 'pet-a');
+  home.closeModal();
+  await home.selectPet({ currentTarget: { dataset: { id: 'pet-b' } } });
+  home.openDevice();
+  assert.deepEqual(navigation, ['navigateTo', '/pages/pet-devices/index?petId=pet-b']);
+
+  const ids = [];
+  const createPage = () => page('pet-devices', { getPet: async (id) => {
+    ids.push(id);
+    return { id: 'pet-b', name: '团子' };
+  } });
+  const devices = createPage();
+  await devices.onLoad({ petId: 'pet-b' });
+  assert.equal(devices.data.petName, '团子');
+  assert.equal(devices.data.error, '');
+  const invalid = createPage();
+  await invalid.onLoad({ petId: 'pet-a' });
+  assert.match(invalid.data.error, /不可用/);
+  assert.equal(invalid.data.petName, '');
+  await createPage().onLoad({});
+  assert.deepEqual(ids, ['pet-b', 'pet-a']);
 });
 
 test('home care drafts stay with their pet after switching away and returning', async () => {

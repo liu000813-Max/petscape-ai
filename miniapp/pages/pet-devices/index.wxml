@@ -1,0 +1,16 @@
+<view class="page device-page">
+  <view class="title">宠境设备</view>
+  <view wx:if="{{loading}}" class="loading">正在读取宠物档案</view>
+  <view wx:elif="{{error}}" class="error-state">
+    <text>{{error}}</text>
+    <button class="secondary-button" bindtap="loadPet">重新读取</button>
+  </view>
+  <block wx:else>
+    <view class="device-pet">{{petName}}</view>
+    <view class="device-row">
+      <view><text class="device-name">温湿度传感器</text><text class="device-type">蓝牙设备</text></view>
+      <text class="device-offline">未连接</text>
+    </view>
+    <view class="device-note">配对功能待开放</view>
+  </block>
+</view>
