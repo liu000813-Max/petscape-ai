@@ -57,6 +57,15 @@ async function toEntry(context: GrowthEntryContext, entry: {
 
 const photoInclude = { photos: { orderBy: { position: 'asc' as const }, include: { asset: { select: { ownerUserId: true, kind: true, status: true, mime: true } } } } };
 
+export async function getPetGrowthEntry(context: GrowthEntryContext & { petId: string; entryId: string }) {
+  const { prisma, ownerUserId, petId, entryId } = context;
+  const row = await prisma.petGrowthEntry.findFirst({
+    where: { id: entryId, ownerUserId, petId, deletedAt: null, pet: { ownerUserId, deletedAt: null } }, include: photoInclude,
+  });
+  if (!row) throw new NotFoundError('PetGrowthEntry');
+  return toEntry(context, row);
+}
+
 export async function listPetGrowthEntries(context: GrowthEntryContext & { petId: string; query: unknown }) {
   const { prisma, ownerUserId, petId, query } = context;
   const input = ListPetGrowthEntriesQuerySchema.parse(query);

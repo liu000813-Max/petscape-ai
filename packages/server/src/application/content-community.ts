@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto';
 import type { PrismaClient, PrismaInputJsonValue } from '../infra/db/index.ts';
+import { isCommunityImage } from './community-photos.ts';
 import {
   AnalyticsEventSchema,
   CareLogQuerySchema,
@@ -21,6 +23,11 @@ import { ModerateContentSchema, AdminContentQuerySchema, AdminSaveContentSchema,
 
 const publicArticleWhere = { status: 'published' } as const;
 const publicPostWhere = { status: 'published' } as const;
+const orderedPhotoIds = { orderBy: { position: 'asc' as const }, select: { assetId: true } };
+
+function communityPhotoIds(photos: { assetId: string }[]) {
+  return photos.map(photo => photo.assetId);
+}
 
 async function requireContentAdmin(prisma: PrismaClient, actorUserId: string) {
   const actor = await prisma.user.findUnique({ where: { id: actorUserId }, select: { role: true } });
@@ -34,9 +41,10 @@ export async function getContentArticle({ prisma, articleId }: { prisma: PrismaC
 }
 
 export async function getCommunityPost({ prisma, postId }: { prisma: PrismaClient; postId: string }) {
-  const row = await prisma.communityPost.findFirst({ where: { id: postId, status: 'published' }, include: { owner: { select: { name: true } } } });
+  const row = await prisma.communityPost.findFirst({ where: { id: postId, status: 'published' }, include: { owner: { select: { name: true } }, photos: orderedPhotoIds } });
   if (!row) throw new NotFoundError('CommunityPost');
-  return { id: row.id, title: row.title, body: row.body, topic: row.topic, authorName: row.owner.name, createdAt: row.createdAt.toISOString() };
+  return { id: row.id, title: row.title, body: row.body, topic: row.topic, authorName: row.owner.name, createdAt: row.createdAt.toISOString(),
+    ...(row.photos.length ? { photoAssetIds: communityPhotoIds(row.photos) } : {}) };
 }
 
 export async function listContentArticles({ prisma, query }: { prisma: PrismaClient; query: unknown }) {
@@ -53,33 +61,72 @@ export async function listCommunityPosts({ prisma, query, userId }: { prisma: Pr
   const input = CommunityPostQuerySchema.parse(query);
   const rows = await prisma.communityPost.findMany({
     where: { ...publicPostWhere, ...(input.topic ? { topic: input.topic } : {}), ...(input.speciesCode ? { speciesCode: input.speciesCode } : {}) },
-    include: { owner: { select: { name: true } }, _count: { select: { comments: { where: { status: 'published' } }, likes: true } }, likes: { where: { ownerUserId: userId ?? '' }, select: { id: true } } },
+    include: { owner: { select: { name: true } }, _count: { select: { comments: { where: { status: 'published' } }, likes: true } }, likes: { where: { ownerUserId: userId ?? '' }, select: { id: true } }, photos: { ...orderedPhotoIds, take: 1 } },
     orderBy: { createdAt: 'desc' },
     take: input.limit,
   });
-  return rows.map((row) => ({ id: row.id, title: row.title, body: row.body, topic: row.topic, speciesCode: row.speciesCode, authorName: row.owner.name, commentCount: row._count.comments, likeCount: row._count.likes, liked: row.likes.length > 0, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() }));
+  return rows.map((row) => ({ id: row.id, title: row.title, body: row.body, topic: row.topic, speciesCode: row.speciesCode, authorName: row.owner.name, commentCount: row._count.comments, likeCount: row._count.likes, liked: row.likes.length > 0, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
+    ...(row.photos[0] ? { coverAssetId: row.photos[0].assetId } : {}) }));
 }
 
 export async function listMyCommunityPosts({ prisma, ownerUserId, query }: { prisma: PrismaClient; ownerUserId: string; query: unknown }) {
   const { limit, offset } = MyCommunityPostsQuerySchema.parse(query);
   const rows = await prisma.communityPost.findMany({
     where: { ownerUserId },
-    select: { id: true, title: true, body: true, topic: true, status: true, createdAt: true, updatedAt: true },
+    select: { id: true, title: true, body: true, topic: true, status: true, createdAt: true, updatedAt: true, _count: { select: { photos: true } } },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     skip: offset,
     take: limit + 1,
   });
   const nextOffset = offset + limit;
   return {
-    posts: rows.slice(0, limit).map(row => ({ ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() })),
+    posts: rows.slice(0, limit).map(({ _count, ...row }) => ({ ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
+      ...(_count.photos ? { photoCount: _count.photos } : {}) })),
     nextOffset: rows.length > limit && MyCommunityPostsQuerySchema.shape.offset.safeParse(nextOffset).success ? nextOffset : null,
   };
 }
 
 export async function createCommunityPost({ prisma, ownerUserId, input }: { prisma: PrismaClient; ownerUserId: string; input: CreateCommunityPost }) {
   const parsed = CreateCommunityPostSchema.parse(input);
-  const row = await prisma.communityPost.create({ data: { ownerUserId, title: parsed.title, body: parsed.body, topic: parsed.topic, speciesCode: parsed.speciesCode ?? null, status: 'pending' } });
-  return { id: row.id, status: row.status, createdAt: row.createdAt.toISOString() };
+  const { title, body, topic, speciesCode = null, photoAssetIds = [], submissionKey } = parsed;
+  const id = submissionKey ? 'post_' + createHash('sha256').update(JSON.stringify([ownerUserId, submissionKey])).digest('hex') : undefined;
+  const findSubmitted = async () => {
+    if (!id) return null;
+    const post = await prisma.communityPost.findFirst({ where: { id, ownerUserId }, include: { photos: orderedPhotoIds } });
+    if (post && (post.title !== title || post.body !== body || post.topic !== topic || post.speciesCode !== speciesCode
+      || JSON.stringify(communityPhotoIds(post.photos)) !== JSON.stringify(photoAssetIds))) {
+      throw new CommunitySubmissionConflictError();
+    }
+    return post;
+  };
+  let submitted = await findSubmitted();
+  if (!submitted) {
+    try {
+      submitted = await prisma.$transaction(async tx => {
+        if (photoAssetIds.length) {
+          const photos = await tx.asset.findMany({
+            where: { id: { in: photoAssetIds }, ownerUserId, status: 'available', OR: [
+              { kind: 'community_photo' },
+              { kind: 'growth_photo', growthPhotos: { some: { entry: { ownerUserId, deletedAt: null, pet: { ownerUserId, deletedAt: null } } } } },
+            ] },
+            select: { mime: true },
+          });
+          if (photos.length !== photoAssetIds.length || photos.some(photo => !isCommunityImage(photo.mime))) throw new NotFoundError('Asset');
+        }
+        return tx.communityPost.create({ data: { id, ownerUserId, title, body, topic, speciesCode, status: 'pending',
+          photos: { create: photoAssetIds.map((assetId, position) => ({ assetId, position })) } }, include: { photos: orderedPhotoIds } });
+      });
+    } catch (error) {
+      if (!id || !error || typeof error !== 'object' || !('code' in error) || error.code !== 'P2002') throw error;
+      submitted = await findSubmitted();
+      if (!submitted) throw error;
+    }
+  }
+  return { id: submitted.id, status: 'pending' as const, createdAt: submitted.createdAt.toISOString() };
+}
+
+export class CommunitySubmissionConflictError extends Error {
+  constructor() { super('community_submission_conflict'); }
 }
 
 export async function listCommunityComments({ prisma, postId }: { prisma: PrismaClient; postId: string }) {
@@ -178,7 +225,9 @@ export async function listAdminContent({ prisma, actorUserId, query }: { prisma:
   const parsed = AdminContentQuerySchema.parse(query);
   const args = { where: parsed.status ? { status: parsed.status } : {}, orderBy: { updatedAt: 'desc' as const }, take: parsed.limit };
   if (parsed.contentType === 'article') return (await prisma.contentArticle.findMany(args)).map((row) => ({ id: row.id, title: row.title, body: row.body, status: row.status, updatedAt: row.updatedAt.toISOString() }));
-  if (parsed.contentType === 'post') return (await prisma.communityPost.findMany(args)).map((row) => ({ id: row.id, title: row.title, body: row.body, status: row.status, updatedAt: row.updatedAt.toISOString() }));
+  if (parsed.contentType === 'post') return (await prisma.communityPost.findMany({ ...args, include: { photos: orderedPhotoIds } }))
+    .map(row => ({ id: row.id, title: row.title, body: row.body, status: row.status, updatedAt: row.updatedAt.toISOString(),
+      ...(row.photos.length ? { photoAssetIds: communityPhotoIds(row.photos) } : {}) }));
   if (parsed.contentType === 'comment') return (await prisma.communityComment.findMany(args)).map((row) => ({ id: row.id, title: '社区评论', body: row.body, status: row.status, updatedAt: row.updatedAt.toISOString() }));
   return (await prisma.serviceProvider.findMany(args)).map((row) => ({ id: row.id, title: row.name, body: `${row.city} · ${row.serviceType}\n${row.description}`, status: row.status, updatedAt: row.updatedAt.toISOString() }));
 }

@@ -18,6 +18,7 @@
   <view wx:elif="{{error}}" class="error-state"><text>{{error}}</text><button class="secondary-button" bindtap="loadSection">重新读取</button></view>
   <view wx:elif="{{posts.length}}" class="section post-list">
     <view wx:for="{{posts}}" wx:key="id" wx:if="{{active === '全部' || active === item.tag}}" class="post-card card" data-id="{{item.id}}" bindtap="openPost">
+      <image wx:if="{{item.coverUrl}}" class="post-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load="{{true}}" />
       <view class="post-tag badge">{{item.topicLabel}}</view>
       <text class="post-title">{{item.title}}</text>
       <view class="post-meta"><text>{{item.author}}</text><text>{{item.time}}</text></view>
@@ -40,7 +41,7 @@
             <text class="submission-date">{{item.dateLabel}}</text>
           </view>
           <text class="post-title">{{item.title}}</text>
-          <view class="submission-topic"><text>{{item.topicLabel}}</text><text aria-hidden="true">{{expandedPostId === item.id ? '收起 ⌃' : '展开 ⌄'}}</text></view>
+          <view class="submission-topic"><text>{{item.topicLabel}}{{item.photoCount ? ' · ' + item.photoCount + ' 张照片' : ''}}</text><text aria-hidden="true">{{expandedPostId === item.id ? '收起 ⌃' : '展开 ⌄'}}</text></view>
         </button>
         <text wx:if="{{expandedPostId === item.id}}" class="submission-body" user-select>{{item.body}}</text>
       </view>

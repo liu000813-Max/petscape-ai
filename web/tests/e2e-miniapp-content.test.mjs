@@ -357,6 +357,32 @@ test('authors can track their own post decisions while private submissions stay 
   } finally { await owner.drain(); await other.drain(); }
 });
 
+test('community photo HTTP gates uploads, author scope and pending photo access', async () => {
+  const photosPath = '/api/v1/community/posts/photos';
+  const raw = Buffer.from('invalid PNG');
+  await http(photosPath, { method: 'POST', raw, headers: { 'content-type': 'image/png' } }, 401);
+  await http(photosPath, { method: 'POST', raw, headers: { ...nativeHeaders('owner'), 'content-type': 'image/png' } }, 400);
+  const draft = role => http('/api/v1/community/posts/mine?limit=1', { headers: nativeHeaders(role) });
+  assert.notEqual((await draft('owner')).draftScope, (await draft('other')).draftScope);
+  const asset = await prisma.asset.create({ data: { ownerUserId: users.owner, kind: 'community_photo',
+    status: 'available', mime: 'image/png', size: 8, ossKey: run + '-community-photo' } });
+  const data = { title: '图片分享', body: '', topic: run + '-photos', photoAssetIds: [asset.id], submissionKey: run + '-submission' };
+  const postsPath = '/api/v1/community/posts';
+  await http(postsPath, { method: 'POST', headers: nativeHeaders('other'), data }, 404);
+  const post = await http(postsPath, { method: 'POST', headers: nativeHeaders('owner'), data }, 201);
+  assert.equal((await http(postsPath, { method: 'POST', headers: nativeHeaders('owner'), data }, 201)).id, post.id);
+  const photoPath = postsPath + '/' + post.id + '/photos/' + asset.id;
+  await http(photoPath, {}, 404);
+  await http(photoPath, { headers: nativeHeaders('other') }, 404);
+  const queue = await http('/api/v1/admin/content?contentType=post', { headers: cookieHeaders('admin') });
+  assert.deepEqual(queue.items.find(item => item.id === post.id).photoAssetIds, [asset.id]);
+  await moderate('post', post.id, 'published');
+  assert.equal((await http(postsPath + '?topic=' + data.topic)).posts[0].coverAssetId, asset.id);
+  assert.deepEqual((await http(postsPath + '/' + post.id)).photoAssetIds, [asset.id]);
+  await moderate('post', post.id, 'archived');
+  await http(photoPath, {}, 404);
+});
+
 test('care ownership, concurrent completion and pet soft deletion survive actual HTTP calls', async () => {
   const owner = await nativeClient('owner');
   const other = await nativeClient('other');

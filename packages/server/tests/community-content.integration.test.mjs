@@ -57,6 +57,36 @@ if (!process.env.DATABASE_URL) {
     await assert.rejects(() => listCommunityComments({ prisma, postId: post.id }), NotFoundError);
   });
 
+  test('community photos follow post moderation and retries preserve the ordered submission', async () => {
+    const { findCommunityPhoto } = await import('../src/application/community-photos.ts');
+    const png = mime => ({ mime, size: 10, status: 'available' });
+    const [upload, growth, foreign, cover] = await Promise.all([
+      ['community_photo', owner], ['growth_photo', owner], ['community_photo', other], ['pet_cover', owner],
+    ].map(([kind, ownerUserId], i) => prisma.asset.create({ data: { ...png('image/png'), kind, ownerUserId, ossKey: run + '-post-photo-' + i } })));
+    await prisma.petGrowthEntry.create({ data: { ownerUserId: owner, petId: pet.id, recordedAt: new Date(),
+      photos: { create: { assetId: growth.id, position: 0 } } } });
+    const input = { title: '图文', body: '', topic: run + '-photos', photoAssetIds: [growth.id, upload.id], submissionKey: 'photo-submission-test' };
+    for (const id of [foreign.id, cover.id]) {
+      await assert.rejects(createCommunityPost({ prisma, ownerUserId: owner, input: { ...input, photoAssetIds: [id] } }), NotFoundError);
+    }
+    await assert.rejects(createCommunityPost({ prisma, ownerUserId: other, input: { ...input, photoAssetIds: [growth.id] } }), NotFoundError);
+    const copies = await Promise.all(Array.from({ length: 6 }, () => createCommunityPost({ prisma, ownerUserId: owner, input })));
+    const postId = copies[0].id;
+    assert.equal(new Set(copies.map(post => post.id)).size, 1);
+    await assert.rejects(createCommunityPost({ prisma, ownerUserId: owner, input: { ...input, body: 'changed' } }), /conflict/);
+    const lookUp = userId => findCommunityPhoto({ prisma, postId, assetId: growth.id, userId });
+    await assert.rejects(lookUp(), NotFoundError);
+    await assert.rejects(lookUp(other), NotFoundError);
+    assert.equal((await lookUp(admin)).id, growth.id);
+    assert.equal((await listCommunityPosts({ prisma, query: { topic: input.topic } })).length, 0);
+    await moderateContent({ prisma, actorUserId: admin, input: { contentType: 'post', id: postId, status: 'published' } });
+    assert.deepEqual((await getCommunityPost({ prisma, postId })).photoAssetIds, input.photoAssetIds);
+    assert.equal((await listCommunityPosts({ prisma, query: { topic: input.topic } }))[0].coverAssetId, growth.id);
+    assert.equal((await lookUp()).id, growth.id);
+    await moderateContent({ prisma, actorUserId: admin, input: { contentType: 'post', id: postId, status: 'archived' } });
+    await assert.rejects(lookUp(), NotFoundError);
+  });
+
   test('concurrent repeated likes create one row; desired unlike remains idempotent', async () => {
     const post = await prisma.communityPost.create({ data: { ownerUserId: owner, title: '并发', body: '测试', topic: run, status: 'published' } });
     await Promise.all(Array.from({ length: 10 }, () => toggleCommunityPostLike({ prisma, ownerUserId: owner, postId: post.id, liked: true })));

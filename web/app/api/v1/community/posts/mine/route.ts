@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     const result = await listMyCommunityPosts({
       prisma: getWebServerContext().prisma, ownerUserId: session.user.id, query: query.data,
     });
-    return Object.assign(NextResponse.json(MyCommunityPostsResponseSchema.parse(result)), { _loggedUserId: session.user.id });
+    return Object.assign(NextResponse.json(MyCommunityPostsResponseSchema.parse({ ...result, draftScope: session.user.id })), { _loggedUserId: session.user.id });
   });
   response.headers.set('Cache-Control', 'private, no-store');
   return response;

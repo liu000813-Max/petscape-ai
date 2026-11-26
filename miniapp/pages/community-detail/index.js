@@ -1,14 +1,22 @@
 const { getCommunityPost, listCommunityComments, createCommunityComment } = require('../../utils/request');
 const { topicLabel } = require('../../utils/community-topics');
+const { communityPhotoUrl } = require('../../utils/community-photos');
 Page({
-  data: { post: null, comments: [], body: '', loading: true, submitting: false, error: '' },
+  data: { post: null, photos: [], photoIndex: 0, comments: [], body: '', loading: true, submitting: false, error: '' },
   onLoad(options) { this.postId = options.id; return this.loadPost(); },
   async loadPost() {
     this.setData({ loading: true, error: '' });
     try {
       const [post, result] = await Promise.all([getCommunityPost(this.postId), listCommunityComments(this.postId)]);
-      this.setData({ post: { ...post, topicLabel: topicLabel(post.topic) }, comments: result.comments || [], loading: false });
+      const photos = (post.photoAssetIds || []).map(id => communityPhotoUrl(post.id, id));
+      this.setData({ post: { ...post, topicLabel: topicLabel(post.topic) }, photos, photoIndex: 0, comments: result.comments || [], loading: false });
     } catch (error) { this.setData({ loading: false, error: error.statusCode === 404 ? '这条动态已下架或不存在' : '动态读取失败，请重试' }); }
+  },
+  onPhotoChange(event) { this.setData({ photoIndex: event.detail.current }); },
+  previewPhoto(event) {
+    const { photos } = this.data;
+    const current = photos[Number(event.currentTarget.dataset.index)];
+    if (current) wx.previewImage({ current, urls: photos });
   },
   onBodyInput(event) { this.setData({ body: event.detail.value }); },
   async submitComment() {

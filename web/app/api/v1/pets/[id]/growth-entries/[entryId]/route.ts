@@ -2,11 +2,24 @@ import { NextResponse } from 'next/server';
 import { getMiniappAwareSession } from '../../../../../../lib/miniapp-auth';
 import { getWebServerContext } from '../../../../../../lib/server-context';
 import { withContentApi } from '../../../../../../lib/content-api';
-import { deletePetGrowthEntry, InvalidPetGrowthEntryError, NotFoundError, updatePetGrowthEntry } from '@petscape/server/application';
+import { deletePetGrowthEntry, getPetGrowthEntry, InvalidPetGrowthEntryError, NotFoundError, updatePetGrowthEntry } from '@petscape/server/application';
 import { DeletePetGrowthEntryResponseSchema, PetGrowthEntryParamsSchema, UpdatePetGrowthEntrySchema, PetGrowthEntryResponseSchema } from '@petscape/server/contracts/pet-growth';
 import { invalidPetRequest, petApiError, privatePetApiResponse } from '../../../../../../lib/pet-api';
 
 type Context = { params: Promise<{ id: string; entryId: string }> };
+
+export async function GET(req: Request, context: Context) {
+  return privatePetApiResponse(withContentApi(req, async () => {
+    const session = await getMiniappAwareSession(req);
+    if (!session) return petApiError(401, { error: 'unauthorized' });
+    const params = PetGrowthEntryParamsSchema.safeParse(await context.params);
+    if (!params.success) return invalidPetRequest(params.error, session.user.id);
+    const server = getWebServerContext();
+    const result = await getPetGrowthEntry({ prisma: server.prisma, get oss() { return server.oss; },
+      ownerUserId: session.user.id, petId: params.data.id, entryId: params.data.entryId });
+    return Object.assign(NextResponse.json(PetGrowthEntryResponseSchema.parse(result)), { _loggedUserId: session.user.id });
+  }));
+}
 
 export async function PATCH(req: Request, context: Context) {
   return privatePetApiResponse(withContentApi(req, async () => {

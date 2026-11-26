@@ -1,14 +1,42 @@
-<view class="page">
-  <view class="eyebrow">PETSCAPE COMMUNITY</view>
-  <view class="title">发布动态</view>
-  <view class="form-card card section">
-    <text class="field-label">主题</text>
-    <picker mode="selector" range="{{topicLabels}}" value="{{topicIndex}}" disabled="{{submitting || submitted}}" bindchange="onTopicChange"><view class="picker-value">{{topicLabels[topicIndex]}}　⌄</view></picker>
-    <text class="field-label">标题</text>
-    <input class="input" maxlength="160" placeholder="给这次分享起个标题" value="{{title}}" disabled="{{submitting || submitted}}" bindinput="onTitleInput" />
-    <text class="field-label">内容</text>
-    <textarea class="textarea" maxlength="10000" placeholder="记录你的问题、经验或宠境方案" value="{{body}}" disabled="{{submitting || submitted}}" bindinput="onBodyInput" />
-  </view>
-  <button wx:if="{{submitted}}" class="primary-button section" bindtap="openSubmissions">已提交 · 查看我的投稿</button>
-  <button wx:else class="primary-button section" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交审核</button>
+<view class="page note-editor">
+  <view wx:if="{{loading}}" class="loading">正在读取草稿</view>
+  <view wx:elif="{{!ready}}" class="error-state"><text>{{notice}}</text><button class="secondary-button" bindtap="loadDraft">重试</button></view>
+  <block wx:else>
+    <view class="note-photo-header">
+      <text class="note-label">照片 <text class="note-count">{{photos.length}} / {{limit}}</text></text>
+      <button wx:if="{{photos.length < limit}}" class="note-link" bindtap="choosePhotos" disabled="{{choosing || submitting || submitted || uncertain}}">＋ 添加照片</button>
+    </view>
+    <scroll-view wx:if="{{photos.length}}" class="note-photo-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="note-photo-row">
+        <view wx:for="{{photos}}" wx:key="key" class="note-photo">
+          <button class="note-thumbnail" bindtap="previewPhoto" data-key="{{item.key}}" aria-label="查看第 {{index + 1}} 张照片">
+            <image wx:if="{{item.path}}" src="{{item.path}}" mode="aspectFill" />
+            <text wx:else>照片不可用</text>
+            <text class="note-photo-index">{{index === 0 ? '封面' : index + 1}}</text>
+          </button>
+          <view class="note-photo-actions">
+            <button wx:if="{{index > 0}}" bindtap="changeOrder" data-key="{{item.key}}" data-action="cover" aria-label="设为封面" disabled="{{choosing || submitting || submitted || uncertain}}">☆</button>
+            <button bindtap="changeOrder" data-key="{{item.key}}" data-step="-1" aria-label="左移" disabled="{{index === 0 || choosing || submitting || submitted || uncertain}}">←</button>
+            <button bindtap="changeOrder" data-key="{{item.key}}" data-step="1" aria-label="右移" disabled="{{index === photos.length - 1 || choosing || submitting || submitted || uncertain}}">→</button>
+            <button bindtap="removePhoto" data-key="{{item.key}}" aria-label="删除照片" disabled="{{choosing || submitting || submitted || uncertain}}">×</button>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+    <button wx:if="{{sourcePending && photos.length < limit && !uncertain && !submitted}}" class="note-link" bindtap="retrySource" disabled="{{submitting || choosing}}">带入成长照片</button>
+    <input class="note-title" placeholder="填写标题" aria-label="笔记标题" maxlength="160" value="{{title}}" disabled="{{choosing || submitting || submitted || uncertain}}" bindinput="onTitleInput" />
+    <textarea class="note-body" placeholder="分享宠物日常、养护经验或宠境布置" aria-label="笔记正文" maxlength="10000" value="{{body}}" disabled="{{choosing || submitting || submitted || uncertain}}" bindinput="onBodyInput" />
+    <picker mode="selector" range="{{topicLabels}}" value="{{topicIndex}}" disabled="{{choosing || submitting || submitted || uncertain}}" bindchange="onTopicChange">
+      <view class="note-topic"><text>话题</text><text>#{{topicLabels[topicIndex]}}　›</text></view>
+    </picker>
+    <view wx:if="{{notice}}" class="note-notice" role="alert">{{notice}}</view>
+    <view class="note-footer">
+      <button wx:if="{{submitted}}" class="primary-button" bindtap="openSubmissions">查看我的投稿</button>
+      <button wx:else class="primary-button" loading="{{submitting}}" disabled="{{choosing || submitting}}" bindtap="submit">{{uncertain ? '重试提交' : '提交审核'}}</button>
+      <view wx:if="{{savedDraft && !submitted && !uncertain}}" class="note-draft">
+        <button class="note-link" bindtap="saveAndExit" disabled="{{submitting || choosing}}">保存草稿并退出</button>
+        <button class="note-link" bindtap="discardDraft" disabled="{{submitting || choosing}}">删除草稿</button>
+      </view>
+    </view>
+  </block>
 </view>

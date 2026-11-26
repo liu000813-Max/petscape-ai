@@ -94,7 +94,10 @@
         <button class="growth-upload-tile" bindtap="openGrowthEditor" disabled="{{choosingGrowthPhotos}}" aria-label="从相册添加成长照片">＋</button>
       </view>
       <view wx:for="{{growthEntries}}" wx:key="id" wx:for-item="entry" wx:for-index="entryIndex" class="growth-entry {{entryIndex === 0 ? 'growth-entry-latest' : ''}}">
-        <text class="growth-date">{{entry.dateLabel}}</text>
+        <view class="growth-date-row">
+          <text class="growth-date">{{entry.dateLabel}}</text>
+          <button wx:if="{{entry.photos.length}}" class="growth-share" data-entry-id="{{entry.id}}" bindtap="shareGrowthPhoto">分享到社区 ↗</button>
+        </view>
         <text wx:if="{{entry.note}}" class="growth-note" user-select="{{true}}">{{entry.note}}</text>
         <view wx:if="{{entry.photos.length}}" class="growth-photos">
           <block wx:for="{{entry.photos}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="assetId">

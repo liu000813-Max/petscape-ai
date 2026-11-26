@@ -34,10 +34,12 @@ export const CommunityPostQuerySchema = z.strictObject({
 
 export const CreateCommunityPostSchema = z.strictObject({
   title: z.string().trim().min(1).max(160),
-  body: z.string().trim().min(1).max(10000),
+  body: z.string().trim().max(10000),
   topic: z.string().trim().min(1).max(80),
   speciesCode: optionalSpecies,
-});
+  photoAssetIds: z.array(idSchema).max(9).refine(ids => new Set(ids).size === ids.length).optional(),
+  submissionKey: z.string().regex(/^[a-zA-Z0-9_-]{12,100}$/).optional(),
+}).refine(post => post.body || post.photoAssetIds?.length, { path: ['body'], message: '请填写正文或添加照片' });
 
 export const CommunityPostResponseSchema = z.strictObject({
   id: idSchema,
@@ -51,9 +53,11 @@ export const CommunityPostResponseSchema = z.strictObject({
   liked: z.boolean(),
   createdAt: dateSchema,
   updatedAt: dateSchema,
+  coverAssetId: idSchema.optional(),
 });
 export const CommunityPostListResponseSchema = z.strictObject({ posts: z.array(CommunityPostResponseSchema) });
-export const CommunityPostDetailResponseSchema = CommunityPostResponseSchema.pick({ id: true, title: true, body: true, topic: true, authorName: true, createdAt: true });
+export const CommunityPostDetailResponseSchema = CommunityPostResponseSchema.pick({ id: true, title: true, body: true, topic: true, authorName: true, createdAt: true })
+  .extend({ photoAssetIds: z.array(idSchema).max(9).optional() });
 
 export const MyCommunityPostsQuerySchema = z.strictObject({
   limit: CommunityPostQuerySchema.shape.limit,
@@ -61,10 +65,11 @@ export const MyCommunityPostsQuerySchema = z.strictObject({
 });
 export const MyCommunityPostSchema = CommunityPostResponseSchema.pick({
   id: true, title: true, body: true, topic: true, createdAt: true, updatedAt: true,
-}).extend({ status: z.enum(['pending', 'published', 'rejected', 'archived']) });
+}).extend({ status: z.enum(['pending', 'published', 'rejected', 'archived']), photoCount: z.number().int().nonnegative().optional() });
 export const MyCommunityPostsResponseSchema = z.strictObject({
   posts: z.array(MyCommunityPostSchema),
   nextOffset: MyCommunityPostsQuerySchema.shape.offset.unwrap().nullable(),
+  draftScope: idSchema.optional(),
 });
 
 export const CreateCommunityCommentSchema = z.strictObject({
@@ -170,7 +175,7 @@ export const CompleteCareReminderSchema = z.strictObject({ completed: z.literal(
 export const CareReminderQuerySchema = z.strictObject({ petId: idSchema.optional(), limit: z.coerce.number().int().min(1).max(100).default(50) });
 
 export const AdminContentQuerySchema = z.strictObject({ contentType: ModerateContentSchema.shape.contentType, status: ModerateContentSchema.shape.status.optional(), limit: z.coerce.number().int().min(1).max(100).default(50) });
-export const AdminContentItemSchema = z.strictObject({ id: idSchema, title: z.string(), body: z.string(), status: ModerateContentSchema.shape.status, updatedAt: dateSchema });
+export const AdminContentItemSchema = z.strictObject({ id: idSchema, title: z.string(), body: z.string(), status: ModerateContentSchema.shape.status, updatedAt: dateSchema, photoAssetIds: z.array(idSchema).max(9).optional() });
 export const AdminContentListResponseSchema = z.strictObject({ items: z.array(AdminContentItemSchema) });
 export const SaveArticleSchema = z.strictObject({
   slug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(191),

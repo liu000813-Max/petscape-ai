@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { cp, mkdir, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
-const latestMigration = '20261124170000_pet_growth_diary';
-const tables = ['content_article', 'community_post', 'community_comment', 'community_post_like', 'care_log', 'care_reminder', 'service_provider', 'analytics_event', 'pet_growth_entry', 'pet_growth_entry_photo'];
+const latestMigration = '20261126101356_community_post_photos';
+const tables = ['content_article', 'community_post', 'community_post_photo', 'community_comment', 'community_post_like', 'care_log', 'care_reminder', 'service_provider', 'analytics_event', 'pet_growth_entry', 'pet_growth_entry_photo'];
 
 export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade, withClient, runPrisma }) {
   const source = path.join(repo, 'packages/server/prisma');
@@ -32,7 +32,7 @@ export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade
     const checks = await client.query("SELECT conname FROM pg_constraint WHERE contype='c' AND conrelid IN (SELECT oid FROM pg_class WHERE relname=ANY($1)) ORDER BY conname", [tables]);
     assert.deepEqual(checks.rows.map((row) => row.conname), ['community_comment_status_valid', 'community_post_status_valid', 'content_article_status_valid', 'service_provider_status_valid']);
     const foreignKeys = await client.query("SELECT conname FROM pg_constraint WHERE contype='f' AND conrelid IN (SELECT oid FROM pg_class WHERE relname=ANY($1))", [tables]);
-    assert.equal(foreignKeys.rowCount, 15);
+    assert.equal(foreignKeys.rowCount, 17);
     const lifeStages = await client.query('SELECT enumlabel FROM pg_enum WHERE enumtypid=\'"PetLifeStage"\'::regtype ORDER BY enumsortorder');
     assert.deepEqual(lifeStages.rows.map((row) => row.enumlabel).sort(), ['adult', 'juvenile', 'senior', 'subadult', 'unknown']);
     const now = new Date();
@@ -52,6 +52,11 @@ export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade
       await client.query('INSERT INTO asset (id,"ownerUserId",kind,mime,size,"ossKey",status,"updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', ['migration-photo-asset', 'migration-check', 'growth_photo', 'image/png', 16, 'uploads/raw/migration-check/growth', 'available', now]);
       await client.query('INSERT INTO asset (id,"ownerUserId",kind,mime,size,"ossKey",status,"updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', ['migration-photo-asset-second', 'migration-check', 'growth_photo', 'image/png', 16, 'uploads/raw/migration-check/growth-second', 'available', now]);
       await client.query('INSERT INTO pet_growth_entry_photo (id,"entryId","assetId",position) VALUES ($1,$2,$3,$4)', ['migration-photo', 'migration-growth-entry', 'migration-photo-asset', 0]);
+      const linkPostPhoto = 'INSERT INTO community_post_photo ("postId","assetId",position) VALUES ($1,$2,$3)';
+      await client.query(linkPostPhoto, ['migration-post', 'migration-photo-asset', 0]);
+      await rejectSql(linkPostPhoto, ['migration-post', 'migration-photo-asset-second', 0], '23505');
+      await rejectSql(linkPostPhoto, ['migration-post', 'migration-photo-asset', 1], '23505');
+      await rejectSql(linkPostPhoto, ['migration-post', 'missing-asset', 1], '23503');
       await rejectSql('INSERT INTO miniapp_profile ("userId",nickname,"updatedAt") VALUES ($1,$2,$3)', ['migration-check', '重复', now], '23505');
       await rejectSql('INSERT INTO miniapp_profile ("userId",nickname,"updatedAt") VALUES ($1,$2,$3)', ['missing-user', '跨账号', now], '23503');
       await rejectSql('UPDATE miniapp_profile SET "avatarAssetId"=$1 WHERE "userId"=$2', ['missing-asset', 'migration-check'], '23503');
@@ -104,5 +109,5 @@ export async function verifyLocalMigrations({ repo, runDirectory, fresh, upgrade
   // Pin a hash of the actual migration file in the receipt without copying SQL into docs.
   const { createHash } = await import('node:crypto');
   const migrationSha256 = createHash('sha256').update(await readFile(path.join(source, 'migrations', latestMigration, 'migration.sql'))).digest('hex');
-  return { migrations: migrations.length, checkedTables: tables.length + 1, foreignKeys: 17, statusChecks: 4, sqlRejections: 13, repeatedDeploy: 'unchanged', oldDataUpgrade: 'preserved', migrationSha256 };
+  return { migrations: migrations.length, checkedTables: tables.length + 1, foreignKeys: 19, statusChecks: 4, sqlRejections: 16, repeatedDeploy: 'unchanged', oldDataUpgrade: 'preserved', migrationSha256 };
 }

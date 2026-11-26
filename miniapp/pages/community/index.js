@@ -4,6 +4,7 @@ const { syncTabBar } = require('../../utils/navigation');
 const { POST_TOPICS, topicLabel } = require('../../utils/community-topics');
 const { readBookmarks, toggleBookmark } = require('../../utils/official-bookmarks');
 const { formatDateTime } = require('../../utils/format');
+const { communityPhotoUrl } = require('../../utils/community-photos');
 
 const SECTIONS = [{ id: 'community', label: '社区动态' }, { id: 'official', label: '官方帖' }, { id: 'saved', label: '已收藏' }, { id: 'mine', label: '我的投稿' }];
 const CATEGORIES = ['全部', '花枝鼠', '守宫', '蛇类', '鹦鹉', '蜘蛛', '其他异宠', '空间设计'];
@@ -45,10 +46,15 @@ Page({
 
   onShow() {
     syncTabBar(this);
+    this.openingComposer = false;
     const app = getApp();
     if (app.officialPostsEntry) {
       delete app.officialPostsEntry;
       this.setData({ section: 'official', category: '全部' });
+    }
+    if (app.communitySubmissionsEntry) {
+      delete app.communitySubmissionsEntry;
+      this.setData({ section: 'mine' });
     }
     return this.loadSection();
   },
@@ -163,7 +169,8 @@ Page({
     try {
       const result = await listCommunityPosts(this.data.active === '全部' ? {} : { topic: this.data.active });
       if (sequence !== this.sequence) return;
-      this.setData({ posts: (result.posts || []).map((item) => ({ ...item, tag: item.topic, topicLabel: topicLabel(item.topic), author: item.authorName || 'PETSCAPE 用户', likes: item.likeCount || 0, comments: item.commentCount || 0, time: '最近' })), loading: false });
+      this.setData({ posts: (result.posts || []).map((item) => ({ ...item, tag: item.topic, topicLabel: topicLabel(item.topic), author: item.authorName || 'PETSCAPE 用户', likes: item.likeCount || 0, comments: item.commentCount || 0, time: '最近',
+        coverUrl: item.coverAssetId ? communityPhotoUrl(item.id, item.coverAssetId) : '' })), loading: false });
     } catch (error) {
       if (sequence === this.sequence) this.setData({ loading: false, error: '社区读取失败，请重试' });
     }
@@ -176,8 +183,20 @@ Page({
   },
 
   createPost() {
-    wx.navigateTo({ url: '/pages/community-edit/index', events: {
+    if (this.openingComposer) return;
+    this.openingComposer = true;
+    wx.showActionSheet({ itemList: ['先选照片', '直接编辑／继续草稿'],
+      success: ({ tapIndex }) => this.openComposer(tapIndex === 0),
+      fail: () => { this.openingComposer = false; },
+    });
+  },
+
+  openComposer(pickFirst) {
+    wx.navigateTo({ url: '/pages/community-edit/index' + (pickFirst ? '?entry=photo' : ''), events: {
       communityPostSubmitted: () => this.setData({ section: 'mine' }),
+    }, fail: () => {
+      this.openingComposer = false;
+      wx.showToast({ title: '发帖页未打开，请重试', icon: 'none' });
     } });
   },
 

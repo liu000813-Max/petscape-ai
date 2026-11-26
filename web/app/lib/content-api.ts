@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { NotFoundError, AdminRequiredError } from '@petscape/server/application';
+import { NotFoundError, AdminRequiredError, CommunitySubmissionConflictError } from '@petscape/server/application';
 import { ContentValidationError } from '@petscape/server/contracts/community-content';
 import { logError } from '@petscape/server/infra/logging';
 import { withApiLogging, type ApiRequestContext } from './server-context';
@@ -13,6 +13,7 @@ export function withContentApi(req: Request, handler: (context: ApiRequestContex
       if (error instanceof SyntaxError) return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
       if (error instanceof NotFoundError) return NextResponse.json({ error: 'not_found' }, { status: 404 });
       if (error instanceof AdminRequiredError) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      if (error instanceof CommunitySubmissionConflictError) return NextResponse.json({ error: 'conflict' }, { status: 409 });
       if (typeof error === 'object' && error && 'code' in error && error.code === 'P2002') return NextResponse.json({ error: 'conflict' }, { status: 409 });
       logError('content.api.error', { requestId: context.requestId, err: error });
       return NextResponse.json({ error: 'internal_error', requestId: context.requestId }, { status: 500 });

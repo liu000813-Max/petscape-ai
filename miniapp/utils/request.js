@@ -3,6 +3,7 @@ const { normalizeError, safeRequestId } = require('./errors');
 
 const SESSION_STORAGE_KEY = 'petscape_session_token';
 const mockMyPosts = [];
+let mockCommunityPhotoCounter = 0;
 let loginPromise = null;
 let mockOwnerProfile = { nickname: '', avatarAssetId: null, avatarUrl: null };
 
@@ -173,15 +174,20 @@ function mockRequest(path, options) {
     return Promise.resolve({ posts: topic ? mockPosts.filter((item) => item.topic === topic) : mockPosts });
   }
   if (path === '/api/v1/community/posts' && options.method === 'POST') {
+    const existing = options.data.submissionKey && mockMyPosts.find(post => post.submissionKey === options.data.submissionKey);
+    if (existing) return Promise.resolve({ id: existing.id, status: 'pending', createdAt: existing.createdAt });
     const createdAt = new Date().toISOString();
     const submission = { id: `mock-submission-${mockMyPosts.length + 1}`, status: 'pending', createdAt };
-    mockMyPosts.unshift({ ...options.data, ...submission, updatedAt: createdAt });
+    mockMyPosts.unshift({ ...options.data, ...submission, updatedAt: createdAt, photoCount: options.data.photoAssetIds?.length });
     return Promise.resolve(submission);
+  }
+  if (path === '/api/v1/community/posts/photos' && options.method === 'POST') {
+    return Promise.resolve({ assetId: 'mock-photo-' + (++mockCommunityPhotoCounter) });
   }
   if (path === '/api/v1/community/posts/mine') {
     const { offset = 0, limit = 20 } = options.data || {};
     const end = offset + limit;
-    return Promise.resolve({ posts: mockMyPosts.slice(offset, end), nextOffset: end < mockMyPosts.length ? end : null });
+    return Promise.resolve({ posts: mockMyPosts.slice(offset, end), nextOffset: end < mockMyPosts.length ? end : null, draftScope: 'demo' });
   }
   const postDetailMatch = /^\/api\/v1\/community\/posts\/([^/]+)$/.exec(path);
   if (postDetailMatch) {
@@ -302,6 +308,10 @@ function deletePetGrowthEntry(petId, entryId) {
   return request(`${growthEntriesPath(petId)}/${encodeURIComponent(entryId)}`, { method: 'DELETE' });
 }
 
+function getPetGrowthEntry(petId, entryId) {
+  return request(`${growthEntriesPath(petId)}/${encodeURIComponent(entryId)}`);
+}
+
 function uploadPetGrowthPhoto(petId, photo) {
   return request(`${growthEntriesPath(petId)}/photos`, {
     method: 'POST', data: photo.bytes, header: { 'content-type': photo.mime }, timeout: 60000,
@@ -324,6 +334,9 @@ function listArticles(query = {}) { return request('/api/v1/content/articles', {
 function listCommunityPosts(query = {}) { return request('/api/v1/community/posts', { data: query, auth: false }); }
 function listMyCommunityPosts(query = {}) { return request('/api/v1/community/posts/mine', { data: query }); }
 function createCommunityPost(data) { return request('/api/v1/community/posts', { method: 'POST', data }); }
+function uploadCommunityPhoto(photo) {
+  return request('/api/v1/community/posts/photos', { method: 'POST', data: photo.bytes, header: { 'content-type': photo.mime }, timeout: 60000 });
+}
 function listCommunityComments(id) { return request(`/api/v1/community/posts/${id}/comments`, { auth: false }); }
 function createCommunityComment(id, data) { return request(`/api/v1/community/posts/${id}/comments`, { method: 'POST', data }); }
 function toggleCommunityPostLike(id, liked) { return request(`/api/v1/community/posts/${id}/like`, { method: 'POST', data: { liked } }); }
@@ -354,6 +367,7 @@ module.exports = {
   uploadPetPhoto,
   listPetGrowthEntries,
   createPetGrowthEntry,
+  getPetGrowthEntry,
   updatePetGrowthEntry,
   deletePetGrowthEntry,
   uploadPetGrowthPhoto,
@@ -364,6 +378,7 @@ module.exports = {
   listCommunityPosts,
   listMyCommunityPosts,
   createCommunityPost,
+  uploadCommunityPhoto,
   listCommunityComments,
   createCommunityComment,
   toggleCommunityPostLike,

@@ -71,6 +71,8 @@
 .growth-entry { position: relative; margin: 18rpx 0 0 16rpx; padding: 22rpx 24rpx; border-left: 3rpx solid #e6b7c9; border-radius: 0 16rpx 16rpx 0; background: #f8f5f6; }
 .growth-entry-latest { margin: 14rpx 0 0; padding: 14rpx 0 0; border: 0; border-radius: 0; background: #fff; }
 .growth-date { display: block; color: #171619; font-size: 24rpx; font-weight: 700; font-variant-numeric: tabular-nums; }
+.growth-date-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8rpx; }
+.detail-page .growth-share { width: auto; min-height: 66rpx; margin: 0; padding: 0 8rpx; background: transparent; color: #71354a; font-size: 24rpx; line-height: 66rpx; }
 .growth-note { display: block; margin-top: 12rpx; color: #514a4e; font-size: 27rpx; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .growth-photos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; margin-top: 18rpx; }
 .detail-page .growth-photo-tile { position: relative; display: block; width: 100%; height: 154rpx; margin: 0; padding: 0; overflow: hidden; border-radius: 12rpx; background: #fff; }

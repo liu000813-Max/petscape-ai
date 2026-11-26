@@ -303,6 +303,7 @@ model Asset {
   petsWithCover Pet[] @relation("PetCoverAsset")
   miniappProfiles MiniappProfile[] @relation("MiniappProfileAvatar")
   growthPhotos PetGrowthEntryPhoto[]
+  communityPhotos CommunityPostPhoto[]
 
   @@index([ownerUserId])
   @@index([projectId])
@@ -878,10 +879,24 @@ model CommunityPost {
 
   comments CommunityComment[]
   likes    CommunityPostLike[]
+  photos   CommunityPostPhoto[]
 
   @@index([status, createdAt])
   @@index([topic, speciesCode])
   @@map("community_post")
+}
+
+model CommunityPostPhoto {
+  postId   String
+  assetId  String
+  position Int
+  post     CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  asset    Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([postId, assetId])
+  @@unique([postId, position])
+  @@index([assetId])
+  @@map("community_post_photo")
 }
 
 model CommunityComment {

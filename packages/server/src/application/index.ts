@@ -178,7 +178,8 @@ export {
 
 // P1/P2：内容、社区、养护记录、服务商和埋点 MVP。
 export { getMiniappProfile, updateMiniappProfile, uploadProfileAvatar, InvalidProfileAvatarError } from './miniapp-profile.ts';
-export { createPetGrowthEntry, deletePetGrowthEntry, listPetGrowthEntries, updatePetGrowthEntry, InvalidPetGrowthEntryError, GrowthEntrySaveConflictError } from './pet-growth.ts';
+export { createPetGrowthEntry, deletePetGrowthEntry, getPetGrowthEntry, listPetGrowthEntries, updatePetGrowthEntry, InvalidPetGrowthEntryError, GrowthEntrySaveConflictError } from './pet-growth.ts';
+export { isCommunityImage, readCommunityPhoto, uploadCommunityPhoto } from './community-photos.ts';
 export { uploadPetGrowthPhoto } from './pet-growth-assets.ts';
 export {
   listContentArticles,
@@ -187,6 +188,7 @@ export {
   listCommunityPosts,
   listMyCommunityPosts,
   createCommunityPost,
+  CommunitySubmissionConflictError,
   listCommunityComments,
   createCommunityComment,
   toggleCommunityPostLike,

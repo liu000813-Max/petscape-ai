@@ -18,6 +18,7 @@ let navigation;
 function resetWx() {
   app.globalData.mockMode = true; storage.clear(); notices.length = 0;
   delete app.officialPostsEntry;
+  delete app.communitySubmissionsEntry;
   globalThis.getApp = () => app;
   globalThis.getCurrentPages = () => [{ route: 'pages/home/index' }];
   globalThis.wx = {
@@ -346,7 +347,10 @@ test('community displays the renamed topic while filters and publishing retain t
   const detail = page('community-detail', { getCommunityPost: async () => ({ id: 'post-a', topic: '晒栖境' }), listCommunityComments: async () => ({ comments: [] }) });
   await detail.onLoad({ id: 'post-a' });
   assert.equal(detail.data.post.topicLabel, '晒宠境');
-  const compose = page('community-edit', { createCommunityPost: async (data) => { submission = data; } });
+  const compose = page('community-edit', { createCommunityPost: async (data) => {
+    submission = data; return { id: 'post-a', status: 'pending' };
+  } });
+  await compose.onLoad();
   compose.setData({ topicIndex: 1, title: '分享', body: '我的宠境' });
   assert.equal(compose.data.topicLabels[1], '晒宠境');
   await compose.submit();
@@ -362,8 +366,11 @@ test('submitting a post returns to private submissions and allows navigation ret
   let returnAttempts = 0;
   const community = page('community');
   wx.navigateTo = options => { composerOptions = options; };
+  wx.showActionSheet = ({ success }) => success({ tapIndex: 0 });
   community.createPost();
+  assert.equal(composerOptions.url, '/pages/community-edit/index?entry=photo');
   const compose = page('community-edit', { createCommunityPost: () => { postsCreated++; return response.promise; } });
+  await compose.onLoad();
   const emitted = [];
   compose.getOpenerEventChannel = () => ({ emit(name) {
     emitted.push(name);
@@ -384,6 +391,60 @@ test('submitting a post returns to private submissions and allows navigation ret
   assert.equal(community.data.section, 'mine');
   assert.equal(postsCreated, 1);
   assert.equal(returnAttempts, 2);
+});
+
+test('growth photos reopen from an account-specific draft and submission reuses the same photo order on retry', async () => {
+  const sent = [];
+  const overrides = {
+    listMyCommunityPosts: async () => ({ draftScope: 'owner' }),
+    getPetGrowthEntry: async (petId, entryId) => {
+      assert.deepEqual([petId, entryId], ['pet-a', 'growth-a']);
+      return { photos: [{ assetId: 'from-growth', downloadUrl: 'https://example.invalid/fresh-preview' }] };
+    },
+    uploadCommunityPhoto: async () => ({ assetId: 'selected-from-album' }),
+    createCommunityPost: async payload => {
+      sent.push(structuredClone(payload));
+      if (sent.length === 1) throw { statusCode: 503 };
+      return { id: 'posted', status: 'pending' };
+    },
+  };
+  const detail = page('pet-detail');
+  detail.setData({ pet: { id: 'pet-a' }, growthEntries: [{ id: 'growth-a', photos: [
+    { assetId: 'from-growth', downloadUrl: 'https://example.invalid/private' },
+  ] }] });
+  detail.shareGrowthPhoto({ currentTarget: { dataset: { entryId: 'growth-a' } } });
+  assert.equal(navigation[1], '/pages/community-edit/index?source=growth&petId=pet-a&entryId=growth-a&assetId=from-growth');
+  const entry = { source: 'growth', petId: 'pet-a', entryId: 'growth-a', assetId: 'from-growth' };
+  const compose = page('community-edit', overrides);
+  await compose.onLoad(entry);
+  compose.onTitleInput({ detail: { value: '成长照片' } });
+  wx.env = { USER_DATA_PATH: 'local' };
+  wx.getFileSystemManager = () => ({
+    readFile: ({ success }) => success({ data: new Uint8Array([255, 216, 255]).buffer }),
+    copyFile: ({ success }) => success(), unlink() {},
+  });
+  wx.chooseMedia = ({ success }) => success({ tempFiles: [{ tempFilePath: '/temp/source.jpg', size: 3 }] });
+  await compose.choosePhotos();
+  const album = compose.data.photos[1];
+  compose.changeOrder({ currentTarget: { dataset: { key: album.key, action: 'cover' } } });
+  const draft = storage.get('petscape_community_draft:demo:owner');
+  assert.deepEqual(draft.photos.map(photo => photo.entryId), [undefined, 'growth-a']);
+  assert.equal(draft.photos[1].path, undefined);
+  const other = page('community-edit', { listMyCommunityPosts: async () => ({ draftScope: 'someone-else' }) });
+  await other.onLoad();
+  assert.equal(other.data.title, '');
+  assert.equal(other.data.photos.length, 0);
+  await compose.submit();
+  assert.equal(compose.data.uncertain, true);
+  assert.deepEqual(sent[0].photoAssetIds, ['selected-from-album', 'from-growth']);
+  const reopened = page('community-edit', overrides);
+  await reopened.onLoad(entry);
+  assert.equal(reopened.data.uncertain, true);
+  assert.equal(reopened.data.photos[1].path, 'https://example.invalid/fresh-preview');
+  await reopened.submit();
+  assert.deepEqual(sent[1], sent[0]);
+  assert.equal(storage.has('petscape_community_draft:demo:owner'), false);
+  assert.deepEqual(navigation, ['switchTab', '/pages/community/index']);
 });
 
 test('my submissions show review decisions, load more and discard a response after leaving', async () => {

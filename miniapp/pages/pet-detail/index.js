@@ -204,6 +204,33 @@ Page({
     });
   },
 
+  shareGrowthPhoto(event) {
+    const entry = this.data.growthEntries.find(item => item.id === event.currentTarget.dataset.entryId);
+    const petId = this.data.pet?.id;
+    const photos = entry?.photos.filter(photo => !photo.unavailable && photo.downloadUrl) || [];
+    if (!petId || this.openingCommunityEditor) return;
+    if (!photos.length) {
+      wx.showToast({ title: '请刷新照片后再分享', icon: 'none' });
+      return;
+    }
+    this.openingCommunityEditor = true;
+    const open = photo => wx.navigateTo({
+      url: '/pages/community-edit/index?source=growth&petId=' + encodeURIComponent(petId)
+        + '&entryId=' + encodeURIComponent(entry.id) + '&assetId=' + encodeURIComponent(photo.assetId),
+      complete: () => { this.openingCommunityEditor = false; },
+      fail: () => wx.showToast({ title: '发帖页未打开，请重试', icon: 'none' }),
+    });
+    if (photos.length === 1) open(photos[0]);
+    else wx.showActionSheet({
+      itemList: photos.map((_, index) => '分享第 ' + (index + 1) + ' 张照片'),
+      success: ({ tapIndex }) => {
+        if (photos[tapIndex]) open(photos[tapIndex]);
+        else this.openingCommunityEditor = false;
+      },
+      fail: () => { this.openingCommunityEditor = false; },
+    });
+  },
+
   onGrowthPhotoError(event) {
     const { entryId, assetId, url } = event.currentTarget.dataset;
     const entryIndex = this.data.growthEntries.findIndex(entry => entry.id === entryId);

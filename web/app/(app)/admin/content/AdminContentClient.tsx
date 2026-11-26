@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 
 type ContentType = 'article' | 'post' | 'comment' | 'provider';
-type Item = { id: string; title: string; body: string; status: string; updatedAt: string };
+type Item = { id: string; title: string; body: string; status: string; updatedAt: string; photoAssetIds?: string[] };
 type Summary = { events: { eventName: string; count: number }[]; recentErrors: { eventName: string; path: string | null; createdAt: string }[] };
 const labels: Record<ContentType, string> = { article: '知识文章', post: '社区帖子', comment: '社区评论', provider: '服务商' };
 
@@ -83,7 +83,19 @@ export function AdminContentClient() {
     <section className="ops-panel"><div className="ops-heading"><h2>审核队列</h2><button disabled={loading} onClick={() => void load()}>刷新</button></div>
       <div className="ops-filters"><label>内容类型<select disabled={busy || loading} value={contentType} onChange={(event) => { setLoading(true); setError(''); setContentType(event.target.value as ContentType); setStatus(''); }}>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>状态<select disabled={busy || loading} value={status} onChange={(event) => { setLoading(true); setError(''); setStatus(event.target.value); }}><option value="">全部</option>{(contentType === 'article' ? ['draft', 'published', 'archived'] : ['pending', 'published', 'rejected', 'archived']).map((value) => <option key={value} value={value}>{value}</option>)}</select></label></div>
-      {loading ? <p role="status">正在读取审核队列…</p> : !items.length ? <p>当前没有待处理内容。</p> : items.map((item) => <article className="ops-item" key={item.id}><div className="ops-heading"><h3>{item.title}</h3><span>{item.status}</span></div><p>{item.body}</p><small>{new Date(item.updatedAt).toLocaleString('zh-CN')}</small><div className="ops-actions"><button disabled={busy || item.status === 'published'} onClick={() => void moderate(item.id, 'published')}>通过并发布</button>{contentType !== 'article' && <button disabled={busy || item.status === 'rejected'} onClick={() => void moderate(item.id, 'rejected')}>拒绝</button>}<button disabled={busy || item.status === 'archived'} onClick={() => void moderate(item.id, 'archived')}>下架</button></div></article>)}
+      {loading ? <p role="status">正在读取审核队列…</p> : !items.length ? <p>当前没有待处理内容。</p> : items.map((item) => <article className="ops-item" key={item.id}>
+        <div className="ops-heading"><h3>{item.title}</h3><span>{item.status}</span></div>
+        <p>{item.body}</p>
+        {!!item.photoAssetIds?.length && <div className="ops-post-photos">{item.photoAssetIds.map((id, index) => {
+          const url = `/api/v1/community/posts/${encodeURIComponent(item.id)}/photos/${encodeURIComponent(id)}`;
+          return <a key={id} href={url} target="_blank" rel="noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt={`投稿图片 ${index + 1}`} loading="lazy" />
+          </a>;
+        })}</div>}
+        <small>{new Date(item.updatedAt).toLocaleString('zh-CN')}</small>
+        <div className="ops-actions"><button disabled={busy || item.status === 'published'} onClick={() => void moderate(item.id, 'published')}>通过并发布</button>{contentType !== 'article' && <button disabled={busy || item.status === 'rejected'} onClick={() => void moderate(item.id, 'rejected')}>拒绝</button>}<button disabled={busy || item.status === 'archived'} onClick={() => void moderate(item.id, 'archived')}>下架</button></div>
+      </article>)}
     </section>
     <section className="ops-panel"><h2>新增内容</h2><form onSubmit={(event) => void save(event)}>
       <label>类型<select value={draftType} onChange={(event) => setDraftType(event.target.value as 'article' | 'provider')}><option value="article">知识文章</option><option value="provider">服务商</option></select></label>
