@@ -56,6 +56,8 @@
 
 剩余缺项已限量复核：异宠医院 [Tree of Life 玉米蛇资料](https://treeoflifeexotics.vet/education-resource-center/for-clients/snakes/corn-snake-care)未给阶段年龄；[密歇根大学 ADW](https://animaldiversity.org/accounts/Pantherophis_guttatus/)的全长生长时间不能替代成体起点；[伊利诺伊大学兽医学院捕鸟蛛资料](https://vetmed.illinois.edu/pet-health-columns/caring-for-pet-tarantulas/)仅给性别相关寿命和蜕皮信息，没有具体物种阶段年月。玉米蛇与蜘蛛的四阶段、花枝鼠前三阶段继续待核实，不用喂食频率、体长、蜕皮次数或寿命反推年龄。
 
+2026-11-26 复核了[史密森尼国家动物园的东部玉米蛇资料](https://nationalzoo.si.edu/animals/eastern-corn-snake)，正文提供圈养寿命，但没有给出宠物档案所需的阶段区间。鲍灵格林州立大学玉米蛇资料 PDF 和皇家兽医学院大鼠养护 PDF 无法读取，标为待核实。本轮保留已有阶段数值。
+
 识别规则是界面参考索引，不是鉴定动物物种。没有出生日期、性别或经确认的物种档案时不自动推断阶段；阶段仍由主人手动选择。
 
 ## 实现与验收边界

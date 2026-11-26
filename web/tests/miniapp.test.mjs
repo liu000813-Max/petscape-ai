@@ -573,6 +573,17 @@ test('home modal hides custom navigation through onShow and cannot be closed dur
   }
 });
 
+test('the custom tab bar stays hidden while the home launch screen is visible', () => {
+  const home = { route: 'pages/home/index', data: { brandLaunching: true } };
+  globalThis.getCurrentPages = () => [home];
+  const bar = tabBar();
+  bar.sync();
+  assert.equal(bar.data.hidden, true);
+  home.data.brandLaunching = false;
+  bar.sync();
+  assert.equal(bar.data.hidden, false);
+});
+
 test('settings refresh preserves session and reports failed reads without a success notice', async () => {
   storage.set('petscape_session_token', 'keep-this');
   let finish; let reads = 0;

@@ -8,7 +8,7 @@ Component({
     sync() {
       const pages = getCurrentPages();
       const page = pages[pages.length - 1];
-      this.setData({ selected: currentTab(), hidden: Boolean(page && page.data && page.data.activeModal) });
+      this.setData({ selected: currentTab(), hidden: Boolean(page?.data?.activeModal || page?.data?.brandLaunching) });
     },
     switchTab(event) {
       const path = event.currentTarget.dataset.path;
