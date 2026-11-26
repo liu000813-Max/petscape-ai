@@ -4,7 +4,7 @@ const { lifeStageLabel } = require('../../utils/life-stages');
 const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
 const { routePetId } = require('../../utils/pet-route');
-const { recentWeights, weightChange, weightLabel, careAmountLabel } = require('../../utils/weight-records');
+const { recentWeights, weightChange, weightLabel, careAmountLabel, timePositions, chartDates } = require('../../utils/weight-records');
 const { chooseImageFiles } = require('../../utils/pet-photo');
 
 const PLOT_WIDTH = 270;
@@ -22,31 +22,21 @@ function plotFor(records, barMode) {
   const lower = barMode ? 0 : Math.max(0, (Math.floor(min / step) - 1) * step);
   const upper = Math.max(lower + 2 * step, Math.ceil(max / step) * step);
   const ticks = [upper, (upper + lower) / 2, lower].map(weightLabel);
+  const positions = !barMode ? timePositions(records, 14, PLOT_WIDTH - 14) : [];
   const points = records.map((record, index) => ({
     id: record.id,
-    x: records.length === 1 ? PLOT_WIDTH / 2 : 14 + index * (PLOT_WIDTH - 28) / (records.length - 1),
+    x: barMode ? (records.length === 1 ? PLOT_WIDTH / 2 : 14 + index * (PLOT_WIDTH - 28) / (records.length - 1)) : positions[index],
     y: PLOT_HEIGHT * (1 - (record.grams - lower) / (upper - lower)),
     barHeight: PLOT_HEIGHT * record.grams / upper,
     latest: index === records.length - 1,
   }));
-  const segments = points.slice(1).map((point, index) => {
+  const segments = barMode ? [] : points.slice(1).flatMap((point, index) => {
     const start = points[index];
     const dx = point.x - start.x;
     const dy = point.y - start.y;
-    return { id: point.id, x: start.x, y: start.y, length: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI };
+    return dx > 0 ? [{ id: point.id, x: start.x, y: start.y, length: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI }] : [];
   });
   return { ticks, points, segments };
-}
-
-function datesFor(records) {
-  if (!records.length) return { first: '', middle: '', last: '' };
-  const first = records[0].date;
-  const last = records[records.length - 1].date;
-  if (records.length === 1 || records.every(record => record.time.slice(0, 10) === records[0].time.slice(0, 10))) {
-    return { first: '', middle: last, last: '' };
-  }
-  const middle = records.length > 2 && records.length % 2 ? records[Math.floor(records.length / 2)].date : '';
-  return { first, middle: middle === first || middle === last ? '' : middle, last };
 }
 
 function errorView(error) {
@@ -123,7 +113,7 @@ Page({
           time: formatDateTime(log.recordedAt).slice(5),
         }));
       this.setData({ recordsLoading: false, weights, latestWeight: weights[weights.length - 1] || null,
-        weightDelta: weightChange(weights), plot: plotFor(weights, this.data.chartMode === 'bar'), dates: datesFor(weights),
+        weightDelta: weightChange(weights), plot: plotFor(weights, this.data.chartMode === 'bar'), dates: chartDates(weights),
         recentCare, hasRecentCare: recentCare.length > 0 });
     } catch (error) {
       if (sequence !== this.loadSequence) return;

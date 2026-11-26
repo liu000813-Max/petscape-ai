@@ -4,7 +4,7 @@ const { track } = require('../../utils/analytics');
 const { describeError } = require('../../utils/errors');
 const { formatDateTime } = require('../../utils/format');
 const { syncTabBar, openOfficialPosts } = require('../../utils/navigation');
-const { recentWeights, weightChange, careAmountLabel } = require('../../utils/weight-records');
+const { recentWeights, weightChange, careAmountLabel, timePositions, chartDates } = require('../../utils/weight-records');
 const { ranges, quantityIndexes, wheelQuantity, convertQuantity, quantityInGrams } = require('../../utils/quantity-picker');
 const { careFields } = require('../../utils/care-records');
 const { slideDistance, animatePetTrack } = require('../../utils/pet-slide');
@@ -12,13 +12,14 @@ const { slideDistance, animatePetTrack } = require('../../utils/pet-slide');
 function chartSummary(records) {
   const latest = records[records.length - 1] || null;
   const max = records.length ? Math.max(...records.map((record) => record.grams)) : 1;
+  const positions = timePositions(records, 10, 234);
   const points = records.map((record, index) => ({ id: record.id, grams: record.grams,
-    x: records.length === 1 ? 122 : 10 + index * 224 / (records.length - 1), y: 110 - record.grams / max * 100 }));
-  const segments = points.slice(1).map((point, index) => {
+    x: positions[index], y: 110 - record.grams / max * 100 }));
+  const segments = points.slice(1).flatMap((point, index) => {
     const previous = points[index]; const dx = point.x - previous.x; const dy = point.y - previous.y;
-    return { id: point.id, x: previous.x, y: previous.y, length: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI };
+    return dx > 0 ? [{ id: point.id, x: previous.x, y: previous.y, length: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI }] : [];
   });
-  return { latest, change: weightChange(records), count: records.length, firstDate: records[0]?.date || '', points, segments,
+  return { latest, change: weightChange(records), count: records.length, dates: chartDates(records), points, segments,
     history: records.map((record) => ({ ...record, height: record.grams / max * 100, isLatest: record === latest })) };
 }
 

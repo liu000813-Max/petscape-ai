@@ -42,7 +42,7 @@ async function http(path, { method = 'GET', data, headers = {}, raw } = {}, expe
   return body;
 }
 
-async function nativeClient(role, { restoreAs, loseGrowthSaveResponse = false } = {}) {
+async function nativeClient(role, { restoreAs, loseGrowthSaveResponse = false, confirmModal } = {}) {
   const storage = new Map([['petscape_session_token', tokens[role]]]);
   const pending = new Set();
   const nativeModule = { exports: {} };
@@ -53,6 +53,7 @@ async function nativeClient(role, { restoreAs, loseGrowthSaveResponse = false } 
     getApp: () => ({ globalData: { mockMode: false, apiBaseUrl: base.origin } }),
     wx: {
       showToast() {}, setNavigationBarTitle() {}, navigateBack() {},
+      showModal: confirmModal,
       getStorageSync: (key) => storage.get(key),
       setStorageSync: (key, value) => storage.set(key, value),
       removeStorageSync: (key) => storage.delete(key),
@@ -405,7 +406,8 @@ test('care ownership, concurrent completion and pet soft deletion survive actual
 });
 
 test('native care history backdates and corrects a measurement for the selected pet', async () => {
-  const client = await nativeClient('owner');
+  let confirm;
+  const client = await nativeClient('owner', { confirmModal: ({ success }) => { confirm = success; } });
   try {
     const pet = await client.api.createPet({ name: run + '-care-editor' });
     const care = await client.loadPage('care-log');
@@ -433,9 +435,16 @@ test('native care history backdates and corrects a measurement for the selected 
     await home.loadSummary();
     await home.selectPet({ currentTarget: { dataset: { id: pet.id } } });
     assert.equal(home.data.weightChart.latest.grams, 5.5);
-    await client.api.deleteCareLog(saved.id);
-    await home.loadWeights();
+    assert.equal(home.data.weightChart.segments.length, 0);
+    care.deleteRecord({ currentTarget: { dataset: { id: saved.id } } });
+    await confirm({ confirm: false });
+    assert.equal(care.data.logs.length, 1);
+    care.deleteRecord({ currentTarget: { dataset: { id: saved.id } } });
+    await confirm({ confirm: true });
+    assert.equal(care.data.logs.length, 0);
+    await home.loadSummary();
     assert.equal(home.data.weightChart.latest, null);
+    assert.equal(home.data.selectedPetId, pet.id);
     await http('/api/v1/pets/' + pet.id, { method: 'DELETE', headers: nativeHeaders('owner') });
   } finally { await client.drain(); }
 });

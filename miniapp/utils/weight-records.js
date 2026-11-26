@@ -41,4 +41,24 @@ function weightChange(records) {
   return (rounded ? (change > 0 ? '+' : '−') : '') + rounded + ' g';
 }
 
-module.exports = { weightInGrams, recordedGrams, recentWeights, weightChange, weightLabel, careAmountLabel };
+function timePositions(records, left, right) {
+  if (!records.length) return [];
+  const start = Date.parse(records[0].recordedAt);
+  const span = Date.parse(records[records.length - 1].recordedAt) - start;
+  return records.map(record => span > 0
+    ? left + (right - left) * ((Date.parse(record.recordedAt) - start) / span)
+    : (left + right) / 2);
+}
+
+function chartDates(records) {
+  if (!records.length) return { first: '', middle: '', last: '' };
+  const first = records[0];
+  const last = records[records.length - 1];
+  const firstDay = first.time.slice(0, 10);
+  const lastDay = last.time.slice(0, 10);
+  if (firstDay === lastDay) return { first: '', middle: last.date, last: '' };
+  const spansYears = firstDay.slice(0, 4) !== lastDay.slice(0, 4);
+  return { first: spansYears ? firstDay : first.date, middle: '', last: spansYears ? lastDay : last.date };
+}
+
+module.exports = { weightInGrams, recordedGrams, recentWeights, weightChange, weightLabel, careAmountLabel, timePositions, chartDates };

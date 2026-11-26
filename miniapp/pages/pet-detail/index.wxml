@@ -61,7 +61,10 @@
               </block>
             </view>
           </view>
-          <view class="chart-dates"><text>{{dates.first}}</text><text>{{dates.middle}}</text><text>{{dates.last}}</text></view>
+          <view class="chart-dates {{dates.middle ? 'single' : ''}}">
+            <text wx:if="{{dates.middle}}">{{dates.middle}}</text>
+            <block wx:else><text>{{dates.first}}</text><text>{{dates.last}}</text></block>
+          </view>
         </block>
         <view wx:else class="records-status">近期暂无可显示的体重</view>
       </view>

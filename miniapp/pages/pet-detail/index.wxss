@@ -43,8 +43,8 @@
 .trend-point.latest { width: 13rpx; height: 13rpx; }
 .trend-bar { position: absolute; bottom: 0; width: 23rpx; transform: translateX(-50%); border-radius: 5rpx 5rpx 0 0; background: #9d7e8b; }
 .trend-bar.latest { background: #f4c1d3; }
-.chart-dates { display: grid; grid-template-columns: 1fr 1fr 1fr; align-self: flex-end; width: 270rpx; margin: 12rpx 0 0; }
-.chart-dates text:nth-child(2) { text-align: center; }.chart-dates text:last-child { text-align: right; }
+.chart-dates { display: flex; justify-content: space-between; gap: 8rpx; align-self: flex-end; width: 270rpx; margin: 12rpx 0 0; }
+.chart-dates.single { justify-content: center; }
 .detail-page .care-link { align-self: flex-start; width: auto; min-height: 60rpx; margin: 4rpx 0 -8rpx; padding: 0; background: transparent; color: #71354a; font-size: 23rpx; line-height: 60rpx; white-space: nowrap; }
 .care-entry { padding: 9rpx 0; border-bottom: 1rpx solid #ebe1e5; line-height: 1.4; }
 .care-entry-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2rpx 6rpx; }

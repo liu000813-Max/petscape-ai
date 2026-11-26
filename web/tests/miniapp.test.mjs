@@ -1612,6 +1612,37 @@ test('home line and bar views use the same valid weights and single measurements
   assert.deepEqual(home.data.weightChart.history, history);
 });
 
+test('home and detail line charts preserve elapsed time and handle coincident measurements', async () => {
+  const recordedAt = ['2025-12-31T12:00:00Z', '2026-01-01T12:00:00Z', '2026-01-10T12:00:00Z'];
+  const series = (kind) => recordedAt.map((time, index) => ({
+    id: kind + index, petId: 'pet-a', kind, value: (index + 30) + 'g', recordedAt: time,
+  }));
+  let logs = [...series('体重'), ...series('喂食')];
+  const listCareLogs = async () => ({ logs });
+  const home = page('home', { ...careApi, listCareLogs });
+  const detail = page('pet-detail', {
+    getPet: async () => carePets[0], listCareLogs,
+    listPetGrowthEntries: async () => ({ entries: [], hasMore: false }),
+  });
+  detail.onLoad({ id: 'pet-a' });
+  await Promise.all([home.loadSummary(), detail.onShow()]);
+  for (const chart of [home.data.weightChart, home.data.feedingChart, detail.data.plot]) {
+    const [first, second, last] = chart.points;
+    assert.ok(Math.abs((second.x - first.x) / (last.x - first.x) - 0.1) < 0.0001);
+  }
+  assert.deepEqual(home.data.feedingChart.dates, { first: '2025-12-31', middle: '', last: '2026-01-10' });
+  assert.deepEqual(detail.data.dates, home.data.feedingChart.dates);
+  detail.setChartMode({ currentTarget: { dataset: { mode: 'bar' } } });
+  const [firstBar, secondBar, lastBar] = detail.data.plot.points;
+  assert.equal(secondBar.x - firstBar.x, lastBar.x - secondBar.x);
+
+  logs = logs.map(record => ({ ...record, recordedAt: recordedAt[1] }));
+  await home.loadWeights();
+  assert.equal(home.data.feedingChart.segments.length, 0);
+  assert.ok(home.data.feedingChart.points.every(point => point.x === 122));
+  assert.deepEqual(home.data.feedingChart.dates, { first: '', middle: '01-01', last: '' });
+});
+
 test('home feeding card reads only the selected pets latest feeding without inventing quantities', async () => {
   const home = page('home', { ...careApi, listCareLogs: async () => ({ logs: [
     { id: 'old', petId: 'pet-a', kind: '喂食', value: '2只蟋蟀', recordedAt: '2026-11-14T00:00:00Z' },

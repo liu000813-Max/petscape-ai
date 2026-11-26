@@ -14,10 +14,11 @@
     <view wx:for="{{chart.segments}}" wx:key="id" class="chart-line-segment" style="left:{{item.x}}rpx;top:{{item.y}}rpx;width:{{item.length}}rpx;transform:rotate({{item.angle}}deg);"></view>
     <view wx:for="{{chart.points}}" wx:key="id" class="chart-line-point" style="left:{{item.x}}rpx;top:{{item.y}}rpx;"></view>
   </view>
-  <view class="compact-chart-dates {{chart.count === 1 ? 'single' : ''}}">
-    <text wx:if="{{chart.count > 1}}">{{chart.firstDate}}</text><text>{{chart.latest.date}}</text>
+  <view class="compact-chart-dates {{chart.dates.middle ? 'single' : ''}}">
+    <text wx:if="{{chart.dates.middle}}">{{chart.dates.middle}}</text>
+    <block wx:else><text>{{chart.dates.first}}</text><text>{{chart.dates.last}}</text></block>
   </view>
-  <text class="daily-time">{{chart.latest.time}}</text>
+  <text class="daily-time">{{kind === '喂食' ? '有克数 · ' : ''}}{{chart.latest.time}}</text>
 </template>
 <view wx:if="{{brandLaunching}}" class="brand-launch" role="status" aria-label="正在打开 PETSCAPE 宠境">
   <image class="brand-launch-logo" src="/assets/petscape-logo.png" mode="widthFix" />
