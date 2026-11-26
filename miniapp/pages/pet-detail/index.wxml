@@ -8,28 +8,49 @@
   </view>
 
   <block wx:elif="{{pet}}">
-    <view class="detail-toolbar">
-      <text class="detail-kicker">我的宠物</text>
-      <button class="detail-button edit-link" bindtap="openEdit">编辑档案</button>
-    </view>
     <view class="pet-identity">
-      <view class="detail-avatar">
-        <image wx:if="{{pet.avatar}}" src="{{pet.avatar}}" data-src="{{pet.avatar}}" mode="aspectFill" binderror="onAvatarError" />
-        <image wx:else class="avatar-paw" src="/assets/nav-paw-black.png" mode="aspectFit" />
+      <view class="pet-portrait-row">
+        <view class="portrait-weight">
+          <text class="portrait-weight-label">最近体重</text>
+          <view wx:if="{{latestWeight}}" class="portrait-weight-amount"><text>{{latestWeight.displayValue}}</text><text class="portrait-weight-unit">g</text></view>
+          <text wx:else class="portrait-weight-placeholder">{{recordsLoading ? '读取中' : recordsError ? '读取失败' : '暂无记录'}}</text>
+          <text wx:if="{{latestWeight}}" class="portrait-weight-date">{{latestWeight.date}}</text>
+        </view>
+        <view class="detail-avatar">
+          <image wx:if="{{pet.avatar}}" src="{{pet.avatar}}" data-src="{{pet.avatar}}" mode="aspectFill" binderror="onAvatarError" />
+          <image wx:else class="avatar-paw" src="/assets/nav-paw-black.png" mode="aspectFit" />
+        </view>
+        <button class="portrait-edit" bindtap="openEdit">编辑档案 <text aria-hidden="true">›</text></button>
       </view>
       <view class="pet-identity-copy">
         <text class="detail-name">{{pet.name}}</text>
         <text class="detail-meta">{{pet.speciesLabel}} · {{pet.stage}}</text>
       </view>
-      <view class="growth-shortcut">
-        <button class="detail-button growth-link" bindtap="openGrowthTimeline">成长照片 ↓</button>
-        <button class="growth-upload-tile" bindtap="openGrowthEditor" disabled="{{choosingGrowthPhotos}}" aria-label="添加成长照片">＋</button>
-      </view>
     </view>
 
     <view class="detail-dashboard">
+      <view class="detail-dashboard-side">
+        <view class="detail-care">
+          <text class="dashboard-title">最近养护</text>
+          <view wx:if="{{recordsLoading}}" class="records-status">正在读取</view>
+          <view wx:elif="{{recordsError}}" class="records-status">读取失败</view>
+          <view wx:elif="{{hasRecentCare}}" class="recent-care">
+            <view wx:for="{{recentCare}}" wx:key="id" class="care-entry">
+              <view class="care-entry-heading"><text class="care-kind">{{item.kind}}</text><text class="care-time">{{item.time}}</text></view>
+              <text wx:if="{{item.summary}}" class="care-summary">{{item.summary}}</text>
+            </view>
+          </view>
+          <view wx:else class="records-status">暂无记录</view>
+          <button class="care-link" bindtap="openCare">查看记录 <text aria-hidden="true">›</text></button>
+        </view>
+        <button class="detail-environment" bindtap="openDevice" aria-label="温湿度设备未连接，添加设备">
+          <text class="dashboard-title">温湿度</text>
+          <view class="device-status"><view class="device-dot"></view><text>未连接</text></view>
+          <text class="device-action">＋ 添加设备</text>
+        </button>
+      </view>
       <view class="detail-weight">
-        <text class="dashboard-title">体重趋势</text>
+        <view class="weight-heading"><text class="dashboard-title">体重趋势</text><text wx:if="{{latestWeight}}" class="weight-unit">g</text></view>
         <view wx:if="{{recordsLoading}}" class="records-status">正在读取养护记录</view>
         <view wx:elif="{{recordsError}}" class="detail-error">
           <text class="error-title">{{recordsError.title}}</text><text>{{recordsError.message}}</text>
@@ -37,16 +58,9 @@
           <button class="detail-button" bindtap="loadRecords">重试读取记录</button>
         </view>
         <block wx:elif="{{latestWeight}}">
-          <view class="weight-value">
-            <text class="weight-number">{{latestWeight.displayValue}}</text><text class="weight-unit">g</text>
-          </view>
           <view class="weight-context">
             <text>最近 {{weights.length}} 次</text>
             <text wx:if="{{weightDelta}}" class="weight-change" aria-label="较上次 {{weightDelta}}">{{weightDelta}}</text>
-          </view>
-          <view class="chart-modes" aria-label="体重图表显示方式">
-            <button class="mode-button {{chartMode === 'line' ? 'chosen' : ''}}" data-mode="line" bindtap="setChartMode" aria-pressed="{{chartMode === 'line'}}">折线</button>
-            <button class="mode-button {{chartMode === 'bar' ? 'chosen' : ''}}" data-mode="bar" bindtap="setChartMode" aria-pressed="{{chartMode === 'bar'}}">柱状</button>
           </view>
           <view class="chart" aria-label="最近 {{weights.length}} 次体重，单位克">
             <view class="chart-axis"><text wx:for="{{plot.ticks}}" wx:key="*this">{{item}}</text></view>
@@ -65,45 +79,28 @@
             <text wx:if="{{dates.middle}}">{{dates.middle}}</text>
             <block wx:else><text>{{dates.first}}</text><text>{{dates.last}}</text></block>
           </view>
+          <view class="chart-modes" aria-label="体重图表显示方式">
+            <button class="mode-button {{chartMode === 'line' ? 'chosen' : ''}}" data-mode="line" bindtap="setChartMode" aria-pressed="{{chartMode === 'line'}}">折线</button>
+            <button class="mode-button {{chartMode === 'bar' ? 'chosen' : ''}}" data-mode="bar" bindtap="setChartMode" aria-pressed="{{chartMode === 'bar'}}">柱状</button>
+          </view>
         </block>
         <view wx:else class="records-status">近期暂无可显示的体重</view>
       </view>
-
-      <view class="detail-dashboard-side">
-        <view class="detail-care">
-          <text class="dashboard-title">最近养护</text>
-          <view wx:if="{{recordsLoading}}" class="records-status">正在读取近期记录</view>
-          <view wx:elif="{{recordsError}}" class="records-status">养护记录暂未加载</view>
-          <view wx:elif="{{hasRecentCare}}" class="recent-care">
-            <view wx:for="{{recentCare}}" wx:key="id" class="care-entry">
-              <view class="care-entry-heading"><text class="care-kind">{{item.kind}}</text><text class="care-time">{{item.time}}</text></view>
-              <text wx:if="{{item.summary}}" class="care-summary">{{item.summary}}</text>
-            </view>
-          </view>
-          <view wx:else class="records-status">近期暂无养护记录</view>
-          <button class="care-link" bindtap="openCare">查看记录 ›</button>
-        </view>
-        <view class="detail-environment">
-          <text class="dashboard-title">宠境环境</text>
-          <view class="detail-note device-status"><view class="device-dot"></view><text>温湿度设备未连接</text></view>
-          <button class="care-link" bindtap="openDevice">＋ 添加设备</button>
-      </view>
-    </view>
     </view>
 
-    <view id="growth-timeline" class="detail-section growth-section">
+    <view class="detail-section growth-section">
       <view class="detail-heading">
         <text class="detail-title">成长照片</text>
         <button class="growth-upload-tile" bindtap="openGrowthEditor" disabled="{{choosingGrowthPhotos}}" aria-label="从相册添加成长照片">＋</button>
       </view>
-      <view wx:for="{{growthEntries}}" wx:key="id" wx:for-item="entry" class="growth-entry">
+      <view wx:for="{{growthEntries}}" wx:key="id" wx:for-item="entry" wx:for-index="entryIndex" class="growth-entry {{entryIndex === 0 ? 'growth-entry-latest' : ''}}">
         <text class="growth-date">{{entry.dateLabel}}</text>
         <text wx:if="{{entry.note}}" class="growth-note" user-select="{{true}}">{{entry.note}}</text>
         <view wx:if="{{entry.photos.length}}" class="growth-photos">
-          <block wx:for="{{entry.photos}}" wx:for-item="photo" wx:key="assetId">
-            <button wx:if="{{photo.unavailable}}" class="growth-photo-tile growth-photo-refresh" bindtap="refreshGrowthPhotos">刷新照片</button>
-            <button wx:else class="growth-photo-tile" data-entry-id="{{entry.id}}" data-asset-id="{{photo.assetId}}" bindtap="previewGrowthPhoto" aria-label="查看照片">
-              <image src="{{photo.downloadUrl}}" mode="aspectFill" lazy-load="{{true}}" data-entry-id="{{entry.id}}" data-asset-id="{{photo.assetId}}" data-url="{{photo.downloadUrl}}" binderror="onGrowthPhotoError" />
+          <block wx:for="{{entry.photos}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="assetId">
+            <button wx:if="{{photo.unavailable}}" class="growth-photo-tile growth-photo-refresh {{entryIndex === 0 && photoIndex === 0 ? 'growth-photo-feature' : ''}}" bindtap="refreshGrowthPhotos">刷新照片</button>
+            <button wx:else class="growth-photo-tile {{entryIndex === 0 && photoIndex === 0 ? 'growth-photo-feature' : ''}}" data-entry-id="{{entry.id}}" data-asset-id="{{photo.assetId}}" bindtap="previewGrowthPhoto" aria-label="查看照片">
+              <image src="{{photo.downloadUrl}}" mode="{{entryIndex === 0 && photoIndex === 0 ? 'aspectFit' : 'aspectFill'}}" lazy-load="{{true}}" data-entry-id="{{entry.id}}" data-asset-id="{{photo.assetId}}" data-url="{{photo.downloadUrl}}" binderror="onGrowthPhotoError" />
             </button>
           </block>
         </view>

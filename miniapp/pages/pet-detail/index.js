@@ -7,8 +7,8 @@ const { routePetId } = require('../../utils/pet-route');
 const { recentWeights, weightChange, weightLabel, careAmountLabel, timePositions, chartDates } = require('../../utils/weight-records');
 const { chooseImageFiles } = require('../../utils/pet-photo');
 
-const PLOT_WIDTH = 270;
-const PLOT_HEIGHT = 128;
+const PLOT_WIDTH = 302;
+const PLOT_HEIGHT = 152;
 const GROWTH_PAGE_SIZE = 12;
 
 function plotFor(records, barMode) {
@@ -167,10 +167,6 @@ Page({
 
   retryGrowth() { return this.loadGrowth(!this.data.growthEntries.length); },
   loadMoreGrowth() { if (this.data.growthHasMore) return this.loadGrowth(false); },
-
-  openGrowthTimeline() {
-    wx.pageScrollTo({ selector: '#growth-timeline', duration: 200 });
-  },
 
   async openGrowthEditor() {
     const petId = this.data.pet?.id;
